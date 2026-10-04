@@ -1,0 +1,29 @@
+{
+  // raised_example: mapkit_room with a "stairs" flight up to a "walkable" platform and Speed Cola on top.
+  // stairs: mins/maxs bound the whole flight, "up" = rising direction, maxs.z = top tread; the kit builds the
+  // step boxes (rise 12, here 4 treads 40 deep) and a node on every tread. walkable:1 puts a node grid on a box top.
+  "name": "raised_example",
+  "base": "zombie_pentagon",
+  "empty": true,
+  "edits": [
+    {
+      "kind": "room", "name": "room", "mins": [-1000, 2300, 16], "maxs": [-440, 2720, 160], "wall": 8, "nodeSpacing": 64,
+      "gaps": [ { "side": "-y", "along": [-770, -670], "z": [52, 120] } ],
+      "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/pent_art_wall_wood10",
+      "ceilingMaterial": "mc/mat_zombie_ceiling_tile01", "texScale": 128
+    },
+    { "kind": "spawn", "origin": [-900, 2510, 16], "yaw": 0, "zone": "room_zone" },
+    { "kind": "zone", "name": "room_zone", "mins": [-1000, 2300, 16], "maxs": [-440, 2720, 160] },
+    {
+      "kind": "room", "name": "yard", "mins": [-900, 2000, 16], "maxs": [-540, 2292, 160], "wall": 8, "open": ["+y"],
+      "nodeSpacing": 64, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/pent_art_wall_wood10",
+      "ceilingMaterial": "mc/mat_zombie_ceiling_tile01", "texScale": 128
+    },
+    { "kind": "window", "name": "win1", "room": "room", "origin": [-720, 2296, 16], "yaw": 90 },
+    { "kind": "spawner", "origin": [-720, 2080, 16], "yaw": 90, "zone": "room_zone" },
+    { "kind": "stairs", "name": "steps", "mins": [-700, 2560, 16], "maxs": [-540, 2712, 64], "up": "+x", "rise": 12, "material": "mc/pent_art_wall_wood10" },
+    { "kind": "box", "name": "platform", "mins": [-540, 2520, 16], "maxs": [-440, 2720, 64], "walkable": 1, "material": "mc/pent_art_wall_wood10" },
+    { "kind": "perk", "perk": "specialty_fastreload", "origin": [-476, 2680, 64], "yaw": 180 },
+    { "kind": "wallbuy", "origin": [-996, 2600, 64], "yaw": 0, "weapon": "m14_zm", "model": "t5_weapon_m14_world" }
+  ]
+}

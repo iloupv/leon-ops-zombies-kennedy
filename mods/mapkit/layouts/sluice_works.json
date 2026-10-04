@@ -1,0 +1,109 @@
+// Sluice Works - a flooded Soviet pumping station.
+// Four zones in a 2x2 loop: intake (spawn) -> pump hall (door) -> control room (door),
+// intake -> filter gallery (debris) -> control room (debris). Pump hall has a raised catwalk with stairs.
+// mapkit-fix-3: power switch (control room), Pack-a-Punch (filter gallery), mood lighting.
+{
+  "name": "sluice_works",
+  "base": "zombie_pentagon",
+  "empty": true,
+  "edits": [
+    {"kind": "room", "name": "intake", "mins": [-1000, 2300, 16], "maxs": [-600, 2720, 176], "wall": 8, "nodeSpacing": 64,
+     "gaps": [{"side": "+x", "along": [2420, 2690], "z": [16, 144]}, {"side": "+y", "along": [-900, -700], "z": [16, 144]},
+              {"side": "-y", "along": [-930, -830], "z": [52, 120]}, {"side": "-y", "along": [-730, -630], "z": [52, 120]}],
+     "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01", "texScale": 128},
+    {"kind": "room", "name": "pumphall", "mins": [-592, 2300, 16], "maxs": [-92, 2720, 176], "wall": 8, "nodeSpacing": 64, "open": ["-x"],
+     "gaps": [{"side": "-y", "along": [-470, -370], "z": [52, 120]}, {"side": "+y", "along": [-500, -300], "z": [16, 144]},
+              {"side": "+x", "along": [2600, 2700], "z": [52, 120]}],
+     "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/jun_art_metal_green01", "ceilingMaterial": "mc/mat_zombie_ceiling_tile02", "texScale": 128},
+    {"kind": "room", "name": "filters", "mins": [-1000, 2728, 16], "maxs": [-600, 3148, 176], "wall": 8, "nodeSpacing": 64, "open": ["-y"],
+     "gaps": [{"side": "-x", "along": [2890, 2990], "z": [52, 120]}, {"side": "+y", "along": [-850, -750], "z": [52, 120]},
+              {"side": "+x", "along": [2850, 3050], "z": [16, 144]}],
+     "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel03", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01", "texScale": 128},
+    {"kind": "room", "name": "control", "mins": [-592, 2728, 16], "maxs": [-92, 3148, 176], "wall": 8, "nodeSpacing": 64, "open": ["-x", "-y"],
+     "gaps": [{"side": "+y", "along": [-390, -290], "z": [52, 120]}, {"side": "+x", "along": [2890, 2990], "z": [52, 120]}],
+     "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/pent_art_wall_wood10", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01", "texScale": 128},
+
+    {"kind": "spawn", "origin": [-800, 2520, 16], "yaw": 0, "zone": "intake_zone"},
+    {"kind": "zone", "name": "intake_zone", "mins": [-1000, 2300, 16], "maxs": [-596, 2724, 176]},
+    {"kind": "zone", "name": "pump_zone", "mins": [-596, 2300, 16], "maxs": [-92, 2724, 176]},
+    {"kind": "zone", "name": "filter_zone", "mins": [-1000, 2724, 16], "maxs": [-596, 3148, 176]},
+    {"kind": "zone", "name": "control_zone", "mins": [-596, 2724, 16], "maxs": [-92, 3148, 176]},
+
+    // raised catwalk in the pump hall (top Z=64) with three 12-unit steps (40 deep) rising east
+    {"kind": "box", "name": "catwalk", "mins": [-220, 2300, 16], "maxs": [-92, 2560, 64], "material": "mc/rus_metal_panel03"},
+    {"kind": "box", "name": "step1", "mins": [-340, 2300, 16], "maxs": [-300, 2420, 28], "material": "mc/rus_metal_panel03"},
+    {"kind": "box", "name": "step2", "mins": [-300, 2300, 16], "maxs": [-260, 2420, 40], "material": "mc/rus_metal_panel03"},
+    {"kind": "box", "name": "step3", "mins": [-260, 2300, 16], "maxs": [-220, 2420, 52], "material": "mc/rus_metal_panel03"},
+    {"kind": "node", "origin": [-320, 2360, 28]},
+    {"kind": "node", "origin": [-280, 2360, 40]},
+    {"kind": "node", "origin": [-240, 2360, 52]},
+    {"kind": "node", "origin": [-190, 2360, 64]},
+    {"kind": "node", "origin": [-140, 2360, 64]},
+    {"kind": "node", "origin": [-190, 2450, 64]},
+    {"kind": "node", "origin": [-140, 2420, 64]}, // mapkit-fix-4b: was y 2450, 1.5 from the Speed Cola clip (bad node)
+    {"kind": "node", "origin": [-190, 2530, 64]},
+
+    // exterior ducts (outside every zone), one per window
+    {"kind": "room", "name": "duct_intake_w", "mins": [-978, 2040, 16], "maxs": [-786, 2292, 176], "wall": 8, "open": ["+y"], "nodeSpacing": 64, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01", "texScale": 128},
+    {"kind": "room", "name": "duct_intake_e", "mins": [-778, 2040, 16], "maxs": [-586, 2292, 176], "wall": 8, "open": ["+y"], "nodeSpacing": 64, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01", "texScale": 128},
+    {"kind": "room", "name": "duct_pump_s", "mins": [-516, 2040, 16], "maxs": [-324, 2292, 176], "wall": 8, "open": ["+y"], "nodeSpacing": 64, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01", "texScale": 128},
+    {"kind": "room", "name": "duct_filter_w", "mins": [-1260, 2844, 16], "maxs": [-1008, 3036, 176], "wall": 8, "open": ["+x"], "nodeSpacing": 64, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01", "texScale": 128},
+    {"kind": "room", "name": "duct_filter_n", "mins": [-896, 3156, 16], "maxs": [-704, 3408, 176], "wall": 8, "open": ["-y"], "nodeSpacing": 64, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01", "texScale": 128},
+    {"kind": "room", "name": "duct_control_n", "mins": [-436, 3156, 16], "maxs": [-244, 3408, 176], "wall": 8, "open": ["-y"], "nodeSpacing": 64, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01", "texScale": 128},
+    {"kind": "room", "name": "duct_control_e", "mins": [-84, 2844, 16], "maxs": [168, 3036, 176], "wall": 8, "open": ["-x"], "nodeSpacing": 64, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01", "texScale": 128},
+
+    {"kind": "room", "name": "duct_sluice_gate", "mins": [-84, 2554, 16], "maxs": [168, 2746, 176], "wall": 8, "open": ["-x"], "nodeSpacing": 64, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01", "texScale": 128},
+    {"kind": "window", "name": "intake_west", "room": "intake", "origin": [-880, 2296, 16], "yaw": 90},
+    {"kind": "window", "name": "intake_east", "room": "intake", "origin": [-680, 2296, 16], "yaw": 90},
+    {"kind": "window", "name": "pump_south", "room": "pumphall", "origin": [-420, 2296, 16], "yaw": 90},
+    {"kind": "window", "name": "filter_west", "room": "filters", "origin": [-1004, 2940, 16], "yaw": 0},
+    {"kind": "window", "name": "filter_north", "room": "filters", "origin": [-800, 3152, 16], "yaw": 270},
+    {"kind": "window", "name": "control_north", "room": "control", "origin": [-340, 3152, 16], "yaw": 270},
+    {"kind": "window", "name": "control_east", "room": "control", "origin": [-88, 2940, 16], "yaw": 180},
+    // mapkit-fix-4d: the sluice gate - the flood channel into the pump hall east wall is an open entrance (no boards, no
+    // rebuild); and the drained filter beds: zombies climb out of the filter gallery floor (retail riser)
+    {"kind": "window", "name": "sluice_gate", "room": "pumphall", "origin": [-88, 2650, 16], "yaw": 180, "open": true},
+    {"kind": "riser", "name": "filter_bed", "origin": [-680, 2860, 16], "yaw": 180, "zone": "filter_zone"},
+    {"kind": "spawner", "origin": [-880, 2100, 16], "yaw": 90, "zone": "intake_zone"},
+    {"kind": "spawner", "origin": [-680, 2100, 16], "yaw": 90, "zone": "intake_zone"},
+    {"kind": "spawner", "origin": [-420, 2100, 16], "yaw": 90, "zone": "pump_zone"},
+    {"kind": "spawner", "origin": [-1200, 2940, 16], "yaw": 0, "zone": "filter_zone"},
+    {"kind": "spawner", "origin": [-800, 3350, 16], "yaw": 270, "zone": "filter_zone"},
+    {"kind": "spawner", "origin": [-340, 3350, 16], "yaw": 270, "zone": "control_zone"},
+    {"kind": "spawner", "origin": [110, 2940, 16], "yaw": 180, "zone": "control_zone"},
+
+    {"kind": "spawner", "origin": [110, 2650, 16], "yaw": 180, "zone": "pump_zone"},
+    {"kind": "perk", "perk": "specialty_quickrevive", "origin": [-970, 2560, 16], "yaw": 0},
+    {"kind": "perk", "perk": "specialty_fastreload", "origin": [-130, 2480, 64], "yaw": 180},
+    {"kind": "perk", "perk": "specialty_rof", "origin": [-650, 3120, 16], "yaw": 270},
+    {"kind": "perk", "perk": "specialty_armorvest", "origin": [-150, 3120, 16], "yaw": 270},
+    {"kind": "wallbuy", "name": "intake_m14", "origin": [-640, 2716, 64], "yaw": 270, "weapon": "m14_zm", "model": "t5_weapon_m14_world"},
+    {"kind": "wallbuy", "name": "pump_mp5k", "origin": [-180, 2716, 64], "yaw": 270, "weapon": "mp5k_zm", "model": "t5_weapon_mp5_world"},
+    {"kind": "wallbuy", "name": "filter_stakeout", "origin": [-996, 2790, 64], "yaw": 0, "weapon": "ithaca_zm", "model": "t5_weapon_ithaca_world"},
+    {"kind": "wallbuy", "name": "control_ak74u", "origin": [-480, 3144, 64], "yaw": 270, "weapon": "ak74u_zm", "model": "t5_weapon_ak74u_world"},
+    {"kind": "mysterybox", "name": "control_box", "origin": [-200, 2770, 16], "yaw": 90},
+
+    // set dressing
+    {"kind": "box", "name": "filter_tank1", "mins": [-860, 3000, 16], "maxs": [-800, 3060, 136], "material": "mc/jun_art_metal_green01"},
+    {"kind": "box", "name": "filter_tank2", "mins": [-760, 3000, 16], "maxs": [-700, 3060, 136], "material": "mc/jun_art_metal_green01"},
+    {"kind": "box", "name": "control_desk", "mins": [-560, 3040, 16], "maxs": [-460, 3070, 56], "material": "mc/jun_art_metal_black"},
+    {"kind": "box", "name": "pump_pipe", "mins": [-560, 2640, 140], "maxs": [-240, 2656, 156], "contents": "none", "material": "mc/mtl_p_rus_pipes_modular_orange"},
+    {"kind": "box", "name": "intake_light", "mins": [-850, 2480, 170], "maxs": [-750, 2500, 174], "contents": "none", "material": "mc/global_light"},
+    {"kind": "box", "name": "pump_light", "mins": [-450, 2480, 170], "maxs": [-350, 2500, 174], "contents": "none", "material": "mc/global_light"},
+    {"kind": "box", "name": "filter_light", "mins": [-850, 2900, 170], "maxs": [-750, 2920, 174], "contents": "none", "material": "mc/global_light"},
+    {"kind": "box", "name": "control_light", "mins": [-400, 2900, 170], "maxs": [-300, 2920, 174], "contents": "none", "material": "mc/global_light"},
+
+    {"kind": "door", "name": "pump_door", "mins": [-600, 2420, 16], "maxs": [-592, 2690, 144], "yaw": 0, "from": "intake_zone", "to": "pump_zone", "cost": 750, "material": "mc/rus_metal_panel02"},
+    {"kind": "door", "name": "control_door", "mins": [-500, 2720, 16], "maxs": [-300, 2728, 144], "yaw": 90, "from": "pump_zone", "to": "control_zone", "cost": 1000, "material": "mc/rus_metal_panel02"},
+    {"kind": "debris", "name": "filter_debris", "mins": [-900, 2720, 16], "maxs": [-700, 2728, 144], "yaw": 90, "from": "intake_zone", "to": "filter_zone", "cost": 1000, "material": "mc/pent_art_wall_wood10"},
+    {"kind": "debris", "name": "sluice_debris", "mins": [-600, 2850, 16], "maxs": [-592, 3050, 144], "yaw": 0, "from": "filter_zone", "to": "control_zone", "cost": 1250, "material": "mc/pent_art_wall_wood10"},
+    // mapkit-fix-3: the station has to be powered up - the lever is on the control room east wall, Pack-a-Punch stands
+    // in the filter gallery's north-west corner; perks wait for power. Mood: the intake is a dim bunker, the filter
+    // gallery a cold lab, the control room a red alarm; the pump hall keeps the flat light.
+    {"kind": "powerswitch", "name": "sluice_power", "origin": [-96, 2860, 16], "yaw": 180, "snap": "wall"},
+    {"kind": "pap", "name": "filter_pap", "origin": [-940, 3116, 16], "yaw": 270, "snap": "wall"},
+    {"kind": "light", "name": "intake_mood", "room": "intake", "preset": "dim bunker"},
+    {"kind": "light", "name": "filter_mood", "room": "filters", "preset": "cold lab"},
+    {"kind": "light", "name": "control_mood", "room": "control", "preset": "red alarm"}
+  ]
+}

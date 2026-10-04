@@ -1,0 +1,155 @@
+{
+  // aldric_sanatorium: a derelict sanatorium. Ground floor: lobby (spawn) -> east ward corridor (long) and
+  // lobby -> chapel, both into the open-air courtyard (loop). Branches: corridor -> infirmary (power door), courtyard ->
+  // stairwell -> upper gallery -> records (Pack-a-Punch). Ground floor z 16, upper floor z 112.
+  "name": "aldric_sanatorium",
+  "base": "zombie_pentagon",
+  "empty": true,
+  "edits": [
+    // ---------- ground floor rooms ----------
+    {"kind": "room", "name": "lobby", "mins": [-1000, 2000, 16], "maxs": [-600, 2400, 176], "wall": 8, "nodeSpacing": 56,
+     "gaps": [{"side": "+x", "along": [2240, 2400], "z": [16, 144]}, {"side": "+y", "along": [-900, -700], "z": [16, 144]},
+              {"side": "-x", "along": [2150, 2250], "z": [52, 120]}, {"side": "-y", "along": [-850, -750], "z": [52, 120]}],
+     "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/pent_art_wall_wood10", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+    {"kind": "room", "name": "corridor", "mins": [-592, 2240, 16], "maxs": [608, 2400, 176], "wall": 8, "nodeSpacing": 56, "open": ["-x", "+x"],
+     "gaps": [{"side": "+y", "along": [-100, 100], "z": [16, 144]},
+              {"side": "-y", "along": [-350, -250], "z": [52, 120]}, {"side": "-y", "along": [100, 200], "z": [52, 120]}],
+     "floorMaterial": "mc/rus_metal_panel03", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile02"},
+    {"kind": "room", "name": "chapel", "mins": [-1000, 2408, 16], "maxs": [-600, 2808, 176], "wall": 8, "nodeSpacing": 56, "open": ["-y", "+x"],
+     "gaps": [{"side": "-x", "along": [2550, 2650], "z": [52, 120]}, {"side": "+y", "along": [-850, -750], "z": [52, 120]}],
+     "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/pent_art_wall_wood10", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+    {"kind": "room", "name": "courtyard", "mins": [-592, 2408, 16], "maxs": [408, 3208, 320], "wall": 8, "nodeSpacing": 96, "open": ["-y"], "ceiling": 0,
+     "gaps": [{"side": "-x", "along": [2540, 2740], "z": [16, 144]}, {"side": "+y", "along": [-150, 150], "z": [16, 144]},
+              {"side": "+x", "along": [2550, 2650], "z": [52, 120]}, {"side": "+x", "along": [2950, 3050], "z": [52, 120]}],
+     "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/jun_art_metal_green01"},
+    {"kind": "room", "name": "infirmary", "mins": [616, 2000, 16], "maxs": [1016, 2400, 176], "wall": 8, "nodeSpacing": 56,
+     "gaps": [{"side": "-x", "along": [2240, 2400], "z": [16, 144]},
+              {"side": "+x", "along": [2150, 2250], "z": [52, 120]}, {"side": "-y", "along": [766, 866], "z": [52, 120]}],
+     "floorMaterial": "mc/jun_art_metal_green01", "wallMaterial": "mc/rus_metal_panel03", "ceilingMaterial": "mc/mat_zombie_ceiling_tile02"},
+    {"kind": "room", "name": "stairwell", "mins": [-200, 3216, 16], "maxs": [200, 3608, 272], "wall": 8, "nodeSpacing": 56, "open": ["-y"],
+     "gaps": [{"side": "-x", "along": [3300, 3400], "z": [52, 120]}, {"side": "+y", "along": [-150, 150], "z": [112, 240]}],
+     "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+    // ---------- upper floor (z 112) ----------
+    {"kind": "room", "name": "gallery", "mins": [-400, 3624, 112], "maxs": [400, 4024, 272], "wall": 8, "nodeSpacing": 56,
+     "gaps": [{"side": "-y", "along": [-150, 150], "z": [112, 240]}, {"side": "+x", "along": [3700, 3900], "z": [112, 240]},
+              {"side": "-x", "along": [3774, 3874], "z": [148, 216]}, {"side": "+y", "along": [-150, -50], "z": [148, 216]}],
+     "floorMaterial": "mc/pent_art_wall_wood10", "wallMaterial": "mc/pent_art_wall_wood10", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+    {"kind": "room", "name": "records", "mins": [408, 3624, 112], "maxs": [808, 4024, 272], "wall": 8, "nodeSpacing": 56, "open": ["-x"],
+     "gaps": [{"side": "+x", "along": [3774, 3874], "z": [148, 216]}, {"side": "+y", "along": [558, 658], "z": [148, 216]}],
+     "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/jun_art_metal_black", "ceilingMaterial": "mc/mat_zombie_ceiling_tile02"},
+
+    // ---------- height: stairwell flight + landing, courtyard dais ----------
+    {"kind": "stairs", "name": "main_stairs", "mins": [-100, 3240, 16], "maxs": [100, 3560, 112], "up": "+y", "rise": 12, "material": "mc/jun_art_concrete_base02_dark"},
+    {"kind": "box", "name": "landing", "mins": [-200, 3560, 16], "maxs": [200, 3608, 112], "walkable": 1, "material": "mc/rus_metal_panel03"},
+    {"kind": "box", "name": "dais", "mins": [-520, 2900, 16], "maxs": [-310, 3150, 64], "walkable": 1, "material": "mc/pent_art_wall_wood10"},
+    {"kind": "stairs", "name": "dais_steps", "mins": [-310, 2980, 16], "maxs": [-150, 3100, 64], "up": "-x", "rise": 12, "material": "mc/pent_art_wall_wood10"},
+
+    // ---------- zones ----------
+    {"kind": "zone", "name": "lobby_zone", "mins": [-1000, 2000, 16], "maxs": [-596, 2400, 176]},
+    {"kind": "zone", "name": "corridor_zone", "mins": [-596, 2240, 16], "maxs": [612, 2404, 176]},
+    {"kind": "zone", "name": "chapel_zone", "mins": [-1000, 2404, 16], "maxs": [-596, 2808, 176]},
+    {"kind": "zone", "name": "courtyard_zone", "mins": [-596, 2404, 16], "maxs": [412, 3212, 320]},
+    {"kind": "zone", "name": "infirmary_zone", "mins": [612, 2000, 16], "maxs": [1016, 2400, 176]},
+    {"kind": "zone", "name": "stairwell_zone", "mins": [-200, 3212, 16], "maxs": [200, 3612, 272]},
+    {"kind": "zone", "name": "gallery_zone", "mins": [-400, 3612, 104], "maxs": [404, 4024, 272]},
+    {"kind": "zone", "name": "records_zone", "mins": [404, 3620, 104], "maxs": [808, 4024, 272]},
+
+    {"kind": "spawn", "origin": [-800, 2200, 16], "yaw": 90, "zone": "lobby_zone"},
+
+    // ---------- exterior ducts (zombie approach) ----------
+    {"kind": "room", "name": "lobby_wduct", "mins": [-1208, 2104, 16], "maxs": [-1008, 2296, 176], "wall": 8, "open": ["+x"], "nodeSpacing": 56, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+    {"kind": "room", "name": "lobby_sduct", "mins": [-896, 1792, 16], "maxs": [-704, 1992, 176], "wall": 8, "open": ["+y"], "nodeSpacing": 56, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+    {"kind": "room", "name": "chapel_wduct", "mins": [-1208, 2504, 16], "maxs": [-1008, 2696, 176], "wall": 8, "open": ["+x"], "nodeSpacing": 56, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+    {"kind": "room", "name": "chapel_nduct", "mins": [-896, 2816, 16], "maxs": [-704, 3016, 176], "wall": 8, "open": ["-y"], "nodeSpacing": 56, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+    {"kind": "room", "name": "corridor_duct_w", "mins": [-396, 2032, 16], "maxs": [-204, 2232, 176], "wall": 8, "open": ["+y"], "nodeSpacing": 56, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+    {"kind": "room", "name": "corridor_duct_e", "mins": [54, 2032, 16], "maxs": [246, 2232, 176], "wall": 8, "open": ["+y"], "nodeSpacing": 56, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+    {"kind": "room", "name": "court_duct_s", "mins": [416, 2504, 16], "maxs": [616, 2696, 176], "wall": 8, "open": ["-x"], "nodeSpacing": 56, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+    {"kind": "room", "name": "court_duct_n", "mins": [416, 2904, 16], "maxs": [616, 3096, 176], "wall": 8, "open": ["-x"], "nodeSpacing": 56, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+    {"kind": "room", "name": "inf_educt", "mins": [1024, 2104, 16], "maxs": [1224, 2296, 176], "wall": 8, "open": ["-x"], "nodeSpacing": 56, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+    {"kind": "room", "name": "inf_sduct", "mins": [720, 1792, 16], "maxs": [912, 1992, 176], "wall": 8, "open": ["+y"], "nodeSpacing": 56, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+    {"kind": "room", "name": "stair_duct", "mins": [-404, 3254, 16], "maxs": [-208, 3446, 176], "wall": 8, "open": ["+x"], "nodeSpacing": 56, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+    {"kind": "room", "name": "gallery_wduct", "mins": [-604, 3728, 112], "maxs": [-408, 3920, 272], "wall": 8, "open": ["+x"], "nodeSpacing": 56, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+    {"kind": "room", "name": "gallery_nduct", "mins": [-196, 4032, 112], "maxs": [-4, 4232, 272], "wall": 8, "open": ["-y"], "nodeSpacing": 56, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+    {"kind": "room", "name": "records_educt", "mins": [816, 3728, 112], "maxs": [1016, 3920, 272], "wall": 8, "open": ["-x"], "nodeSpacing": 56, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+    {"kind": "room", "name": "records_nduct", "mins": [512, 4032, 112], "maxs": [704, 4232, 272], "wall": 8, "open": ["-y"], "nodeSpacing": 56, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/rus_metal_panel02", "ceilingMaterial": "mc/mat_zombie_ceiling_tile01"},
+
+    // ---------- windows (15) + their spawners ----------
+    {"kind": "window", "name": "lobby_west", "room": "lobby", "origin": [-1004, 2200, 16], "yaw": 0},
+    {"kind": "window", "name": "lobby_south", "room": "lobby", "origin": [-800, 1996, 16], "yaw": 90},
+    {"kind": "window", "name": "chapel_west", "room": "chapel", "origin": [-1004, 2600, 16], "yaw": 0},
+    {"kind": "window", "name": "chapel_north", "room": "chapel", "origin": [-800, 2812, 16], "yaw": 270},
+    {"kind": "window", "name": "corridor_sw", "room": "corridor", "origin": [-300, 2236, 16], "yaw": 90},
+    {"kind": "window", "name": "corridor_se", "room": "corridor", "origin": [150, 2236, 16], "yaw": 90},
+    {"kind": "window", "name": "court_south", "room": "courtyard", "origin": [412, 2600, 16], "yaw": 180},
+    {"kind": "window", "name": "court_north", "room": "courtyard", "origin": [412, 3000, 16], "yaw": 180},
+    {"kind": "window", "name": "inf_east", "room": "infirmary", "origin": [1020, 2200, 16], "yaw": 180},
+    {"kind": "window", "name": "inf_south", "room": "infirmary", "origin": [816, 1996, 16], "yaw": 90},
+    {"kind": "window", "name": "stair_west", "room": "stairwell", "origin": [-204, 3350, 16], "yaw": 0},
+    {"kind": "window", "name": "gallery_west", "room": "gallery", "origin": [-404, 3824, 112], "yaw": 0},
+    {"kind": "window", "name": "gallery_north", "room": "gallery", "origin": [-100, 4028, 112], "yaw": 270},
+    {"kind": "window", "name": "records_east", "room": "records", "origin": [812, 3824, 112], "yaw": 180},
+    {"kind": "window", "name": "records_north", "room": "records", "origin": [608, 4028, 112], "yaw": 270},
+    {"kind": "spawner", "origin": [-1150, 2200, 16], "yaw": 0, "zone": "lobby_zone"},
+    {"kind": "spawner", "origin": [-800, 1850, 16], "yaw": 90, "zone": "lobby_zone"},
+    {"kind": "spawner", "origin": [-1150, 2600, 16], "yaw": 0, "zone": "chapel_zone"},
+    {"kind": "spawner", "origin": [-800, 2960, 16], "yaw": 270, "zone": "chapel_zone"},
+    {"kind": "spawner", "origin": [-300, 2090, 16], "yaw": 90, "zone": "corridor_zone"},
+    {"kind": "spawner", "origin": [150, 2090, 16], "yaw": 90, "zone": "corridor_zone"},
+    {"kind": "spawner", "origin": [560, 2600, 16], "yaw": 180, "zone": "courtyard_zone"},
+    {"kind": "spawner", "origin": [560, 3000, 16], "yaw": 180, "zone": "courtyard_zone"},
+    {"kind": "spawner", "origin": [1170, 2200, 16], "yaw": 180, "zone": "infirmary_zone"},
+    {"kind": "spawner", "origin": [816, 1850, 16], "yaw": 90, "zone": "infirmary_zone"},
+    {"kind": "spawner", "origin": [-350, 3350, 16], "yaw": 0, "zone": "stairwell_zone"},
+    {"kind": "spawner", "origin": [-550, 3824, 112], "yaw": 0, "zone": "gallery_zone"},
+    {"kind": "spawner", "origin": [-100, 4180, 112], "yaw": 270, "zone": "gallery_zone"},
+    {"kind": "spawner", "origin": [960, 3824, 112], "yaw": 180, "zone": "records_zone"},
+    {"kind": "spawner", "origin": [608, 4180, 112], "yaw": 270, "zone": "records_zone"},
+
+    // ---------- blockers, in progression order (the last one into the courtyard is the loop-closer) ----------
+    {"kind": "door", "name": "ward_door", "mins": [-600, 2240, 16], "maxs": [-592, 2400, 144], "yaw": 0, "from": "lobby_zone", "to": "corridor_zone", "cost": 750, "material": "mc/rus_metal_panel02"},
+    {"kind": "debris", "name": "courtyard_rubble", "mins": [-100, 2400, 16], "maxs": [100, 2408, 144], "yaw": 90, "from": "corridor_zone", "to": "courtyard_zone", "cost": 1000, "material": "mc/pent_art_wall_wood10"},
+    {"kind": "debris", "name": "chapel_rubble", "mins": [-900, 2400, 16], "maxs": [-700, 2408, 144], "yaw": 90, "from": "lobby_zone", "to": "chapel_zone", "cost": 1000, "material": "mc/pent_art_wall_wood10"},
+    {"kind": "door", "name": "chapel_gate", "mins": [-600, 2540, 16], "maxs": [-592, 2740, 144], "yaw": 0, "from": "chapel_zone", "to": "courtyard_zone", "cost": 1250, "material": "mc/jun_art_metal_black"},
+    {"kind": "door", "name": "infirmary_door", "mins": [608, 2240, 16], "maxs": [616, 2400, 144], "yaw": 0, "from": "corridor_zone", "to": "infirmary_zone", "cost": 1000, "power": true, "material": "mc/rus_metal_panel03"},
+    {"kind": "door", "name": "stair_door", "mins": [-150, 3208, 16], "maxs": [150, 3216, 144], "yaw": 90, "from": "courtyard_zone", "to": "stairwell_zone", "cost": 1500, "material": "mc/rus_metal_panel02"},
+    {"kind": "debris", "name": "landing_rubble", "mins": [-150, 3616, 112], "maxs": [150, 3624, 240], "yaw": 90, "from": "stairwell_zone", "to": "gallery_zone", "cost": 750, "material": "mc/pent_art_wall_wood10"},
+    {"kind": "debris", "name": "records_rubble", "mins": [400, 3700, 112], "maxs": [408, 3900, 240], "yaw": 0, "from": "gallery_zone", "to": "records_zone", "cost": 1250, "material": "mc/pent_art_wall_wood10"},
+
+    // ---------- power, perks, Pack-a-Punch, box ----------
+    {"kind": "powerswitch", "name": "lobby_power", "origin": [-996, 2060, 16], "yaw": 0, "snap": "wall"},
+    {"kind": "perk", "perk": "specialty_fastreload", "origin": [-960, 2360, 16], "yaw": 270},
+    {"kind": "perk", "perk": "specialty_quickrevive", "origin": [950, 2360, 16], "yaw": 270},
+    {"kind": "perk", "perk": "specialty_armorvest", "origin": [300, 3170, 16], "yaw": 270},
+    {"kind": "perk", "perk": "specialty_rof", "origin": [300, 3990, 112], "yaw": 270},
+    {"kind": "pap", "name": "records_pap", "origin": [700, 3660, 112], "snap": "wall"},
+    {"kind": "mysterybox", "name": "dais_box", "origin": [-440, 3030, 64], "yaw": 0},
+
+    // ---------- wall buys (6) ----------
+    {"kind": "wallbuy", "name": "gallery_galil", "origin": [150, 4020, 160], "yaw": 270, "weapon": "galil_zm", "model": "t5_weapon_galil_world"},
+    {"kind": "wallbuy", "name": "court_ak74u", "origin": [-588, 2950, 64], "yaw": 0, "weapon": "ak74u_zm", "model": "t5_weapon_ak74u_world"},
+    {"kind": "wallbuy", "name": "lobby_m14", "origin": [-604, 2100, 64], "yaw": 180, "weapon": "m14_zm", "model": "t5_weapon_m14_world"},
+    {"kind": "wallbuy", "name": "corridor_mp5k", "origin": [-400, 2396, 64], "yaw": 270, "weapon": "mp5k_zm", "model": "t5_weapon_mp5_world"},
+    {"kind": "wallbuy", "name": "corridor_stakeout", "origin": [350, 2396, 64], "yaw": 270, "weapon": "ithaca_zm", "model": "t5_weapon_ithaca_world"},
+    {"kind": "wallbuy", "name": "inf_spas", "origin": [700, 2396, 64], "yaw": 270, "weapon": "spas_zm", "model": "t5_weapon_spas_world"},
+
+    // ---------- furniture ----------
+    {"kind": "box", "name": "pew_front", "mins": [-900, 2500, 16], "maxs": [-700, 2530, 40], "material": "mc/pent_art_wall_wood10"},
+    {"kind": "box", "name": "pew_back", "mins": [-900, 2620, 16], "maxs": [-700, 2650, 40], "material": "mc/pent_art_wall_wood10"},
+    {"kind": "box", "name": "altar", "mins": [-760, 2740, 16], "maxs": [-640, 2790, 56], "material": "mc/jun_art_metal_black"},
+    {"kind": "box", "name": "bed", "mins": [760, 2150, 16], "maxs": [860, 2210, 40], "material": "mc/rus_metal_panel03"},
+    {"kind": "box", "name": "filing_cabinets", "mins": [760, 3960, 112], "maxs": [808, 4024, 200], "material": "mc/jun_art_metal_green01"},
+    {"kind": "box", "name": "corridor_strip", "mins": [-500, 2310, 170], "maxs": [500, 2330, 174], "contents": "none", "material": "mc/global_light"},
+
+    // ---------- mood lighting ----------
+    // night: a dim blue base over the whole site first (exterior ducts seen through the windows); room lights after it win
+    {"kind": "light", "name": "night", "mins": [-1300, 1700, 0], "maxs": [1300, 4300, 400], "color": [0.5, 0.55, 0.75], "intensity": 0.6},
+    {"kind": "light", "name": "lobby_light", "room": "lobby", "preset": "dim bunker"},
+    {"kind": "light", "name": "corridor_light", "room": "corridor", "preset": "cold lab"},
+    {"kind": "light", "name": "chapel_light", "room": "chapel", "color": [0.85, 0.6, 1.0], "intensity": 0.8},
+    {"kind": "light", "name": "courtyard_light", "room": "courtyard", "color": [0.6, 0.72, 1.0], "intensity": 0.9},
+    {"kind": "light", "name": "infirmary_light", "room": "infirmary", "color": [0.8, 1.0, 0.85], "intensity": 1.2},
+    {"kind": "light", "name": "stairwell_light", "room": "stairwell", "preset": "red alarm"},
+    {"kind": "light", "name": "gallery_light", "room": "gallery", "preset": "dim bunker"},
+    {"kind": "light", "name": "records_light", "room": "records", "preset": "red alarm"}
+  ]
+}

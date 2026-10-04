@@ -1,0 +1,26 @@
+{
+  // mapkit_test: base Five + a small room in the start room's north-east bay (zone conference_level1).
+  // Inner space x -512..-288, y 2862..3086, floor z 16, ceiling z 144; open side -y faces the divider doorway.
+  // The +y wall's gap lines up with Five's north window (exterior_goal at -429,3142) behind it.
+  "name": "mapkit_test",
+  "base": "zombie_pentagon",
+  "edits": [
+    {
+      "kind": "room",
+      "name": "test_room",
+      "mins": [-512, 2862, 16],
+      "maxs": [-288, 3086, 144],
+      "wall": 8,
+      "open": ["-y"],
+      "gaps": [ { "side": "+y", "along": [-460, -396], "z": [54, 100] } ],
+      "floorMaterial": "mc/jun_art_concrete_base02_dark",
+      "wallMaterial": "mc/pent_art_wall_wood10",
+      "ceilingMaterial": "mc/mat_zombie_ceiling_tile01",
+      "texScale": 128
+    },
+    // no zone edit: overlays build no info_volume (MAPKIT.md zone row); the room lies inside retail conference_level1
+    // zombies come in through Five's north window (pf136, its climb lands in the room); spawn spot outside it
+    { "kind": "window", "name": "north_window", "spawn": [-372, 3200, 24], "target": "auto2774", "every": 3, "room": "test_room" },
+    { "kind": "perk", "perk": "specialty_rof", "origin": [-310, 2990, 16], "snap": "wall" }
+  ]
+}

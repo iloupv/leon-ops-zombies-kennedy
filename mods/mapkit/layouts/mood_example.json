@@ -1,0 +1,43 @@
+{
+  // mood_example: mapkit_room with mood lighting (mapkit-fix-3): the room is a "dim bunker", the yard behind the window
+  // a "red alarm". Before/after photos: mapkit_room vs this layout from the same camera (MAPKIT.md "Mood lighting").
+  // mapkit_room: a fully custom one-room zombies map. "empty": true = zombie_pentagon's fastfile supplies assets only
+  // (materials, models, zombies, weapons); its world (draw, sky, collision, static models) is off.
+  // Room inner space x -1000..-440, y 2300..2720, floor z 16, ceiling z 160.
+  "name": "mood_example",
+  "base": "zombie_pentagon",
+  "empty": true,
+  "edits": [
+    {
+      "kind": "room",
+      "name": "room",
+      "mins": [-1000, 2300, 16],
+      "maxs": [-440, 2720, 160],
+      "wall": 8,
+      "nodeSpacing": 64,
+      "gaps": [ { "side": "-y", "along": [-770, -670], "z": [52, 120] } ],
+      "floorMaterial": "mc/jun_art_concrete_base02_dark",
+      "wallMaterial": "mc/pent_art_wall_wood10",
+      "ceilingMaterial": "mc/mat_zombie_ceiling_tile01",
+      "texScale": 128
+    },
+    // player spawn: 4 initial spawn structs 40 u apart across the facing + the zone's respawn point
+    { "kind": "spawn", "origin": [-900, 2510, 16], "yaw": 0, "zone": "room_zone" },
+    { "kind": "zone", "name": "room_zone", "mins": [-1000, 2300, 16], "maxs": [-440, 2720, 160] },
+    // the yard zombies spawn in: open toward the room (its +y side is the room's -y wall, where the window is)
+    {
+      "kind": "room", "name": "yard", "mins": [-900, 2000, 16], "maxs": [-540, 2292, 160], "wall": 8, "open": ["+y"],
+      "nodeSpacing": 64, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/pent_art_wall_wood10",
+      "ceilingMaterial": "mc/mat_zombie_ceiling_tile01", "texScale": 128
+    },
+    // window: Five's boarded window re-placed; origin = the middle of the wall at floor height, yaw = into the room
+    { "kind": "window", "name": "win1", "room": "room", "origin": [-720, 2296, 16], "yaw": 90 },
+    { "kind": "spawner", "origin": [-720, 2080, 16], "yaw": 90, "zone": "room_zone" },
+    // wall buy on the +x wall: origin = the weapon model, yaw = the direction it faces (into the room)
+    { "kind": "wallbuy", "origin": [-444, 2600, 64], "yaw": 180, "weapon": "m14_zm", "model": "t5_weapon_m14_world" },
+    { "kind": "box", "name": "crate", "mins": [-760, 2480, 16], "maxs": [-700, 2540, 64], "material": "mc/pent_art_wall_wood10" },
+    // mood lights: an area (room = a room/zone/box edit's bounds, or mins/maxs) and a preset, or color + intensity
+    { "kind": "light", "name": "bunker_light", "room": "room", "preset": "dim bunker" },
+    { "kind": "light", "name": "yard_alarm", "room": "yard", "preset": "red alarm" }
+  ]
+}

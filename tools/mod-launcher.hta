@@ -1,0 +1,171 @@
+<html>
+<head>
+<title>Black Ops 1 Zombies</title>
+<meta http-equiv="x-ua-compatible" content="ie=9">
+<hta:application id="kbl" applicationname="Black Ops 1 Zombies" border="dialog" maximizebutton="no" scroll="auto" singleinstance="yes">
+<style>
+  body { font-family: Segoe UI, Arial; font-size: 14px; background: #1b1b1b; color: #ddd; margin: 18px; }
+  h2 { margin: 0 0 12px 0; color: #e8c170; }
+  fieldset { border: 1px solid #444; margin: 0 0 10px 0; padding: 8px 12px; }
+  legend { color: #aaa; }
+  label { display: block; margin: 4px 0; }
+  select, input.n { background: #2a2a2a; color: #eee; border: 1px solid #555; padding: 2px; }
+  input.n { width: 60px; }
+  .note { color: #888; font-size: 12px; }
+  .dim { color: #666; }
+  button { font-size: 16px; padding: 6px 28px; background: #6b2a1a; color: #fff; border: 1px solid #a44; cursor: pointer; }
+  #cmd { font-family: Consolas; font-size: 11px; color: #777; margin-top: 10px; word-wrap: break-word; height: 60px; overflow: auto; }
+</style>
+<script type="text/javascript" src="horde_flags.js"></script>
+<script type="text/javascript" src="nightmare_flags.js"></script>
+<script type="text/javascript">
+// Launcher for the Black Ops 1 zombies build (not part of the original game). Starts the game the way the
+// original game is started: exe and game files from build\Release, borderless window. Defaults to vanilla.
+var KB = new ActiveXObject("Scripting.FileSystemObject").GetParentFolderName(new ActiveXObject("Scripting.FileSystemObject").GetParentFolderName(unescape(document.location.href).replace(/^file:\/+/i, "").replace(/\//g, "\\"))) + "\\build";
+var R = KB + "\\Release", P = R;
+
+// maps: [bsp name, label, has a special-zombie spawner file in mods/horde (maps/<map>.zombie_temple.ents)]
+var MAPS = [
+  ["zombie_pentagon", "Five", true],
+  ["zombie_theater", "Kino der Toten", true],
+  ["zombie_cod5_prototype", "Nacht der Untoten", false],
+  ["zombie_cod5_asylum", "Verruckt", false],
+  ["zombie_cod5_sumpf", "Shi No Numa", false],
+  ["zombie_cod5_factory", "Der Riese", false],
+  ["zombie_cosmodrome", "Ascension", false],
+  ["zombie_coast", "Call of the Dead", false],
+  ["zombie_temple", "Shangri-La (napalm + shrieker native)", false],
+  ["zombie_moon", "Moon", false],
+  // mapkit maps: 4th field = the layout (mods/mapkit/layouts/<name>.json), loaded with fs_game mods/mapkit
+  ["zombie_pentagon", "Mapkit test (Five + a built room, window, Double Tap)", false, "mapkit_test"],
+  // "empty": true layout: Five's fastfile supplies assets only; the room, window, spawner, wall buy and zone are the layout's
+  ["zombie_pentagon", "Mapkit room (fully custom)", false, "mapkit_room"],
+  ["zombie_pentagon", "Relay Station (mapkit: three rooms, four windows)", false, "relay_station"],
+  ["zombie_pentagon", "Sluice Works (mapkit: four-zone loop, seven windows, box, four perks)", false, "sluice_works"],
+  ["zombie_pentagon", "Aldric Sanatorium (mapkit: two floors, eight areas, loop, fifteen windows, power, Pack-a-Punch)", false, "aldric_sanatorium"]
+];
+
+function el(id) { return document.getElementById(id); }
+
+// resizeTo counts device pixels, the page lays out in scaled ones: size by the display scale, then grow to the content
+function fitWindow(w, h) {
+  var d = document.documentElement;
+  // the scale: device pixels per page pixel, measured (the HTA host does not report it)
+  window.resizeTo(w, h); var c1 = d.clientWidth;
+  window.resizeTo(w + 100, h); var c2 = d.clientWidth;
+  var s = c2 > c1 ? Math.max(1, 100 / (c2 - c1)) : 1;
+  window.resizeTo(Math.round(w * s), Math.min(Math.round(h * s), screen.availHeight));
+  setTimeout(function () {
+    var extra = d.scrollHeight - d.clientHeight, top = window.screenTop || 0;
+    var outer = window.outerHeight || Math.round(h * s);
+    var grow = Math.min(Math.round(extra * s), screen.availHeight - outer);
+    if (grow > 0) { if (top + outer + grow > screen.availHeight) window.moveTo(window.screenLeft || 0, 0); window.resizeBy(0, grow); }
+  }, 0);
+}
+
+function init() {
+  fitWindow(460, 620);
+  var s = el("map");
+  for (var i = 0; i < MAPS.length; i++) {
+    var o = document.createElement("option");
+    o.value = i; o.text = MAPS[i][1];
+    s.options.add(o);
+  }
+  refresh();
+}
+
+function refresh() {
+  var m = MAPS[el("map").value];
+  var horde = el("horde").checked;
+  el("hordeopts").disabled = !horde;
+  el("hordeopts").className = horde ? "" : "dim";
+  var canSpecials = horde && m[2];
+  el("napalm").disabled = !canSpecials;
+  el("sonic").disabled = !canSpecials;
+  el("specnote").innerHTML = m[3] ? "Mapkit map: horde works (fs_mods mapkit horde zinfo); napalm/sonic specials are Five and Kino only." :
+    m[0] == "zombie_temple" ? "Shangri-La has them natively." :
+    (m[2] ? "" : "Not set up for this map yet (Five and Kino only).");
+  // nightmare mod (tools/nightmare_flags.js): Five and Kino (L61), stacks with horde
+  var canNightmare = (m[0] == "zombie_pentagon" || m[0] == "zombie_theater") && !m[3];
+  el("difficulty").disabled = !canNightmare;
+  el("diffnote").innerHTML = canNightmare ? (m[0] == "zombie_theater" ? "Nightmare: George, an astronaut, napalm and shrieker zombies, hellhound packs, Five's thief and Ascension's space monkeys raiding the perk machines, all from round 1 on Kino." : "Nightmare: George, an astronaut, napalm and shrieker zombies on top of Five's thief and dogs.") + " Hell: several of each at once. Loads three extra maps' assets (slower start)." : "Five and Kino only.";
+  el("cmd").innerText = args();
+}
+
+function args() {
+  var m = MAPS[el("map").value];
+  var a = "+set fs_b \"" + R + "\" +set fs_h \"" + P + "\" +set logfile 2 +set net_ip 127.0.0.1 +set bo1_zombies 1" +
+          " +set r_fullscreen 0 +set r_borderless 1 +set vid_xpos 0 +set vid_ypos 0" +
+          " +set bo1_mod_sharedconfig 1"; // one players\config.cfg (binds, sensitivity) for every mod
+  if (el("fps").checked) a += " +set bo1_fpscounter 1";
+  if (m[3]) {
+    // mapkit: base map + the layout's edits (engine dvar bo1_mod_mapkit, runtime mods/mapkit); other mods stack on it with
+    // fs_mods (mapkit first: its hooks build the map the others work on)
+    if (el("horde").checked) {
+      // the horde flags with mapkit in front of their fs_mods
+      a += " " + hordeFlags({ n: el("maxz").value, round: el("round").value, zinfo: el("zinfo").checked, spawnAll: el("spawnall").checked, unjam: el("unjam").checked, noperks: el("noperks").checked, carryover: !el("clearround").checked }).replace("+set fs_mods ", "+set fs_mods mapkit ");
+      a += " +set bo1_mod_mapkit " + m[3];
+    } else {
+      a += " +set fs_game mods/mapkit +set bo1_mod_mapkit " + m[3];
+      if (el("zinfo").checked || el("noperks").checked)
+        a += " +set fs_mods mapkit" + (el("zinfo").checked ? " zinfo" : "") + (el("noperks").checked ? " noperks +set noperks 1" : "");
+    }
+  } else if (el("horde").checked) {
+    // tools/horde_flags.js: the one list of horde flags (tools/mergecheck.sh check_play runs the same function)
+    var nap = el("napalm").checked && !el("napalm").disabled, son = el("sonic").checked && !el("sonic").disabled;
+    a += " " + hordeFlags({ n: el("maxz").value, round: el("round").value, napalm: nap, sonic: son, zinfo: el("zinfo").checked, spawnAll: el("spawnall").checked, unjam: el("unjam").checked, noperks: el("noperks").checked, carryover: !el("clearround").checked });
+  } else if (el("zinfo").checked || el("noperks").checked) {
+    // vanilla rules: the Tab zombie counter (mods/zinfo) and/or no perk machines (mods/noperks + the engine clip removal)
+    a += " +set fs_mods" + (el("zinfo").checked ? " zinfo" : "") + (el("noperks").checked ? " noperks +set noperks 1" : "");
+  }
+  if (!el("difficulty").disabled) a = nightmareFlags(el("difficulty").value, a, m[0]); // Normal = 0: unchanged
+  if (el("quickrestart").checked) a += " +set bo1_mod_quickrestart 1"; // R after game over: SP_QuickRestart
+  return a + " +devmap " + m[0];
+}
+
+function play() {
+  var fso = new ActiveXObject("Scripting.FileSystemObject");
+  var sh = new ActiveXObject("WScript.Shell");
+  // latest build: copy the exe, pdb and dlls from Release to Play (skipped if a build has them locked)
+  if (P != R) try {
+    fso.CopyFile(R + "\\BO1Zombies.exe", P + "\\", true);
+    if (fso.FileExists(R + "\\BO1Zombies.pdb")) fso.CopyFile(R + "\\BO1Zombies.pdb", P + "\\", true);
+    fso.CopyFile(R + "\\*.dll", P + "\\", true);
+  } catch (e) { }
+  sh.CurrentDirectory = R;
+  sh.Run("\"" + P + "\\BO1Zombies.exe\" " + args(), 1, false);
+}
+</script>
+</head>
+<body onload="init()">
+<h2>Black Ops 1 Zombies</h2>
+<fieldset><legend>Map</legend>
+  <select id="map" onchange="refresh()" style="width: 100%"></select>
+</fieldset>
+<fieldset><legend>Horde mod</legend>
+  <label><input type="checkbox" id="horde" onclick="refresh()"> Horde (next round starts when the last zombie spawns)</label>
+  <div id="hordeopts">
+    <label>Max zombies at once <input class="n" id="maxz" value="128" onkeyup="refresh()"> <span class="note">over 300 is heavy</span></label>
+    <label>Start round <input class="n" id="round" value="1" onkeyup="refresh()"></label>
+    <label><input type="checkbox" id="napalm" onclick="refresh()" checked> Napalm zombies</label>
+    <label><input type="checkbox" id="sonic" onclick="refresh()" checked> Shrieker zombies</label>
+    <label><input type="checkbox" id="spawnall" onclick="refresh()"> Spawn from every window <span class="note">every opened area, not only near you</span></label>
+    <label><input type="checkbox" id="unjam" onclick="refresh()" checked> Unstick zombies <span class="note">a zombie stuck in the crowd walks through the others for 1.5 s</span></label>
+    <label><input type="checkbox" id="clearround" onclick="refresh()"> Next round only when every zombie is dead <span class="note">off = next round starts when the last zombie spawns</span></label>
+    <div class="note" id="specnote"></div>
+  </div>
+</fieldset>
+<fieldset><legend>Difficulty</legend>
+  <select id="difficulty" onchange="refresh()"><option value="0" selected>Normal</option><option value="1">Nightmare</option><option value="2">Hell</option></select>
+  <div class="note" id="diffnote"></div>
+</fieldset>
+<fieldset><legend>Other</legend>
+  <label><input type="checkbox" id="fps" onclick="refresh()"> FPS counter</label>
+  <label><input type="checkbox" id="zinfo" onclick="refresh()"> Tab: zombie counter</label>
+  <label><input type="checkbox" id="noperks" onclick="refresh()"> No perk machines <span class="note">with or without horde; Pack-a-Punch and the box stay</span></label>
+  <label><input type="checkbox" id="quickrestart" checked onclick="refresh()"> R restarts after game over <span class="note">same map, same settings</span></label>
+</fieldset>
+<button onclick="play()">Play</button>
+<div id="cmd"></div>
+</body>
+</html>

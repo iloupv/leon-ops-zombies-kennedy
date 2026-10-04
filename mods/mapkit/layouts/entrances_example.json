@@ -1,0 +1,31 @@
+{
+  // entrances_example (mapkit-fix-4c): the two entrance kinds without boards, retail's way.
+  //  - window "open": true: an unboardable window/gap. Zombies climb through with the window traverse, nothing to tear,
+  //    nothing to rebuild (retail: an exterior_goal with no target has no barrier).
+  //  - riser: zombies of the round climb out of the ground at that spot (Five's riser: climb-out anim, dirt fx), then
+  //    go straight for the player. It spawns while its zone is active, like a spawner.
+  // Room inner space x -1000..-440, y 2300..2720, floor z 16; the yard behind the -y wall is where window zombies spawn.
+  "name": "entrances_example",
+  "base": "zombie_pentagon",
+  "empty": true,
+  "edits": [
+    {
+      "kind": "room", "name": "room", "mins": [-1000, 2300, 16], "maxs": [-440, 2720, 160], "wall": 8, "nodeSpacing": 64,
+      "gaps": [ { "side": "-y", "along": [-770, -670], "z": [52, 120] } ],
+      "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/pent_art_wall_wood10",
+      "ceilingMaterial": "mc/mat_zombie_ceiling_tile01", "texScale": 128
+    },
+    { "kind": "spawn", "origin": [-900, 2510, 16], "yaw": 0, "zone": "room_zone" },
+    { "kind": "zone", "name": "room_zone", "mins": [-1000, 2300, 16], "maxs": [-440, 2720, 160] },
+    {
+      "kind": "room", "name": "yard", "mins": [-900, 2000, 16], "maxs": [-540, 2292, 160], "wall": 8, "open": ["+y"],
+      "nodeSpacing": 64, "floorMaterial": "mc/jun_art_concrete_base02_dark", "wallMaterial": "mc/pent_art_wall_wood10",
+      "ceilingMaterial": "mc/mat_zombie_ceiling_tile01", "texScale": 128
+    },
+    // open entrance: same placement as a boarded window (origin = wall middle at floor height, yaw = into the room)
+    { "kind": "window", "name": "gap1", "room": "room", "origin": [-720, 2296, 16], "yaw": 90, "open": true },
+    { "kind": "spawner", "origin": [-720, 2080, 16], "yaw": 90, "zone": "room_zone" },
+    // ground riser: origin = the floor spot the zombie climbs out of, yaw = the way it faces, zone = the zone it serves
+    { "kind": "riser", "name": "pit1", "origin": [-560, 2640, 16], "yaw": 180, "zone": "room_zone" }
+  ]
+}

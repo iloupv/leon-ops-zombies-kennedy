@@ -1,0 +1,3029 @@
+# The engine's source files, by folder (CMakeLists.txt compiles these lists).
+
+# ----- DemonWare/ (root files) -----
+set(DW
+	"${DW_DIR}/bdConnection.h"
+	"${DW_DIR}/bdLobbyService.h"
+)
+source_group("DemonWare/" FILES ${DW})
+
+set(DW_DEMONWAREROOT_FILES
+	${DW}
+)
+
+# ----- DemonWare/bdCore -----
+set(DW_BDCORE
+	"${DW_DIR}/bdCore/bdSingleton.h"
+)
+source_group("DemonWare/bdCore" FILES ${DW_BDCORE})
+
+set(DW_BDCORE_BDCONTAINERS
+	"${DW_DIR}/bdCore/bdContainers/bdArray.h"
+	"${DW_DIR}/bdCore/bdContainers/bdBitBuffer.cpp"
+	"${DW_DIR}/bdCore/bdContainers/bdBitBuffer.h"
+	"${DW_DIR}/bdCore/bdContainers/bdByteBuffer.cpp"
+	"${DW_DIR}/bdCore/bdContainers/bdByteBuffer.h"
+	"${DW_DIR}/bdCore/bdContainers/bdFastArray.h"
+	"${DW_DIR}/bdCore/bdContainers/bdLinkedList.h"
+	"${DW_DIR}/bdCore/bdContainers/bdQueue.h"
+)
+source_group("DemonWare/bdCore/bdContainers" FILES ${DW_BDCORE_BDCONTAINERS})
+
+set(DW_BDCORE_BDCRYPTO
+	"${DW_DIR}/bdCore/bdCrypto/bdCypher.h"
+	"${DW_DIR}/bdCore/bdCrypto/bdCypher3Des.cpp"
+	"${DW_DIR}/bdCore/bdCrypto/bdCypher3Des.h"
+	"${DW_DIR}/bdCore/bdCrypto/bdHashTiger192.h"
+)
+source_group("DemonWare/bdCore/bdCrypto" FILES ${DW_BDCORE_BDCRYPTO})
+
+set(DW_BDCORE_BDMEMORY
+	"${DW_DIR}/bdCore/bdMemory/bdMemory.cpp"
+	"${DW_DIR}/bdCore/bdMemory/bdMemory.h"
+)
+source_group("DemonWare/bdCore/bdMemory" FILES ${DW_BDCORE_BDMEMORY})
+
+set(DW_BDCORE_BDREFERENCE
+	"${DW_DIR}/bdCore/bdReference/bdReferencable.h"
+)
+source_group("DemonWare/bdCore/bdReference" FILES ${DW_BDCORE_BDREFERENCE})
+
+set(DW_BDCORE_BDSOCKET
+	"${DW_DIR}/bdCore/bdSocket/bdAddr.cpp"
+	"${DW_DIR}/bdCore/bdSocket/bdAddr.h"
+	"${DW_DIR}/bdCore/bdSocket/bdStreamSocket.h"
+)
+source_group("DemonWare/bdCore/bdSocket" FILES ${DW_BDCORE_BDSOCKET})
+
+set(DW_BDCORE_BDTHREAD
+	"${DW_DIR}/bdCore/bdThread/bdMutex.cpp"
+	"${DW_DIR}/bdCore/bdThread/bdMutex.h"
+)
+source_group("DemonWare/bdCore/bdThread" FILES ${DW_BDCORE_BDTHREAD})
+
+set(DW_BDCORE_BDTIMING
+	"${DW_DIR}/bdCore/bdTiming/bdStopwatch.h"
+)
+source_group("DemonWare/bdCore/bdTiming" FILES ${DW_BDCORE_BDTIMING})
+
+set(DW_BDCORE_BDUTILITIES
+	"${DW_DIR}/bdCore/bdUtilities/bdBitOperations.h"
+	"${DW_DIR}/bdCore/bdUtilities/bdBytePacker.cpp"
+	"${DW_DIR}/bdCore/bdUtilities/bdBytePacker.h"
+)
+source_group("DemonWare/bdCore/bdUtilities" FILES ${DW_BDCORE_BDUTILITIES})
+
+set(DW_BDCORE_FILES
+	${DW_BDCORE}
+	${DW_BDCORE_BDCONTAINERS}
+	${DW_BDCORE_BDCRYPTO}
+	${DW_BDCORE_BDMEMORY}
+	${DW_BDCORE_BDREFERENCE}
+	${DW_BDCORE_BDSOCKET}
+	${DW_BDCORE_BDTHREAD}
+	${DW_BDCORE_BDTIMING}
+	${DW_BDCORE_BDUTILITIES}
+)
+
+# ----- DemonWare/bdPlatform -----
+set(DW_BDPLATFORM_BDPLATFORMLOG
+	"${DW_DIR}/bdPlatform/bdPlatformLog/bdPlatformLog.cpp"
+	"${DW_DIR}/bdPlatform/bdPlatformLog/bdPlatformLog.h"
+)
+source_group("DemonWare/bdPlatform/bdPlatformLog" FILES ${DW_BDPLATFORM_BDPLATFORMLOG})
+
+set(DW_BDPLATFORM_BDPLATFORMTHREAD
+	"${DW_DIR}/bdPlatform/bdPlatformThread/bdPlatformMutex.cpp"
+	"${DW_DIR}/bdPlatform/bdPlatformThread/bdPlatformMutex.h"
+)
+source_group("DemonWare/bdPlatform/bdPlatformThread" FILES ${DW_BDPLATFORM_BDPLATFORMTHREAD})
+
+set(DW_BDPLATFORM_BDPLATFORMTIMING
+	"${DW_DIR}/bdPlatform/bdPlatformTiming/bdPlatformTiming.h"
+)
+source_group("DemonWare/bdPlatform/bdPlatformTiming" FILES ${DW_BDPLATFORM_BDPLATFORMTIMING})
+
+set(DW_BDPLATFORM_FILES
+	${DW_BDPLATFORM_BDPLATFORMLOG}
+	${DW_BDPLATFORM_BDPLATFORMTHREAD}
+	${DW_BDPLATFORM_BDPLATFORMTIMING}
+)
+
+# ======================================================================
+# src/
+# ======================================================================
+
+# ----- src/CubeMapGenLib -----
+set(SRC_CUBEMAPGENLIB
+	"${SRC_DIR}/CubeMapGenLib/CBBoxInt32.cpp"
+	"${SRC_DIR}/CubeMapGenLib/CBBoxInt32.h"
+	"${SRC_DIR}/CubeMapGenLib/CCubeMapProcessor.cpp"
+	"${SRC_DIR}/CubeMapGenLib/CCubeMapProcessor.h"
+	"${SRC_DIR}/CubeMapGenLib/CImageSurface.cpp"
+	"${SRC_DIR}/CubeMapGenLib/CImageSurface.h"
+	"${SRC_DIR}/CubeMapGenLib/ErrorMsg.cpp"
+	"${SRC_DIR}/CubeMapGenLib/ErrorMsg.h"
+	"${SRC_DIR}/CubeMapGenLib/Types.h"
+	"${SRC_DIR}/CubeMapGenLib/VectorMacros.h"
+	"${SRC_DIR}/CubeMapGenLib/Version.h"
+	"${SRC_DIR}/CubeMapGenLib/resource.h"
+)
+source_group("CubeMapGenLib" FILES ${SRC_CUBEMAPGENLIB})
+
+set(CUBEMAPGENLIB_FILES
+	${SRC_CUBEMAPGENLIB}
+)
+
+# ----- src/DW -----
+set(SRC_DW
+	"${SRC_DIR}/DW/MatchMakingInfo_win32.cpp"
+	"${SRC_DIR}/DW/MatchMakingInfo_win32.h"
+	"${SRC_DIR}/DW/MatchMakingQueries_win32.cpp"
+	"${SRC_DIR}/DW/MatchMakingQueries_win32.h"
+	"${SRC_DIR}/DW/MatchRecorder.cpp"
+	"${SRC_DIR}/DW/MatchRecorder.h"
+	"${SRC_DIR}/DW/dwLogOn_pc.cpp"
+	"${SRC_DIR}/DW/dwLogOn_pc.h"
+	"${SRC_DIR}/DW/dwMatchMaking.cpp"
+	"${SRC_DIR}/DW/dwMatchMaking.h"
+	"${SRC_DIR}/DW/dwMessaging.cpp"
+	"${SRC_DIR}/DW/dwMessaging.h"
+	"${SRC_DIR}/DW/dwNet.cpp"
+	"${SRC_DIR}/DW/dwNet.h"
+	"${SRC_DIR}/DW/dwQoS.cpp"
+	"${SRC_DIR}/DW/dwQoS.h"
+	"${SRC_DIR}/DW/dwRecordEvent.cpp"
+	"${SRC_DIR}/DW/dwRecordEvent.h"
+	"${SRC_DIR}/DW/dwStats.cpp"
+	"${SRC_DIR}/DW/dwStats.h"
+	"${SRC_DIR}/DW/dwStorage.cpp"
+	"${SRC_DIR}/DW/dwStorage.h"
+	"${SRC_DIR}/DW/dwTasks.cpp"
+	"${SRC_DIR}/DW/dwTasks.h"
+	"${SRC_DIR}/DW/dwUtils.cpp"
+	"${SRC_DIR}/DW/dwUtils.h"
+	"${SRC_DIR}/DW/dwUtils_pc.cpp"
+	"${SRC_DIR}/DW/dwUtils_pc.h"
+)
+source_group("DW" FILES ${SRC_DW})
+
+set(DW_FILES
+	${SRC_DW}
+)
+
+# ----- src/DynEntity -----
+set(SRC_DYNENTITY
+	"${SRC_DIR}/DynEntity/DynEntity_client.cpp"
+	"${SRC_DIR}/DynEntity/DynEntity_client.h"
+	"${SRC_DIR}/DynEntity/DynEntity_coll.cpp"
+	"${SRC_DIR}/DynEntity/DynEntity_coll.h"
+	"${SRC_DIR}/DynEntity/DynEntity_gamestate.cpp"
+	"${SRC_DIR}/DynEntity/DynEntity_gamestate.h"
+	"${SRC_DIR}/DynEntity/DynEntity_load_obj.cpp"
+	"${SRC_DIR}/DynEntity/DynEntity_load_obj.h"
+	"${SRC_DIR}/DynEntity/DynEntity_pieces.cpp"
+	"${SRC_DIR}/DynEntity/DynEntity_pieces.h"
+	"${SRC_DIR}/DynEntity/DynEntity_server.cpp"
+	"${SRC_DIR}/DynEntity/DynEntity_server.h"
+)
+source_group("DynEntity" FILES ${SRC_DYNENTITY})
+
+set(DYNENTITY_FILES
+	${SRC_DYNENTITY}
+)
+
+# ----- src/EffectsCore -----
+set(SRC_EFFECTSCORE
+	"${SRC_DIR}/EffectsCore/FxCurve.cpp"
+	"${SRC_DIR}/EffectsCore/FxCurve.h"
+	"${SRC_DIR}/EffectsCore/FxCurve_load_obj.cpp"
+	"${SRC_DIR}/EffectsCore/FxCurve_load_obj.h"
+	"${SRC_DIR}/EffectsCore/fx_archive.cpp"
+	"${SRC_DIR}/EffectsCore/fx_archive.h"
+	"${SRC_DIR}/EffectsCore/fx_beam.cpp"
+	"${SRC_DIR}/EffectsCore/fx_beam.h"
+	"${SRC_DIR}/EffectsCore/fx_convert.cpp"
+	"${SRC_DIR}/EffectsCore/fx_convert.h"
+	"${SRC_DIR}/EffectsCore/fx_draw.cpp"
+	"${SRC_DIR}/EffectsCore/fx_draw.h"
+	"${SRC_DIR}/EffectsCore/fx_dvars.cpp"
+	"${SRC_DIR}/EffectsCore/fx_dvars.h"
+	"${SRC_DIR}/EffectsCore/fx_graph.cpp"
+	"${SRC_DIR}/EffectsCore/fx_graph.h"
+	"${SRC_DIR}/EffectsCore/fx_load_obj.cpp"
+	"${SRC_DIR}/EffectsCore/fx_load_obj.h"
+	"${SRC_DIR}/EffectsCore/fx_marks.cpp"
+	"${SRC_DIR}/EffectsCore/fx_marks.h"
+	"${SRC_DIR}/EffectsCore/fx_postlight.cpp"
+	"${SRC_DIR}/EffectsCore/fx_postlight.h"
+	"${SRC_DIR}/EffectsCore/fx_profile.cpp"
+	"${SRC_DIR}/EffectsCore/fx_profile.h"
+	"${SRC_DIR}/EffectsCore/fx_random.cpp"
+	"${SRC_DIR}/EffectsCore/fx_random.h"
+	"${SRC_DIR}/EffectsCore/fx_sort.cpp"
+	"${SRC_DIR}/EffectsCore/fx_sort.h"
+	"${SRC_DIR}/EffectsCore/fx_sprite.cpp"
+	"${SRC_DIR}/EffectsCore/fx_sprite.h"
+	"${SRC_DIR}/EffectsCore/fx_system.cpp"
+	"${SRC_DIR}/EffectsCore/fx_system.h"
+	"${SRC_DIR}/EffectsCore/fx_unique_handle.cpp"
+	"${SRC_DIR}/EffectsCore/fx_unique_handle.h"
+	"${SRC_DIR}/EffectsCore/fx_update.cpp"
+	"${SRC_DIR}/EffectsCore/fx_update.h"
+	"${SRC_DIR}/EffectsCore/fx_update_util.cpp"
+	"${SRC_DIR}/EffectsCore/fx_update_util.h"
+	"${SRC_DIR}/EffectsCore/fx_wind.cpp"
+	"${SRC_DIR}/EffectsCore/fx_wind.h"
+)
+source_group("EffectsCore" FILES ${SRC_EFFECTSCORE})
+
+set(EFFECTSCORE_FILES
+	${SRC_EFFECTSCORE}
+)
+
+# ----- src/aim_assist -----
+set(SRC_AIM_ASSIST
+	"${SRC_DIR}/aim_assist/aim_assist.cpp"
+	"${SRC_DIR}/aim_assist/aim_assist.h"
+	"${SRC_DIR}/aim_assist/aim_target.cpp"
+	"${SRC_DIR}/aim_assist/aim_target.h"
+)
+source_group("aim_assist" FILES ${SRC_AIM_ASSIST})
+
+set(AIM_ASSIST_FILES
+	${SRC_AIM_ASSIST}
+)
+
+# ----- src/bgame -----
+set(SRC_BGAME
+	"${SRC_DIR}/bgame/bg_actor_prone.cpp"
+	"${SRC_DIR}/bgame/bg_actor_prone.h"
+	"${SRC_DIR}/bgame/bg_animation.cpp"
+	"${SRC_DIR}/bgame/bg_animation.h"
+	"${SRC_DIR}/bgame/bg_animconditions.cpp"
+	"${SRC_DIR}/bgame/bg_animconditions.h"
+	"${SRC_DIR}/bgame/bg_dog.cpp"
+	"${SRC_DIR}/bgame/bg_dog.h"
+	"${SRC_DIR}/bgame/bg_dog_animations_mp.cpp"
+	"${SRC_DIR}/bgame/bg_dog_animations_mp.h"
+	"${SRC_DIR}/bgame/bg_dtp.cpp"
+	"${SRC_DIR}/bgame/bg_dtp.h"
+	"${SRC_DIR}/bgame/bg_emblems.cpp"
+	"${SRC_DIR}/bgame/bg_emblems.h"
+	"${SRC_DIR}/bgame/bg_fire.cpp"
+	"${SRC_DIR}/bgame/bg_fire.h"
+	"${SRC_DIR}/bgame/bg_jump.cpp"
+	"${SRC_DIR}/bgame/bg_jump.h"
+	"${SRC_DIR}/bgame/bg_local.h"
+	"${SRC_DIR}/bgame/bg_mantle.cpp"
+	"${SRC_DIR}/bgame/bg_mantle.h"
+	"${SRC_DIR}/bgame/bg_misc.cpp"
+	"${SRC_DIR}/bgame/bg_misc.h"
+	"${SRC_DIR}/bgame/bg_misctables.cpp"
+	"${SRC_DIR}/bgame/bg_misctables.h"
+	"${SRC_DIR}/bgame/bg_perks.cpp"
+	"${SRC_DIR}/bgame/bg_perks.h"
+	"${SRC_DIR}/bgame/bg_pmove.cpp"
+	"${SRC_DIR}/bgame/bg_pmove.h"
+	"${SRC_DIR}/bgame/bg_public.h"
+	"${SRC_DIR}/bgame/bg_slidemove.cpp"
+	"${SRC_DIR}/bgame/bg_slidemove.h"
+	"${SRC_DIR}/bgame/bg_unlockable_items.cpp"
+	"${SRC_DIR}/bgame/bg_unlockable_items.h"
+	"${SRC_DIR}/bgame/bg_vehicle_anim.cpp"
+	"${SRC_DIR}/bgame/bg_vehicle_anim.h"
+	"${SRC_DIR}/bgame/bg_vehicles_mp.cpp"
+	"${SRC_DIR}/bgame/bg_vehicles_mp.h"
+	"${SRC_DIR}/bgame/bg_weapons.cpp"
+	"${SRC_DIR}/bgame/bg_weapons.h"
+	"${SRC_DIR}/bgame/bg_weapons_ammo.cpp"
+	"${SRC_DIR}/bgame/bg_weapons_ammo.h"
+	"${SRC_DIR}/bgame/bg_weapons_attachment.cpp"
+	"${SRC_DIR}/bgame/bg_weapons_attachment.h"
+	"${SRC_DIR}/bgame/bg_weapons_def.cpp"
+	"${SRC_DIR}/bgame/bg_weapons_def.h"
+	"${SRC_DIR}/bgame/bg_weapons_load_obj.cpp"
+	"${SRC_DIR}/bgame/bg_weapons_load_obj.h"
+	"${SRC_DIR}/bgame/bg_weapons_util.cpp"
+	"${SRC_DIR}/bgame/bg_weapons_util.h"
+	"${SRC_DIR}/bgame/bg_weapons_view.cpp"
+	"${SRC_DIR}/bgame/bg_weapons_view.h"
+	"${SRC_DIR}/bgame/bg_wind.cpp"
+	"${SRC_DIR}/bgame/bg_wind.h"
+)
+source_group("bgame" FILES ${SRC_BGAME})
+
+set(BGAME_FILES
+	${SRC_BGAME}
+)
+
+# ----- src/binklib -----
+set(SRC_BINKLIB
+	"${SRC_DIR}/binklib/bink.h"
+	"${SRC_DIR}/binklib/binktextures.cpp"
+	"${SRC_DIR}/binklib/binktextures.h"
+	"${SRC_DIR}/binklib/dx9rad3d.cpp"
+	"${SRC_DIR}/binklib/rad3d.h"
+	"${SRC_DIR}/binklib/radbase.h"
+)
+source_group("binklib" FILES ${SRC_BINKLIB})
+
+set(BINKLIB_FILES
+	${SRC_BINKLIB}
+)
+
+# ----- src/cgame -----
+set(SRC_CGAME
+	"${SRC_DIR}/cgame/cg_ammocounter.cpp"
+	"${SRC_DIR}/cgame/cg_ammocounter.h"
+	"${SRC_DIR}/cgame/cg_bolt.cpp"
+	"${SRC_DIR}/cgame/cg_bolt.h"
+	"${SRC_DIR}/cgame/cg_camera.cpp"
+	"${SRC_DIR}/cgame/cg_camera.h"
+	"${SRC_DIR}/cgame/cg_camerashake.cpp"
+	"${SRC_DIR}/cgame/cg_camerashake.h"
+	"${SRC_DIR}/cgame/cg_clouds.cpp"
+	"${SRC_DIR}/cgame/cg_clouds.h"
+	"${SRC_DIR}/cgame/cg_colltree.cpp"
+	"${SRC_DIR}/cgame/cg_colltree.h"
+	"${SRC_DIR}/cgame/cg_compass.cpp"
+	"${SRC_DIR}/cgame/cg_compass.h"
+	"${SRC_DIR}/cgame/cg_draw_debug.cpp"
+	"${SRC_DIR}/cgame/cg_draw_debug.h"
+	"${SRC_DIR}/cgame/cg_draw_indicators.cpp"
+	"${SRC_DIR}/cgame/cg_draw_indicators.h"
+	"${SRC_DIR}/cgame/cg_draw_names.cpp"
+	"${SRC_DIR}/cgame/cg_draw_names.h"
+	"${SRC_DIR}/cgame/cg_draw_reticles.cpp"
+	"${SRC_DIR}/cgame/cg_draw_reticles.h"
+	"${SRC_DIR}/cgame/cg_drawtools.cpp"
+	"${SRC_DIR}/cgame/cg_drawtools.h"
+	"${SRC_DIR}/cgame/cg_effects_load_obj.cpp"
+	"${SRC_DIR}/cgame/cg_effects_load_obj.h"
+	"${SRC_DIR}/cgame/cg_event.cpp"
+	"${SRC_DIR}/cgame/cg_event.h"
+	"${SRC_DIR}/cgame/cg_gamepad.cpp"
+	"${SRC_DIR}/cgame/cg_gamepad.h"
+	"${SRC_DIR}/cgame/cg_hudelem.cpp"
+	"${SRC_DIR}/cgame/cg_hudelem.h"
+	"${SRC_DIR}/cgame/cg_info.cpp"
+	"${SRC_DIR}/cgame/cg_info.h"
+	"${SRC_DIR}/cgame/cg_laser.cpp"
+	"${SRC_DIR}/cgame/cg_laser.h"
+	"${SRC_DIR}/cgame/cg_local.h"
+	"${SRC_DIR}/cgame/cg_localents.cpp"
+	"${SRC_DIR}/cgame/cg_localents.h"
+	"${SRC_DIR}/cgame/cg_main.cpp"
+	"${SRC_DIR}/cgame/cg_main.h"
+	"${SRC_DIR}/cgame/cg_mem_track.cpp"
+	"${SRC_DIR}/cgame/cg_mem_track.h"
+	"${SRC_DIR}/cgame/cg_perf.cpp"
+	"${SRC_DIR}/cgame/cg_perf.h"
+	"${SRC_DIR}/cgame/cg_playerstate.cpp"
+	"${SRC_DIR}/cgame/cg_playerstate.h"
+	"${SRC_DIR}/cgame/cg_pose_utils.cpp"
+	"${SRC_DIR}/cgame/cg_pose_utils.h"
+	"${SRC_DIR}/cgame/cg_scr_main.cpp"
+	"${SRC_DIR}/cgame/cg_scr_main.h"
+	"${SRC_DIR}/cgame/cg_scr_sp_client.cpp"
+	"${SRC_DIR}/cgame/cg_scr_sp_blur.h"
+	"${SRC_DIR}/cgame/cg_scr_sp_blur.cpp"
+	"${SRC_DIR}/cgame/cg_scr_sp_blur_commands.cpp"
+	"${SRC_DIR}/cgame/cg_scr_sp_notported.cpp"
+	"${SRC_DIR}/cgame/cg_sp_client_ext.cpp"
+	"${SRC_DIR}/cgame/cg_sp_client_ext.h"
+	"${SRC_DIR}/cgame/cg_sp_feeltrace.cpp"
+	"${SRC_DIR}/cgame/cg_sp_feeltrace.h"
+	"${SRC_DIR}/cgame/cg_sp_nettrace.cpp"
+	"${SRC_DIR}/cgame/cg_sp_nettrace.h"
+	"${SRC_DIR}/cgame/cg_sp_playtrace.cpp"
+	"${SRC_DIR}/cgame/cg_sp_playtrace.h"
+	"${SRC_DIR}/cgame/cg_sp_hud.cpp"
+	"${SRC_DIR}/cgame/cg_sp_hud.h"
+	"${SRC_DIR}/cgame/cg_sp_servercmds.cpp"
+	"${SRC_DIR}/cgame/cg_shellshock.cpp"
+	"${SRC_DIR}/cgame/cg_shellshock.h"
+	"${SRC_DIR}/cgame/cg_sound.cpp"
+	"${SRC_DIR}/cgame/cg_sound.h"
+	"${SRC_DIR}/cgame/cg_spawn.cpp"
+	"${SRC_DIR}/cgame/cg_spawn.h"
+	"${SRC_DIR}/cgame/cg_spikeacoustic.cpp"
+	"${SRC_DIR}/cgame/cg_spikeacoustic.h"
+	"${SRC_DIR}/cgame/cg_vehicle.cpp"
+	"${SRC_DIR}/cgame/cg_vehicle.h"
+	"${SRC_DIR}/cgame/cg_visionsets.cpp"
+	"${SRC_DIR}/cgame/cg_visionsets.h"
+	"${SRC_DIR}/cgame/cg_weapon_options.cpp"
+	"${SRC_DIR}/cgame/cg_weapon_options.h"
+	"${SRC_DIR}/cgame/cg_weapons.cpp"
+	"${SRC_DIR}/cgame/cg_weapons.h"
+	"${SRC_DIR}/cgame/cg_world.cpp"
+	"${SRC_DIR}/cgame/cg_world.h"
+	"${SRC_DIR}/cgame/offhandweapons.cpp"
+	"${SRC_DIR}/cgame/offhandweapons.h"
+)
+source_group("cgame" FILES ${SRC_CGAME})
+
+set(CGAME_FILES
+	${SRC_CGAME}
+)
+
+# ----- src/cgame_mp -----
+set(SRC_CGAME_MP
+	"${SRC_DIR}/cgame_mp/cg_actors_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_actors_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_animscripted_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_animscripted_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_animtree_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_animtree_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_compassfriendlies_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_compassfriendlies_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_consolecmds_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_consolecmds_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_draw_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_draw_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_draw_net_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_draw_net_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_ents_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_ents_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_local_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_main_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_main_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_newDraw_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_newDraw_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_players_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_players_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_pose_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_pose_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_predict_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_predict_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_scoreboard_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_scoreboard_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_scr_main_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_scr_main_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_servercmds_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_servercmds_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_snapshot_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_snapshot_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_ui_animate_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_ui_animate_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_vehicles_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_vehicles_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_view_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_view_mp.h"
+)
+source_group("cgame_mp" FILES ${SRC_CGAME_MP})
+
+set(CGAME_MP_FILES
+	${SRC_CGAME_MP}
+)
+
+# ----- src/client -----
+set(SRC_CLIENT
+	"${SRC_DIR}/client/cl_cin.cpp"
+	"${SRC_DIR}/client/cl_cin.h"
+	"${SRC_DIR}/client/cl_compositing.cpp"
+	"${SRC_DIR}/client/cl_compositing.h"
+	"${SRC_DIR}/client/cl_console.cpp"
+	"${SRC_DIR}/client/cl_console.h"
+	"${SRC_DIR}/client/cl_debugdata.cpp"
+	"${SRC_DIR}/client/cl_debugdata.h"
+	"${SRC_DIR}/client/cl_devgui.cpp"
+	"${SRC_DIR}/client/cl_devgui.h"
+	"${SRC_DIR}/client/cl_gamepad.cpp"
+	"${SRC_DIR}/client/cl_gamepad.h"
+	"${SRC_DIR}/client/cl_keys.cpp"
+	"${SRC_DIR}/client/cl_keys.h"
+	"${SRC_DIR}/client/cl_main.cpp"
+	"${SRC_DIR}/client/cl_main.h"
+	"${SRC_DIR}/client/cl_medal.cpp"
+	"${SRC_DIR}/client/cl_medal.h"
+	"${SRC_DIR}/client/cl_milestone.cpp"
+	"${SRC_DIR}/client/cl_milestone.h"
+	"${SRC_DIR}/client/cl_parse.cpp"
+	"${SRC_DIR}/client/cl_parse.h"
+	"${SRC_DIR}/client/cl_rank.cpp"
+	"${SRC_DIR}/client/cl_rank.h"
+	"${SRC_DIR}/client/cl_voice.cpp"
+	"${SRC_DIR}/client/cl_voice.h"
+	"${SRC_DIR}/client/client.h"
+	"${SRC_DIR}/client/con_channels.cpp"
+	"${SRC_DIR}/client/con_channels.h"
+	"${SRC_DIR}/client/screen_placement.cpp"
+	"${SRC_DIR}/client/screen_placement.h"
+	"${SRC_DIR}/client/splitscreen.cpp"
+	"${SRC_DIR}/client/splitscreen.h"
+)
+source_group("client" FILES ${SRC_CLIENT})
+
+set(CLIENT_FILES
+	${SRC_CLIENT}
+)
+
+# ----- src/client_mp -----
+set(SRC_CLIENT_MP
+	"${SRC_DIR}/client_mp/cl_cgame_mp.cpp"
+	"${SRC_DIR}/client_mp/cl_cgame_mp.h"
+	"${SRC_DIR}/client_mp/cl_input_mp.cpp"
+	"${SRC_DIR}/client_mp/cl_input_mp.h"
+	"${SRC_DIR}/client_mp/cl_main_mp.cpp"
+	"${SRC_DIR}/client_mp/cl_main_mp.h"
+	"${SRC_DIR}/client_mp/cl_main_pc_mp.cpp"
+	"${SRC_DIR}/client_mp/cl_main_pc_mp.h"
+	"${SRC_DIR}/client_mp/cl_net_chan_mp.cpp"
+	"${SRC_DIR}/client_mp/cl_net_chan_mp.h"
+	"${SRC_DIR}/client_mp/cl_parse_mp.cpp"
+	"${SRC_DIR}/client_mp/cl_parse_mp.h"
+	"${SRC_DIR}/client_mp/cl_pose_mp.cpp"
+	"${SRC_DIR}/client_mp/cl_pose_mp.h"
+	"${SRC_DIR}/client_mp/cl_scrn_mp.cpp"
+	"${SRC_DIR}/client_mp/cl_scrn_mp.h"
+	"${SRC_DIR}/client_mp/cl_ui_mp.cpp"
+	"${SRC_DIR}/client_mp/cl_ui_mp.h"
+	"${SRC_DIR}/client_mp/cl_ui_pc_mp.cpp"
+	"${SRC_DIR}/client_mp/cl_ui_pc_mp.h"
+	"${SRC_DIR}/client_mp/client_mp.h"
+	"${SRC_DIR}/client_mp/console_mp.cpp"
+	"${SRC_DIR}/client_mp/console_mp.h"
+	"${SRC_DIR}/client_mp/g_client_mp.cpp"
+	"${SRC_DIR}/client_mp/g_client_mp.h"
+	"${SRC_DIR}/client_mp/sv_client_mp.cpp"
+	"${SRC_DIR}/client_mp/sv_client_mp.h"
+)
+source_group("client_mp" FILES ${SRC_CLIENT_MP})
+
+set(CLIENT_MP_FILES
+	${SRC_CLIENT_MP}
+)
+
+# ----- src/clientscript -----
+set(SRC_CLIENTSCRIPT
+	"${SRC_DIR}/clientscript/cscr_animtree.cpp"
+	"${SRC_DIR}/clientscript/cscr_animtree.h"
+	"${SRC_DIR}/clientscript/cscr_compiler.cpp"
+	"${SRC_DIR}/clientscript/cscr_compiler.h"
+	"${SRC_DIR}/clientscript/cscr_debugger.cpp"
+	"${SRC_DIR}/clientscript/cscr_debugger.h"
+	"${SRC_DIR}/clientscript/cscr_evaluate.cpp"
+	"${SRC_DIR}/clientscript/cscr_evaluate.h"
+	"${SRC_DIR}/clientscript/cscr_instance.cpp"
+	"${SRC_DIR}/clientscript/cscr_instance.h"
+	"${SRC_DIR}/clientscript/cscr_main.cpp"
+	"${SRC_DIR}/clientscript/cscr_main.h"
+	"${SRC_DIR}/clientscript/cscr_memorytree.cpp"
+	"${SRC_DIR}/clientscript/cscr_memorytree.h"
+	"${SRC_DIR}/clientscript/cscr_parser.cpp"
+	"${SRC_DIR}/clientscript/cscr_parser.h"
+	"${SRC_DIR}/clientscript/cscr_parsetree.cpp"
+	"${SRC_DIR}/clientscript/cscr_parsetree.h"
+	"${SRC_DIR}/clientscript/cscr_readwrite.cpp"
+	"${SRC_DIR}/clientscript/cscr_readwrite.h"
+	"${SRC_DIR}/clientscript/cscr_save.cpp"
+	"${SRC_DIR}/clientscript/cscr_save.h"
+	"${SRC_DIR}/clientscript/cscr_stringlist.cpp"
+	"${SRC_DIR}/clientscript/cscr_stringlist.h"
+	"${SRC_DIR}/clientscript/cscr_tempmemory.cpp"
+	"${SRC_DIR}/clientscript/cscr_tempmemory.h"
+	"${SRC_DIR}/clientscript/cscr_variable.cpp"
+	"${SRC_DIR}/clientscript/cscr_variable.h"
+	"${SRC_DIR}/clientscript/cscr_vm.cpp"
+	"${SRC_DIR}/clientscript/cscr_vm.h"
+	"${SRC_DIR}/clientscript/cscr_yacc.cpp"
+	"${SRC_DIR}/clientscript/cscr_yacc.h"
+	"${SRC_DIR}/clientscript/scr_const.cpp"
+	"${SRC_DIR}/clientscript/scr_const.h"
+)
+source_group("clientscript" FILES ${SRC_CLIENTSCRIPT})
+
+set(CLIENTSCRIPT_FILES
+	${SRC_CLIENTSCRIPT}
+)
+
+# ----- src/common -----
+set(SRC_COMMON
+	"${SRC_DIR}/common/brush_edges.cpp"
+	"${SRC_DIR}/common/brush_edges.h"
+)
+source_group("common" FILES ${SRC_COMMON})
+
+set(COMMON_FILES
+	${SRC_COMMON}
+)
+
+# ----- src/database -----
+set(SRC_DATABASE
+	"${SRC_DIR}/database/database.h"
+	"${SRC_DIR}/database/db_assetnames.cpp"
+	"${SRC_DIR}/database/db_assetnames.h"
+	"${SRC_DIR}/database/db_auth.cpp"
+	"${SRC_DIR}/database/db_auth.h"
+	"${SRC_DIR}/database/db_file_load.cpp"
+	"${SRC_DIR}/database/db_file_load.h"
+	"${SRC_DIR}/database/db_load.cpp"
+	"${SRC_DIR}/database/db_load.h"
+	"${SRC_DIR}/database/db_memory.cpp"
+	"${SRC_DIR}/database/db_memory.h"
+	"${SRC_DIR}/database/db_registry.cpp"
+	"${SRC_DIR}/database/db_registry.h"
+	"${SRC_DIR}/database/db_stream.cpp"
+	"${SRC_DIR}/database/db_stream.h"
+	"${SRC_DIR}/database/db_stream_load.cpp"
+	"${SRC_DIR}/database/db_stream_load.h"
+	"${SRC_DIR}/database/db_stringtable_load.cpp"
+	"${SRC_DIR}/database/db_stringtable_load.h"
+)
+source_group("database" FILES ${SRC_DATABASE})
+
+set(DATABASE_FILES
+	${SRC_DATABASE}
+)
+
+# ----- src/ddl -----
+set(SRC_DDL
+	"${SRC_DIR}/ddl/ddl_api.cpp"
+	"${SRC_DIR}/ddl/ddl_api.h"
+	"${SRC_DIR}/ddl/ddl_buffer.cpp"
+	"${SRC_DIR}/ddl/ddl_buffer.h"
+	"${SRC_DIR}/ddl/ddl_cmd.cpp"
+	"${SRC_DIR}/ddl/ddl_cmd.h"
+	"${SRC_DIR}/ddl/ddl_converter.cpp"
+	"${SRC_DIR}/ddl/ddl_converter.h"
+	"${SRC_DIR}/ddl/ddl_lookup.cpp"
+	"${SRC_DIR}/ddl/ddl_lookup.h"
+)
+source_group("ddl" FILES ${SRC_DDL})
+
+set(DDL_FILES
+	${SRC_DDL}
+)
+
+# ----- src/demo -----
+set(SRC_DEMO
+	"${SRC_DIR}/demo/demo_common.cpp"
+	"${SRC_DIR}/demo/demo_common.h"
+	"${SRC_DIR}/demo/demo_files.cpp"
+	"${SRC_DIR}/demo/demo_files.h"
+	"${SRC_DIR}/demo/demo_playback.cpp"
+	"${SRC_DIR}/demo/demo_playback.h"
+	"${SRC_DIR}/demo/demo_profile.cpp"
+	"${SRC_DIR}/demo/demo_profile.h"
+	"${SRC_DIR}/demo/demo_recording.cpp"
+	"${SRC_DIR}/demo/demo_recording.h"
+	"${SRC_DIR}/demo/demo_ui.cpp"
+	"${SRC_DIR}/demo/demo_ui.h"
+	"${SRC_DIR}/demo/demo_version.cpp"
+	"${SRC_DIR}/demo/demo_version.h"
+)
+source_group("demo" FILES ${SRC_DEMO})
+
+set(DEMO_FILES
+	${SRC_DEMO}
+)
+
+# ----- src/devgui -----
+set(SRC_DEVGUI
+	"${SRC_DIR}/devgui/devgui.cpp"
+	"${SRC_DIR}/devgui/devgui.h"
+	"${SRC_DIR}/devgui/devgui_input.cpp"
+	"${SRC_DIR}/devgui/devgui_input.h"
+	"${SRC_DIR}/devgui/devgui_util.cpp"
+	"${SRC_DIR}/devgui/devgui_util.h"
+)
+source_group("devgui" FILES ${SRC_DEVGUI})
+
+set(DEVGUI_FILES
+	${SRC_DEVGUI}
+)
+
+# ----- src/flame -----
+set(SRC_FLAME
+	"${SRC_DIR}/flame/flame_class_chunk.cpp"
+	"${SRC_DIR}/flame/flame_class_chunk.h"
+	"${SRC_DIR}/flame/flame_class_drips.cpp"
+	"${SRC_DIR}/flame/flame_class_drips.h"
+	"${SRC_DIR}/flame/flame_class_fire.cpp"
+	"${SRC_DIR}/flame/flame_class_fire.h"
+	"${SRC_DIR}/flame/flame_class_smoke.cpp"
+	"${SRC_DIR}/flame/flame_class_smoke.h"
+	"${SRC_DIR}/flame/flame_class_stream.cpp"
+	"${SRC_DIR}/flame/flame_class_stream.h"
+	"${SRC_DIR}/flame/flame_cull.cpp"
+	"${SRC_DIR}/flame/flame_cull.h"
+	"${SRC_DIR}/flame/flame_damage.cpp"
+	"${SRC_DIR}/flame/flame_damage.h"
+	"${SRC_DIR}/flame/flame_physics.cpp"
+	"${SRC_DIR}/flame/flame_physics.h"
+	"${SRC_DIR}/flame/flame_sound.cpp"
+	"${SRC_DIR}/flame/flame_sound.h"
+	"${SRC_DIR}/flame/flame_system.cpp"
+	"${SRC_DIR}/flame/flame_system.h"
+)
+source_group("flame" FILES ${SRC_FLAME})
+
+set(FLAME_FILES
+	${SRC_FLAME}
+)
+
+# ----- src/game -----
+set(SRC_GAME
+	"${SRC_DIR}/game/actor.h"
+	"${SRC_DIR}/game/actor_aim.cpp"
+	"${SRC_DIR}/game/actor_aim.h"
+	"${SRC_DIR}/game/actor_animapi.cpp"
+	"${SRC_DIR}/game/actor_animapi.h"
+	"${SRC_DIR}/game/actor_badplace.cpp"
+	"${SRC_DIR}/game/actor_badplace.h"
+	"${SRC_DIR}/game/actor_corpse.cpp"
+	"${SRC_DIR}/game/actor_corpse.h"
+	"${SRC_DIR}/game/actor_death.cpp"
+	"${SRC_DIR}/game/actor_death.h"
+	"${SRC_DIR}/game/actor_dog_exposed.cpp"
+	"${SRC_DIR}/game/actor_dog_exposed.h"
+	"${SRC_DIR}/game/actor_event_listeners.cpp"
+	"${SRC_DIR}/game/actor_event_listeners.h"
+	"${SRC_DIR}/game/actor_events.cpp"
+	"${SRC_DIR}/game/actor_events.h"
+	"${SRC_DIR}/game/actor_exposed.cpp"
+	"${SRC_DIR}/game/actor_exposed.h"
+	"${SRC_DIR}/game/actor_zombie_exposed.cpp"
+	"${SRC_DIR}/game/actor_zombie_exposed.h"
+	"${SRC_DIR}/game/actor_zombie_dog_exposed.cpp"
+	"${SRC_DIR}/game/actor_zombie_dog_exposed.h"
+	"${SRC_DIR}/game/actor_fields.cpp"
+	"${SRC_DIR}/game/actor_fields.h"
+	"${SRC_DIR}/game/actor_function_table.cpp"
+	"${SRC_DIR}/game/actor_generic.cpp"
+	"${SRC_DIR}/game/actor_generic.h"
+	"${SRC_DIR}/game/actor_lookat.cpp"
+	"${SRC_DIR}/game/actor_lookat.h"
+	"${SRC_DIR}/game/actor_navigation.cpp"
+	"${SRC_DIR}/game/actor_navigation.h"
+	"${SRC_DIR}/game/actor_negotiation.cpp"
+	"${SRC_DIR}/game/actor_negotiation.h"
+	"${SRC_DIR}/game/actor_orientation.cpp"
+	"${SRC_DIR}/game/actor_orientation.h"
+	"${SRC_DIR}/game/actor_pain.cpp"
+	"${SRC_DIR}/game/actor_pain.h"
+	"${SRC_DIR}/game/actor_physics.cpp"
+	"${SRC_DIR}/game/actor_physics.h"
+	"${SRC_DIR}/game/actor_script_cmd.cpp"
+	"${SRC_DIR}/game/actor_script_cmd.h"
+	"${SRC_DIR}/game/actor_scripted.cpp"
+	"${SRC_DIR}/game/actor_scripted.h"
+	"${SRC_DIR}/game/actor_senses.cpp"
+	"${SRC_DIR}/game/actor_senses.h"
+	"${SRC_DIR}/game/actor_spawner.cpp"
+	"${SRC_DIR}/game/actor_spawner.h"
+	"${SRC_DIR}/game/actor_state.cpp"
+	"${SRC_DIR}/game/actor_state.h"
+	"${SRC_DIR}/game/actor_team_move.cpp"
+	"${SRC_DIR}/game/actor_team_move.h"
+	"${SRC_DIR}/game/actor_threat.cpp"
+	"${SRC_DIR}/game/actor_threat.h"
+	"${SRC_DIR}/game/bullet.cpp"
+	"${SRC_DIR}/game/bullet.h"
+	"${SRC_DIR}/game/enthandle.cpp"
+	"${SRC_DIR}/game/enthandle.h"
+	"${SRC_DIR}/game/g_actor_prone.cpp"
+	"${SRC_DIR}/game/g_actor_prone.h"
+	"${SRC_DIR}/game/g_bsp.cpp"
+	"${SRC_DIR}/game/g_bsp.h"
+	"${SRC_DIR}/game/g_client_fields.cpp"
+	"${SRC_DIR}/game/g_client_fields.h"
+	"${SRC_DIR}/game/g_debug.cpp"
+	"${SRC_DIR}/game/g_debug.h"
+	"${SRC_DIR}/game/g_helicopter1.cpp"
+	"${SRC_DIR}/game/g_helicopter1.h"
+	"${SRC_DIR}/game/g_hudelem.cpp"
+	"${SRC_DIR}/game/g_hudelem.h"
+	"${SRC_DIR}/game/g_items.cpp"
+	"${SRC_DIR}/game/g_items.h"
+	"${SRC_DIR}/game/g_load_utils.cpp"
+	"${SRC_DIR}/game/g_load_utils.h"
+	"${SRC_DIR}/game/g_mem_track.cpp"
+	"${SRC_DIR}/game/g_mem_track.h"
+	"${SRC_DIR}/game/g_missile.cpp"
+	"${SRC_DIR}/game/g_missile.h"
+	"${SRC_DIR}/game/g_mover.cpp"
+	"${SRC_DIR}/game/g_mover.h"
+	"${SRC_DIR}/game/g_player_corpse.cpp"
+	"${SRC_DIR}/game/g_player_corpse.h"
+	"${SRC_DIR}/game/g_scr_helicopter.cpp"
+	"${SRC_DIR}/game/g_scr_helicopter.h"
+	"${SRC_DIR}/game/g_scr_mover.cpp"
+	"${SRC_DIR}/game/g_scr_mover.h"
+	"${SRC_DIR}/game/g_scr_vehicle.cpp"
+	"${SRC_DIR}/game/g_scr_vehicle.h"
+	"${SRC_DIR}/game/g_svcmds.cpp"
+	"${SRC_DIR}/game/g_svcmds.h"
+	"${SRC_DIR}/game/g_targets.cpp"
+	"${SRC_DIR}/game/g_targets.h"
+	"${SRC_DIR}/game/g_vehicle_path.cpp"
+	"${SRC_DIR}/game/g_vehicle_path.h"
+	"${SRC_DIR}/game/g_weapon.cpp"
+	"${SRC_DIR}/game/g_weapon.h"
+	"${SRC_DIR}/game/g_weapon_load_obj.cpp"
+	"${SRC_DIR}/game/g_weapon_load_obj.h"
+	"${SRC_DIR}/game/game_public.h"
+	"${SRC_DIR}/game/pathnode.cpp"
+	"${SRC_DIR}/game/pathnode.h"
+	"${SRC_DIR}/game/pathnode_load_obj.cpp"
+	"${SRC_DIR}/game/g_mapkit_path.cpp"
+	"${SRC_DIR}/game/pathnode_load_obj.h"
+	"${SRC_DIR}/game/sentient.cpp"
+	"${SRC_DIR}/game/sentient.h"
+	"${SRC_DIR}/game/sentient_fields.cpp"
+	"${SRC_DIR}/game/sentient_fields.h"
+	"${SRC_DIR}/game/statindex.h"
+	"${SRC_DIR}/game/teams.h"
+	"${SRC_DIR}/game/turret.cpp"
+	"${SRC_DIR}/game/turret.h"
+)
+source_group("game" FILES ${SRC_GAME})
+
+set(GAME_FILES
+	${SRC_GAME}
+)
+
+# ----- src/game_mp -----
+set(SRC_GAME_MP
+	"${SRC_DIR}/game_mp/actor_mp.cpp"
+	"${SRC_DIR}/game_mp/actor_mp.h"
+	"${SRC_DIR}/game_mp/g_active_mp.cpp"
+	"${SRC_DIR}/game_mp/g_active_mp.h"
+	"${SRC_DIR}/game_mp/g_client_script_cmd_mp.cpp"
+	"${SRC_DIR}/game_mp/g_client_script_cmd_mp.h"
+	"${SRC_DIR}/game_mp/g_cmds_mp.cpp"
+	"${SRC_DIR}/game_mp/g_cmds_mp.h"
+	"${SRC_DIR}/game_mp/g_combat_mp.cpp"
+	"${SRC_DIR}/game_mp/g_combat_mp.h"
+	"${SRC_DIR}/game_mp/g_main_mp.cpp"
+	"${SRC_DIR}/game_mp/g_main_mp.h"
+	"${SRC_DIR}/game_mp/g_misc_mp.cpp"
+	"${SRC_DIR}/game_mp/g_misc_mp.h"
+	"${SRC_DIR}/game_mp/g_save_mp.cpp"
+	"${SRC_DIR}/game_mp/g_save_mp.h"
+	"${SRC_DIR}/game_mp/g_scr_main_mp.cpp"
+	"${SRC_DIR}/game_mp/g_scr_main_mp.h"
+	"${SRC_DIR}/game_mp/g_spawn_mp.cpp"
+	"${SRC_DIR}/game_sp/g_sp_ext.h"
+	"${SRC_DIR}/game_sp/g_sp_ext.cpp"
+	"${SRC_DIR}/game_mp/g_spawn_mp.h"
+	"${SRC_DIR}/game_mp/g_spawnsystem_mp.cpp"
+	"${SRC_DIR}/game_mp/g_spawnsystem_mp.h"
+	"${SRC_DIR}/game_mp/g_team_mp.cpp"
+	"${SRC_DIR}/game_mp/g_team_mp.h"
+	"${SRC_DIR}/game_mp/g_trigger_mp.cpp"
+	"${SRC_DIR}/game_mp/g_trigger_mp.h"
+	"${SRC_DIR}/game_mp/g_utils_mp.cpp"
+	"${SRC_DIR}/game_mp/g_utils_mp.h"
+	"${SRC_DIR}/game_mp/player_use_mp.cpp"
+	"${SRC_DIR}/game_mp/player_use_mp.h"
+	"${SRC_DIR}/game_mp/pregame.cpp"
+	"${SRC_DIR}/game_mp/pregame.h"
+	"${SRC_DIR}/game_mp/ui_gameinfo_mp.cpp"
+	"${SRC_DIR}/game_mp/ui_gameinfo_mp.h"
+)
+source_group("game_mp" FILES ${SRC_GAME_MP})
+
+# ----- src/game_sp (actor lane) -----
+set(SRC_GAME_SP_ACTOR
+	"${SRC_DIR}/game_sp/actor_sp_ext.cpp"
+	"${SRC_DIR}/game_sp/actor_sp_ext.h"
+)
+source_group("game_sp" FILES ${SRC_GAME_SP_ACTOR})
+
+set(GAME_MP_FILES
+	${SRC_GAME_MP}
+	${SRC_GAME_SP_ACTOR}
+)
+
+# ----- src/game_sp -----
+set(SRC_GAME_SP
+	"${SRC_DIR}/game_sp/actor_sp_event_listeners.cpp"
+	"${SRC_DIR}/game_sp/actor_sp_event_listeners.h"
+	"${SRC_DIR}/game_sp/g_mapkit.cpp"
+	"${SRC_DIR}/game_sp/g_scr_sp_ai.cpp"
+	"${SRC_DIR}/game_sp/g_scr_sp_ai.h"
+	"${SRC_DIR}/game_sp/g_scr_sp_ai_cmds.cpp"
+	"${SRC_DIR}/game_sp/g_scr_sp_ai_cmds.h"
+	"${SRC_DIR}/game_sp/g_scr_sp_anim.cpp"
+	"${SRC_DIR}/game_sp/g_anim_commands_sp.cpp"
+	"${SRC_DIR}/game_sp/g_actor_model_state.cpp"
+	"${SRC_DIR}/cgame_mp/cg_actor_model_state.cpp"
+	"${SRC_DIR}/qcommon/msg_anim_commands.cpp"
+	"${SRC_DIR}/cgame_mp/cg_anim_commands.cpp"
+	"${SRC_DIR}/game_sp/g_scr_sp_entity.cpp"
+	"${SRC_DIR}/game_sp/g_scr_sp_entity.h"
+	"${SRC_DIR}/game_sp/g_sp_level_exit.cpp"
+	"${SRC_DIR}/game_sp/g_sp_lookat.cpp"
+	"${SRC_DIR}/game_sp/g_sp_lookat.h"
+	"${SRC_DIR}/game_sp/g_sp_level_exit.h"
+	"${SRC_DIR}/game_sp/g_scr_sp_notported.cpp"
+	"${SRC_DIR}/game_sp/g_scr_sp_players.cpp"
+	"${SRC_DIR}/game_sp/g_scr_sp_players_x1.cpp"
+	"${SRC_DIR}/game_sp/g_scr_sp_players_x1.h"
+	"${SRC_DIR}/game_sp/g_sp_levelstart.cpp"
+	"${SRC_DIR}/game_sp/g_sp_levelstart.h"
+	"${SRC_DIR}/game_sp/g_sp_client.cpp"
+	"${SRC_DIR}/game_sp/g_sp_client.h"
+	"${SRC_DIR}/game_sp/g_sp_headless_labs.cpp"
+	"${SRC_DIR}/game_sp/g_sp_headless_labs.h"
+	"${SRC_DIR}/game_sp/g_sp_headless_throw.cpp"
+	"${SRC_DIR}/game_sp/g_sp_headless_throw.h"
+	"${SRC_DIR}/game_sp/g_sp_headless_move.cpp"
+	"${SRC_DIR}/game_sp/g_sp_headless_move.h"
+	"${SRC_DIR}/game_sp/g_sp_headless_dice.cpp"
+	"${SRC_DIR}/game_sp/g_sp_headless_dice.h"
+	"${SRC_DIR}/game_sp/g_sp_headless_replay.cpp"
+	"${SRC_DIR}/game_sp/g_sp_testplan.cpp"
+	"${SRC_DIR}/game_sp/g_sp_testplan.h"
+	"${SRC_DIR}/game_sp/g_sp_vision.cpp"
+	"${SRC_DIR}/game_sp/g_sp_vision.h"
+	"${SRC_DIR}/game_sp/g_sp_measure.cpp"
+	"${SRC_DIR}/game_sp/g_sp_measure.h"
+	"${SRC_DIR}/game_sp/g_sp_playtrace.cpp"
+	"${SRC_DIR}/game_sp/g_sp_playtrace.h"
+	"${SRC_DIR}/game_sp/scr_sp_debug.cpp"
+	"${SRC_DIR}/game_sp/scr_sp_debug.h"
+	"${SRC_DIR}/game_sp/g_sp_player_state.cpp"
+	"${SRC_DIR}/game_sp/g_sp_player_state.h"
+	"${SRC_DIR}/game_sp/g_sp_savegame.cpp"
+	"${SRC_DIR}/game_sp/g_sp_savegame.h"
+	"${SRC_DIR}/game_sp/g_sp_loadgame.cpp"
+	"${SRC_DIR}/game_sp/g_sp_loadgame.h"
+	"${SRC_DIR}/game_sp/scr_sp_tables.cpp"
+	"${SRC_DIR}/game_sp/scr_sp_tables.h"
+)
+source_group("game_sp" FILES ${SRC_GAME_SP})
+
+set(GAME_SP_FILES
+	${SRC_GAME_SP}
+)
+
+# ----- src/gfx_d3d -----
+set(SRC_GFX_D3D
+	"${SRC_DIR}/gfx_d3d/fxprimitives.h"
+	"${SRC_DIR}/gfx_d3d/r_add_bsp.cpp"
+	"${SRC_DIR}/gfx_d3d/r_add_bsp.h"
+	"${SRC_DIR}/gfx_d3d/r_add_cmdbuf.cpp"
+	"${SRC_DIR}/gfx_d3d/r_add_cmdbuf.h"
+	"${SRC_DIR}/gfx_d3d/r_add_staticmodel.cpp"
+	"${SRC_DIR}/gfx_d3d/r_add_staticmodel.h"
+	"${SRC_DIR}/gfx_d3d/r_adszscale.cpp"
+	"${SRC_DIR}/gfx_d3d/r_adszscale.h"
+	"${SRC_DIR}/gfx_d3d/r_bsp.cpp"
+	"${SRC_DIR}/gfx_d3d/r_bsp.h"
+	"${SRC_DIR}/gfx_d3d/r_bsp_load_obj.cpp"
+	"${SRC_DIR}/gfx_d3d/r_bsp_load_obj.h"
+	"${SRC_DIR}/gfx_d3d/r_buffers.cpp"
+	"${SRC_DIR}/gfx_d3d/r_buffers.h"
+	"${SRC_DIR}/gfx_d3d/r_caps.cpp"
+	"${SRC_DIR}/gfx_d3d/r_caps.h"
+	"${SRC_DIR}/gfx_d3d/r_char_tech_util.cpp"
+	"${SRC_DIR}/gfx_d3d/r_char_tech_util.h"
+	"${SRC_DIR}/gfx_d3d/r_cinematic.cpp"
+	"${SRC_DIR}/gfx_d3d/r_cinematic.h"
+	"${SRC_DIR}/gfx_d3d/r_cmdbuf.cpp"
+	"${SRC_DIR}/gfx_d3d/r_cmdbuf.h"
+	"${SRC_DIR}/gfx_d3d/r_cmds.cpp"
+	"${SRC_DIR}/gfx_d3d/r_cmds.h"
+	"${SRC_DIR}/gfx_d3d/r_debug.cpp"
+	"${SRC_DIR}/gfx_d3d/r_debug.h"
+	"${SRC_DIR}/gfx_d3d/r_debug_alloc.cpp"
+	"${SRC_DIR}/gfx_d3d/r_debug_alloc.h"
+	"${SRC_DIR}/gfx_d3d/r_devgui.cpp"
+	"${SRC_DIR}/gfx_d3d/r_devgui.h"
+	"${SRC_DIR}/gfx_d3d/r_dobj_skin.cpp"
+	"${SRC_DIR}/gfx_d3d/r_dobj_skin.h"
+	"${SRC_DIR}/gfx_d3d/r_dpvs.cpp"
+	"${SRC_DIR}/gfx_d3d/r_dpvs.h"
+	"${SRC_DIR}/gfx_d3d/r_dpvs_dynmodel.cpp"
+	"${SRC_DIR}/gfx_d3d/r_dpvs_dynmodel.h"
+	"${SRC_DIR}/gfx_d3d/r_dpvs_entity.cpp"
+	"${SRC_DIR}/gfx_d3d/r_dpvs_entity.h"
+	"${SRC_DIR}/gfx_d3d/r_dpvs_sceneent.cpp"
+	"${SRC_DIR}/gfx_d3d/r_dpvs_sceneent.h"
+	"${SRC_DIR}/gfx_d3d/r_dpvs_static.cpp"
+	"${SRC_DIR}/gfx_d3d/r_dpvs_static.h"
+	"${SRC_DIR}/gfx_d3d/r_draw_bsp.cpp"
+	"${SRC_DIR}/gfx_d3d/r_draw_bsp.h"
+	"${SRC_DIR}/gfx_d3d/r_draw_cmdbuf.cpp"
+	"${SRC_DIR}/gfx_d3d/r_draw_cmdbuf.h"
+	"${SRC_DIR}/gfx_d3d/r_draw_lit.cpp"
+	"${SRC_DIR}/gfx_d3d/r_draw_lit.h"
+	"${SRC_DIR}/gfx_d3d/r_draw_material.cpp"
+	"${SRC_DIR}/gfx_d3d/r_draw_material.h"
+	"${SRC_DIR}/gfx_d3d/r_draw_method.cpp"
+	"${SRC_DIR}/gfx_d3d/r_draw_method.h"
+	"${SRC_DIR}/gfx_d3d/r_draw_model_util.cpp"
+	"${SRC_DIR}/gfx_d3d/r_draw_model_util.h"
+	"${SRC_DIR}/gfx_d3d/r_draw_shadowablelight.cpp"
+	"${SRC_DIR}/gfx_d3d/r_draw_shadowablelight.h"
+	"${SRC_DIR}/gfx_d3d/r_draw_staticmodel.cpp"
+	"${SRC_DIR}/gfx_d3d/r_draw_staticmodel.h"
+	"${SRC_DIR}/gfx_d3d/r_draw_sunshadow.cpp"
+	"${SRC_DIR}/gfx_d3d/r_draw_sunshadow.h"
+	"${SRC_DIR}/gfx_d3d/r_draw_xmodel.cpp"
+	"${SRC_DIR}/gfx_d3d/r_draw_xmodel.h"
+	"${SRC_DIR}/gfx_d3d/r_drawsurf.cpp"
+	"${SRC_DIR}/gfx_d3d/r_drawsurf.h"
+	"${SRC_DIR}/gfx_d3d/r_dvars.cpp"
+	"${SRC_DIR}/gfx_d3d/r_dvars.h"
+	"${SRC_DIR}/gfx_d3d/r_exposure.cpp"
+	"${SRC_DIR}/gfx_d3d/r_exposure.h"
+	"${SRC_DIR}/gfx_d3d/r_extracam.cpp"
+	"${SRC_DIR}/gfx_d3d/r_extracam.h"
+	"${SRC_DIR}/gfx_d3d/r_fog.cpp"
+	"${SRC_DIR}/gfx_d3d/r_fog.h"
+	"${SRC_DIR}/gfx_d3d/r_foliage.cpp"
+	"${SRC_DIR}/gfx_d3d/r_foliage.h"
+	"${SRC_DIR}/gfx_d3d/r_font.cpp"
+	"${SRC_DIR}/gfx_d3d/r_font.h"
+	"${SRC_DIR}/gfx_d3d/r_font_load_obj.cpp"
+	"${SRC_DIR}/gfx_d3d/r_font_load_obj.h"
+	"${SRC_DIR}/gfx_d3d/r_gfx.h"
+	"${SRC_DIR}/gfx_d3d/r_globalgfxdata.cpp"
+	"${SRC_DIR}/gfx_d3d/r_globalgfxdata.h"
+	"${SRC_DIR}/gfx_d3d/r_hw_nvidia.cpp"
+	"${SRC_DIR}/gfx_d3d/r_hw_nvidia.h"
+	"${SRC_DIR}/gfx_d3d/r_image.cpp"
+	"${SRC_DIR}/gfx_d3d/r_image.h"
+	"${SRC_DIR}/gfx_d3d/r_image_load_common.cpp"
+	"${SRC_DIR}/gfx_d3d/r_image_load_common.h"
+	"${SRC_DIR}/gfx_d3d/r_image_load_obj.cpp"
+	"${SRC_DIR}/gfx_d3d/r_image_load_obj.h"
+	"${SRC_DIR}/gfx_d3d/r_image_wavelet.cpp"
+	"${SRC_DIR}/gfx_d3d/r_image_wavelet.h"
+	"${SRC_DIR}/gfx_d3d/r_init.cpp"
+	"${SRC_DIR}/gfx_d3d/r_init.h"
+	"${SRC_DIR}/gfx_d3d/r_jpeg.cpp"
+	"${SRC_DIR}/gfx_d3d/r_jpeg.h"
+	"${SRC_DIR}/gfx_d3d/r_light.cpp"
+	"${SRC_DIR}/gfx_d3d/r_light.h"
+	"${SRC_DIR}/gfx_d3d/r_light_load_obj.cpp"
+	"${SRC_DIR}/gfx_d3d/r_light_load_obj.h"
+	"${SRC_DIR}/gfx_d3d/r_marks.cpp"
+	"${SRC_DIR}/gfx_d3d/r_marks.h"
+	"${SRC_DIR}/gfx_d3d/r_material.cpp"
+	"${SRC_DIR}/gfx_d3d/r_material.h"
+	"${SRC_DIR}/gfx_d3d/r_material_consts.cpp"
+	"${SRC_DIR}/gfx_d3d/r_material_consts.h"
+	"${SRC_DIR}/gfx_d3d/r_material_load_obj.cpp"
+	"${SRC_DIR}/gfx_d3d/r_material_load_obj.h"
+	"${SRC_DIR}/gfx_d3d/r_mem_track.cpp"
+	"${SRC_DIR}/gfx_d3d/r_mem_track.h"
+	"${SRC_DIR}/gfx_d3d/r_meshdata.cpp"
+	"${SRC_DIR}/gfx_d3d/r_meshdata.h"
+	"${SRC_DIR}/gfx_d3d/r_model.cpp"
+	"${SRC_DIR}/gfx_d3d/r_model.h"
+	"${SRC_DIR}/gfx_d3d/r_model_lighting.cpp"
+	"${SRC_DIR}/gfx_d3d/r_model_lighting.h"
+	"${SRC_DIR}/gfx_d3d/r_model_lod.cpp"
+	"${SRC_DIR}/gfx_d3d/r_model_lod.h"
+	"${SRC_DIR}/gfx_d3d/r_model_pose.cpp"
+	"${SRC_DIR}/gfx_d3d/r_model_pose.h"
+	"${SRC_DIR}/gfx_d3d/r_model_skin.cpp"
+	"${SRC_DIR}/gfx_d3d/r_model_skin_sse.cpp"
+	"${SRC_DIR}/gfx_d3d/r_model_skin.h"
+	"${SRC_DIR}/gfx_d3d/r_outdoor.cpp"
+	"${SRC_DIR}/gfx_d3d/r_outdoor.h"
+	"${SRC_DIR}/gfx_d3d/r_pixelcost_load_obj.cpp"
+	"${SRC_DIR}/gfx_d3d/r_pixelcost_load_obj.h"
+	"${SRC_DIR}/gfx_d3d/r_pointlights.cpp"
+	"${SRC_DIR}/gfx_d3d/r_pointlights.h"
+	"${SRC_DIR}/gfx_d3d/r_pretess.cpp"
+	"${SRC_DIR}/gfx_d3d/r_pretess.h"
+	"${SRC_DIR}/gfx_d3d/r_primarylights.cpp"
+	"${SRC_DIR}/gfx_d3d/r_primarylights.h"
+	"${SRC_DIR}/gfx_d3d/r_reflection_probe.cpp"
+	"${SRC_DIR}/gfx_d3d/r_reflection_probe.h"
+	"${SRC_DIR}/gfx_d3d/r_rendercmds.cpp"
+	"${SRC_DIR}/gfx_d3d/r_rendercmds.h"
+	"${SRC_DIR}/gfx_d3d/r_rendertarget.cpp"
+	"${SRC_DIR}/gfx_d3d/r_rendertarget.h"
+	"${SRC_DIR}/gfx_d3d/r_mapkit_render.cpp"
+	"${SRC_DIR}/gfx_d3d/r_mapkit_render.h"
+	"${SRC_DIR}/gfx_d3d/r_rope_render.cpp"
+	"${SRC_DIR}/gfx_d3d/r_rope_render.h"
+	"${SRC_DIR}/gfx_d3d/r_scene.cpp"
+	"${SRC_DIR}/gfx_d3d/r_scene.h"
+	"${SRC_DIR}/gfx_d3d/r_screenshot.cpp"
+	"${SRC_DIR}/gfx_d3d/r_screenshot.h"
+	"${SRC_DIR}/gfx_d3d/r_setstate_d3d.cpp"
+	"${SRC_DIR}/gfx_d3d/r_setstate_d3d.h"
+	"${SRC_DIR}/gfx_d3d/r_shade.cpp"
+	"${SRC_DIR}/gfx_d3d/r_shade.h"
+	"${SRC_DIR}/gfx_d3d/r_shader_constant_set.cpp"
+	"${SRC_DIR}/gfx_d3d/r_shader_constant_set.h"
+	"${SRC_DIR}/gfx_d3d/r_sky.cpp"
+	"${SRC_DIR}/gfx_d3d/r_sky.h"
+	"${SRC_DIR}/gfx_d3d/r_sky_load_obj.cpp"
+	"${SRC_DIR}/gfx_d3d/r_sky_load_obj.h"
+	"${SRC_DIR}/gfx_d3d/r_skybox.cpp"
+	"${SRC_DIR}/gfx_d3d/r_skybox.h"
+	"${SRC_DIR}/gfx_d3d/r_spotshadow.cpp"
+	"${SRC_DIR}/gfx_d3d/r_spotshadow.h"
+	"${SRC_DIR}/gfx_d3d/r_sprite.cpp"
+	"${SRC_DIR}/gfx_d3d/r_sprite.h"
+	"${SRC_DIR}/gfx_d3d/r_state.cpp"
+	"${SRC_DIR}/gfx_d3d/r_state.h"
+	"${SRC_DIR}/gfx_d3d/r_state_utils.cpp"
+	"${SRC_DIR}/gfx_d3d/r_state_utils.h"
+	"${SRC_DIR}/gfx_d3d/r_staticmodel.cpp"
+	"${SRC_DIR}/gfx_d3d/r_staticmodel.h"
+	"${SRC_DIR}/gfx_d3d/r_staticmodel_load_obj.cpp"
+	"${SRC_DIR}/gfx_d3d/r_staticmodel_load_obj.h"
+	"${SRC_DIR}/gfx_d3d/r_staticmodelcache.cpp"
+	"${SRC_DIR}/gfx_d3d/r_staticmodelcache.h"
+	"${SRC_DIR}/gfx_d3d/r_staticmodelcache_load_obj.cpp"
+	"${SRC_DIR}/gfx_d3d/r_staticmodelcache_load_obj.h"
+	"${SRC_DIR}/gfx_d3d/r_stream.cpp"
+	"${SRC_DIR}/gfx_d3d/r_stream.h"
+	"${SRC_DIR}/gfx_d3d/r_stream_util.cpp"
+	"${SRC_DIR}/gfx_d3d/r_stream_util.h"
+	"${SRC_DIR}/gfx_d3d/r_streamalloc.cpp"
+	"${SRC_DIR}/gfx_d3d/r_streamalloc.h"
+	"${SRC_DIR}/gfx_d3d/r_sunshadow.cpp"
+	"${SRC_DIR}/gfx_d3d/r_sunshadow.h"
+	"${SRC_DIR}/gfx_d3d/r_texturemem.cpp"
+	"${SRC_DIR}/gfx_d3d/r_texturemem.h"
+	"${SRC_DIR}/gfx_d3d/r_ui3d.cpp"
+	"${SRC_DIR}/gfx_d3d/r_ui3d.h"
+	"${SRC_DIR}/gfx_d3d/r_utils.cpp"
+	"${SRC_DIR}/gfx_d3d/r_utils.h"
+	"${SRC_DIR}/gfx_d3d/r_vertexstream2.cpp"
+	"${SRC_DIR}/gfx_d3d/r_vertexstream2.h"
+	"${SRC_DIR}/gfx_d3d/r_warn.cpp"
+	"${SRC_DIR}/gfx_d3d/r_warn.h"
+	"${SRC_DIR}/gfx_d3d/r_water.cpp"
+	"${SRC_DIR}/gfx_d3d/r_water.h"
+	"${SRC_DIR}/gfx_d3d/r_water_load_obj.cpp"
+	"${SRC_DIR}/gfx_d3d/r_water_load_obj.h"
+	"${SRC_DIR}/gfx_d3d/r_water_sim.cpp"
+	"${SRC_DIR}/gfx_d3d/r_water_sim.h"
+	"${SRC_DIR}/gfx_d3d/r_wind.cpp"
+	"${SRC_DIR}/gfx_d3d/r_wind.h"
+	"${SRC_DIR}/gfx_d3d/r_workercmds.cpp"
+	"${SRC_DIR}/gfx_d3d/r_workercmds.h"
+	"${SRC_DIR}/gfx_d3d/r_workercmds_common.cpp"
+	"${SRC_DIR}/gfx_d3d/r_workercmds_common.h"
+	"${SRC_DIR}/gfx_d3d/r_world_lod.cpp"
+	"${SRC_DIR}/gfx_d3d/r_world_lod.h"
+	"${SRC_DIR}/gfx_d3d/r_xsurface.cpp"
+	"${SRC_DIR}/gfx_d3d/r_xsurface.h"
+	"${SRC_DIR}/gfx_d3d/r_xsurface_load_obj.cpp"
+	"${SRC_DIR}/gfx_d3d/r_xsurface_load_obj.h"
+	"${SRC_DIR}/gfx_d3d/r_xsurface_optimize.cpp"
+	"${SRC_DIR}/gfx_d3d/r_xsurface_optimize.h"
+	"${SRC_DIR}/gfx_d3d/rb_backend.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_backend.h"
+	"${SRC_DIR}/gfx_d3d/rb_compositing.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_compositing.h"
+	"${SRC_DIR}/gfx_d3d/rb_corona.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_corona.h"
+	"${SRC_DIR}/gfx_d3d/rb_debug.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_debug.h"
+	"${SRC_DIR}/gfx_d3d/rb_depthprepass.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_depthprepass.h"
+	"${SRC_DIR}/gfx_d3d/rb_draw3d.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_draw3d.h"
+	"${SRC_DIR}/gfx_d3d/rb_fog.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_fog.h"
+	"${SRC_DIR}/gfx_d3d/rb_imagefilter.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_imagefilter.h"
+	"${SRC_DIR}/gfx_d3d/rb_imagetouch.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_imagetouch.h"
+	"${SRC_DIR}/gfx_d3d/rb_light.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_light.h"
+	"${SRC_DIR}/gfx_d3d/rb_logfile.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_logfile.h"
+	"${SRC_DIR}/gfx_d3d/rb_pixelcost.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_pixelcost.h"
+	"${SRC_DIR}/gfx_d3d/rb_postfx.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_postfx.h"
+	"${SRC_DIR}/gfx_d3d/rb_resource.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_resource.h"
+	"${SRC_DIR}/gfx_d3d/rb_shade.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_shade.h"
+	"${SRC_DIR}/gfx_d3d/rb_showcollision.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_showcollision.h"
+	"${SRC_DIR}/gfx_d3d/rb_sky.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_sky.h"
+	"${SRC_DIR}/gfx_d3d/rb_spotshadow.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_spotshadow.h"
+	"${SRC_DIR}/gfx_d3d/rb_state.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_state.h"
+	"${SRC_DIR}/gfx_d3d/rb_stats.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_stats.h"
+	"${SRC_DIR}/gfx_d3d/rb_stream.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_stream.h"
+	"${SRC_DIR}/gfx_d3d/rb_sunshadow.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_sunshadow.h"
+	"${SRC_DIR}/gfx_d3d/rb_superflare.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_superflare.h"
+	"${SRC_DIR}/gfx_d3d/rb_tess.cpp"
+	"${SRC_DIR}/gfx_d3d/rb_tess.h"
+)
+source_group("gfx_d3d" FILES ${SRC_GFX_D3D})
+
+set(GFX_D3D_FILES
+	${SRC_GFX_D3D}
+)
+
+# ----- src/glass -----
+set(SRC_GLASS
+	"${SRC_DIR}/glass/glass.h"
+	"${SRC_DIR}/glass/glass_allocator.cpp"
+	"${SRC_DIR}/glass/glass_allocator.h"
+	"${SRC_DIR}/glass/glass_client.cpp"
+	"${SRC_DIR}/glass/glass_client.h"
+	"${SRC_DIR}/glass/glass_load_obj.cpp"
+	"${SRC_DIR}/glass/glass_load_obj.h"
+	"${SRC_DIR}/glass/glass_renderer.cpp"
+	"${SRC_DIR}/glass/glass_renderer.h"
+	"${SRC_DIR}/glass/glass_server.cpp"
+	"${SRC_DIR}/glass/glass_server.h"
+	"${SRC_DIR}/glass/glass_shard.cpp"
+	"${SRC_DIR}/glass/glass_shard.h"
+)
+source_group("glass" FILES ${SRC_GLASS})
+
+set(GLASS_FILES
+	${SRC_GLASS}
+)
+
+# ----- src/groupvoice -----
+set(SRC_GROUPVOICE
+	"${SRC_DIR}/groupvoice/decode.cpp"
+	"${SRC_DIR}/groupvoice/decode.h"
+	"${SRC_DIR}/groupvoice/directsound.h"
+	"${SRC_DIR}/groupvoice/encode.cpp"
+	"${SRC_DIR}/groupvoice/encode.h"
+	"${SRC_DIR}/groupvoice/play.cpp"
+	"${SRC_DIR}/groupvoice/play.h"
+	"${SRC_DIR}/groupvoice/play_dsound.cpp"
+	"${SRC_DIR}/groupvoice/play_dsound.h"
+	"${SRC_DIR}/groupvoice/record.cpp"
+	"${SRC_DIR}/groupvoice/record.h"
+	"${SRC_DIR}/groupvoice/record_dsound.cpp"
+	"${SRC_DIR}/groupvoice/record_dsound.h"
+)
+source_group("groupvoice" FILES ${SRC_GROUPVOICE})
+
+set(SRC_GROUPVOICE_SPEEX
+	"${SRC_DIR}/groupvoice/speex/arch.h"
+	"${SRC_DIR}/groupvoice/speex/bits.c"
+	"${SRC_DIR}/groupvoice/speex/cb_search.c"
+	"${SRC_DIR}/groupvoice/speex/cb_search.h"
+	"${SRC_DIR}/groupvoice/speex/cb_search_arm4.h"
+	"${SRC_DIR}/groupvoice/speex/cb_search_sse.h"
+	"${SRC_DIR}/groupvoice/speex/exc_10_16_table.c"
+	"${SRC_DIR}/groupvoice/speex/exc_10_32_table.c"
+	"${SRC_DIR}/groupvoice/speex/exc_20_32_table.c"
+	"${SRC_DIR}/groupvoice/speex/exc_5_256_table.c"
+	"${SRC_DIR}/groupvoice/speex/exc_5_64_table.c"
+	"${SRC_DIR}/groupvoice/speex/exc_8_128_table.c"
+	"${SRC_DIR}/groupvoice/speex/filters.c"
+	"${SRC_DIR}/groupvoice/speex/filters.h"
+	"${SRC_DIR}/groupvoice/speex/filters_arm4.h"
+	"${SRC_DIR}/groupvoice/speex/filters_sse.h"
+	"${SRC_DIR}/groupvoice/speex/fixed_arm4.h"
+	"${SRC_DIR}/groupvoice/speex/fixed_arm5e.h"
+	"${SRC_DIR}/groupvoice/speex/fixed_debug.h"
+	"${SRC_DIR}/groupvoice/speex/fixed_generic.h"
+	"${SRC_DIR}/groupvoice/speex/gain_table.c"
+	"${SRC_DIR}/groupvoice/speex/gain_table_lbr.c"
+	"${SRC_DIR}/groupvoice/speex/hexc_10_32_table.c"
+	"${SRC_DIR}/groupvoice/speex/hexc_table.c"
+	"${SRC_DIR}/groupvoice/speex/high_lsp_tables.c"
+	"${SRC_DIR}/groupvoice/speex/jitter.c"
+	"${SRC_DIR}/groupvoice/speex/lbr_48k_tables.c"
+	"${SRC_DIR}/groupvoice/speex/lpc.c"
+	"${SRC_DIR}/groupvoice/speex/lpc.h"
+	"${SRC_DIR}/groupvoice/speex/lsp.c"
+	"${SRC_DIR}/groupvoice/speex/lsp.h"
+	"${SRC_DIR}/groupvoice/speex/lsp_tables_nb.c"
+	"${SRC_DIR}/groupvoice/speex/ltp.c"
+	"${SRC_DIR}/groupvoice/speex/ltp.h"
+	"${SRC_DIR}/groupvoice/speex/ltp_arm4.h"
+	"${SRC_DIR}/groupvoice/speex/ltp_sse.h"
+	"${SRC_DIR}/groupvoice/speex/math_approx.c"
+	"${SRC_DIR}/groupvoice/speex/math_approx.h"
+	"${SRC_DIR}/groupvoice/speex/mdf.c"
+	"${SRC_DIR}/groupvoice/speex/misc.c"
+	"${SRC_DIR}/groupvoice/speex/misc.h"
+	"${SRC_DIR}/groupvoice/speex/modes.c"
+	"${SRC_DIR}/groupvoice/speex/modes.h"
+	"${SRC_DIR}/groupvoice/speex/nb_celp.c"
+	"${SRC_DIR}/groupvoice/speex/nb_celp.h"
+	"${SRC_DIR}/groupvoice/speex/preprocess.c"
+	"${SRC_DIR}/groupvoice/speex/quant_lsp.c"
+	"${SRC_DIR}/groupvoice/speex/quant_lsp.h"
+	"${SRC_DIR}/groupvoice/speex/sb_celp.c"
+	"${SRC_DIR}/groupvoice/speex/sb_celp.h"
+	"${SRC_DIR}/groupvoice/speex/smallft.c"
+	"${SRC_DIR}/groupvoice/speex/smallft.h"
+	"${SRC_DIR}/groupvoice/speex/speex.c"
+	"${SRC_DIR}/groupvoice/speex/speex_callbacks.c"
+	"${SRC_DIR}/groupvoice/speex/speex_header.c"
+	"${SRC_DIR}/groupvoice/speex/stack_alloc.h"
+	"${SRC_DIR}/groupvoice/speex/stereo.c"
+	"${SRC_DIR}/groupvoice/speex/vbr.c"
+	"${SRC_DIR}/groupvoice/speex/vbr.h"
+	"${SRC_DIR}/groupvoice/speex/vq.c"
+	"${SRC_DIR}/groupvoice/speex/vq.h"
+	"${SRC_DIR}/groupvoice/speex/vq_arm4.h"
+	"${SRC_DIR}/groupvoice/speex/vq_sse.h"
+)
+source_group("groupvoice/speex" FILES ${SRC_GROUPVOICE_SPEEX})
+
+set(GROUPVOICE_FILES
+	${SRC_GROUPVOICE}
+	${SRC_GROUPVOICE_SPEEX}
+)
+
+# ----- src/ik -----
+set(SRC_IK
+	"${SRC_DIR}/ik/ik.cpp"
+	"${SRC_DIR}/ik/ik.h"
+	"${SRC_DIR}/ik/ik_import.cpp"
+	"${SRC_DIR}/ik/ik_import.h"
+	"${SRC_DIR}/ik/ik_layers.cpp"
+	"${SRC_DIR}/ik/ik_layers.h"
+	"${SRC_DIR}/ik/ik_math.cpp"
+	"${SRC_DIR}/ik/ik_math.h"
+	"${SRC_DIR}/ik/ik_process.cpp"
+	"${SRC_DIR}/ik/ik_process.h"
+)
+source_group("ik" FILES ${SRC_IK})
+
+set(IK_FILES
+	${SRC_IK}
+)
+
+# ----- src/jpeg -----
+set(SRC_JPEG
+	"${SRC_DIR}/jpeg/jcapimin.c"
+	"${SRC_DIR}/jpeg/jcapistd.c"
+	"${SRC_DIR}/jpeg/jccoefct.c"
+	"${SRC_DIR}/jpeg/jccolor.c"
+	"${SRC_DIR}/jpeg/jcdctmgr.c"
+	"${SRC_DIR}/jpeg/jchuff.c"
+	"${SRC_DIR}/jpeg/jchuff.h"
+	"${SRC_DIR}/jpeg/jcinit.c"
+	"${SRC_DIR}/jpeg/jcmainct.c"
+	"${SRC_DIR}/jpeg/jcmarker.c"
+	"${SRC_DIR}/jpeg/jcmaster.c"
+	"${SRC_DIR}/jpeg/jcomapi.c"
+	"${SRC_DIR}/jpeg/jconfig.h"
+	"${SRC_DIR}/jpeg/jcparam.c"
+	"${SRC_DIR}/jpeg/jcphuff.c"
+	"${SRC_DIR}/jpeg/jcprepct.c"
+	"${SRC_DIR}/jpeg/jcsample.c"
+	"${SRC_DIR}/jpeg/jctrans.c"
+	"${SRC_DIR}/jpeg/jdapimin.c"
+	"${SRC_DIR}/jpeg/jdapistd.c"
+	"${SRC_DIR}/jpeg/jdatadst.c"
+	"${SRC_DIR}/jpeg/jdatasrc.c"
+	"${SRC_DIR}/jpeg/jdcoefct.c"
+	"${SRC_DIR}/jpeg/jdcolor.c"
+	"${SRC_DIR}/jpeg/jdct.h"
+	"${SRC_DIR}/jpeg/jddctmgr.c"
+	"${SRC_DIR}/jpeg/jdhuff.c"
+	"${SRC_DIR}/jpeg/jdhuff.h"
+	"${SRC_DIR}/jpeg/jdinput.c"
+	"${SRC_DIR}/jpeg/jdmainct.c"
+	"${SRC_DIR}/jpeg/jdmarker.c"
+	"${SRC_DIR}/jpeg/jdmaster.c"
+	"${SRC_DIR}/jpeg/jdmerge.c"
+	"${SRC_DIR}/jpeg/jdphuff.c"
+	"${SRC_DIR}/jpeg/jdpostct.c"
+	"${SRC_DIR}/jpeg/jdsample.c"
+	"${SRC_DIR}/jpeg/jdtrans.c"
+	"${SRC_DIR}/jpeg/jerror.c"
+	"${SRC_DIR}/jpeg/jerror.h"
+	"${SRC_DIR}/jpeg/jfdctflt.c"
+	"${SRC_DIR}/jpeg/jfdctfst.c"
+	"${SRC_DIR}/jpeg/jfdctint.c"
+	"${SRC_DIR}/jpeg/jidctflt.c"
+	"${SRC_DIR}/jpeg/jidctfst.c"
+	"${SRC_DIR}/jpeg/jidctint.c"
+	"${SRC_DIR}/jpeg/jidctred.c"
+	"${SRC_DIR}/jpeg/jinclude.h"
+	"${SRC_DIR}/jpeg/jmemansi.c"
+	"${SRC_DIR}/jpeg/jmemmgr.c"
+	"${SRC_DIR}/jpeg/jmemsys.h"
+	"${SRC_DIR}/jpeg/jmorecfg.h"
+	"${SRC_DIR}/jpeg/jpegint.h"
+	"${SRC_DIR}/jpeg/jpeglib.h"
+	"${SRC_DIR}/jpeg/jquant1.c"
+	"${SRC_DIR}/jpeg/jquant2.c"
+	"${SRC_DIR}/jpeg/jutils.c"
+	"${SRC_DIR}/jpeg/jversion.h"
+)
+source_group("jpeg" FILES ${SRC_JPEG})
+
+set(JPEG_FILES
+	${SRC_JPEG}
+)
+
+# ----- src/libs -----
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_CIPHERS
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/anubis.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/blowfish.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/cast5.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/des.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/kasumi.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/khazad.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/kseed.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/multi2.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/noekeon.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/rc2.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/rc5.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/rc6.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/skipjack.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/xtea.c"
+)
+source_group("libs/libtomcrypt-1.17/src/ciphers" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_CIPHERS})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_CIPHERS_AES
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/aes/aes.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/aes/aes_tab.c"
+)
+source_group("libs/libtomcrypt-1.17/src/ciphers/aes" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_CIPHERS_AES})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_CIPHERS_SAFER
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/safer/safer.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/safer/safer_tab.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/safer/saferp.c"
+)
+source_group("libs/libtomcrypt-1.17/src/ciphers/safer" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_CIPHERS_SAFER})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_CIPHERS_TWOFISH
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/twofish/twofish.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/ciphers/twofish/twofish_tab.c"
+)
+source_group("libs/libtomcrypt-1.17/src/ciphers/twofish" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_CIPHERS_TWOFISH})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_ENCAUTH_CCM
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/ccm/ccm_memory.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/ccm/ccm_test.c"
+)
+source_group("libs/libtomcrypt-1.17/src/encauth/ccm" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_ENCAUTH_CCM})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_ENCAUTH_EAX
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/eax/eax_addheader.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/eax/eax_decrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/eax/eax_decrypt_verify_memory.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/eax/eax_done.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/eax/eax_encrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/eax/eax_encrypt_authenticate_memory.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/eax/eax_init.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/eax/eax_test.c"
+)
+source_group("libs/libtomcrypt-1.17/src/encauth/eax" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_ENCAUTH_EAX})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_ENCAUTH_GCM
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/gcm/gcm_add_aad.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/gcm/gcm_add_iv.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/gcm/gcm_done.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/gcm/gcm_gf_mult.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/gcm/gcm_init.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/gcm/gcm_memory.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/gcm/gcm_mult_h.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/gcm/gcm_process.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/gcm/gcm_reset.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/gcm/gcm_test.c"
+)
+source_group("libs/libtomcrypt-1.17/src/encauth/gcm" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_ENCAUTH_GCM})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_ENCAUTH_OCB
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/ocb/ocb_decrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/ocb/ocb_decrypt_verify_memory.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/ocb/ocb_done_decrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/ocb/ocb_done_encrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/ocb/ocb_encrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/ocb/ocb_encrypt_authenticate_memory.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/ocb/ocb_init.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/ocb/ocb_ntz.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/ocb/ocb_shift_xor.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/ocb/ocb_test.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/encauth/ocb/s_ocb_done.c"
+)
+source_group("libs/libtomcrypt-1.17/src/encauth/ocb" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_ENCAUTH_OCB})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_HASHES
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/hashes/md2.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/hashes/md5.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/hashes/rmd128.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/hashes/rmd160.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/hashes/rmd256.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/hashes/rmd320.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/hashes/sha1.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/hashes/tiger.c"
+)
+source_group("libs/libtomcrypt-1.17/src/hashes" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_HASHES})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_HASHES_CHC
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/hashes/chc/chc.c"
+)
+source_group("libs/libtomcrypt-1.17/src/hashes/chc" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_HASHES_CHC})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_HASHES_HELPER
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/hashes/helper/hash_file.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/hashes/helper/hash_filehandle.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/hashes/helper/hash_memory.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/hashes/helper/hash_memory_multi.c"
+)
+source_group("libs/libtomcrypt-1.17/src/hashes/helper" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_HASHES_HELPER})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_HASHES_SHA2
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/hashes/sha2/sha256.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/hashes/sha2/sha512.c"
+)
+source_group("libs/libtomcrypt-1.17/src/hashes/sha2" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_HASHES_SHA2})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_HEADERS
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/headers/tomcrypt.h"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/headers/tomcrypt_argchk.h"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/headers/tomcrypt_cfg.h"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/headers/tomcrypt_cipher.h"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/headers/tomcrypt_custom.h"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/headers/tomcrypt_hash.h"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/headers/tomcrypt_mac.h"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/headers/tomcrypt_macros.h"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/headers/tomcrypt_math.h"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/headers/tomcrypt_misc.h"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/headers/tomcrypt_pk.h"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/headers/tomcrypt_pkcs.h"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/headers/tomcrypt_prng.h"
+)
+source_group("libs/libtomcrypt-1.17/src/headers" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_HEADERS})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MAC_F9
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/f9/f9_done.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/f9/f9_file.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/f9/f9_init.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/f9/f9_memory.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/f9/f9_memory_multi.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/f9/f9_process.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/f9/f9_test.c"
+)
+source_group("libs/libtomcrypt-1.17/src/mac/f9" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MAC_F9})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MAC_HMAC
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/hmac/hmac_done.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/hmac/hmac_file.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/hmac/hmac_init.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/hmac/hmac_memory.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/hmac/hmac_memory_multi.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/hmac/hmac_process.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/hmac/hmac_test.c"
+)
+source_group("libs/libtomcrypt-1.17/src/mac/hmac" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MAC_HMAC})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MAC_OMAC
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/omac/omac_done.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/omac/omac_file.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/omac/omac_init.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/omac/omac_memory.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/omac/omac_memory_multi.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/omac/omac_process.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/omac/omac_test.c"
+)
+source_group("libs/libtomcrypt-1.17/src/mac/omac" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MAC_OMAC})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MAC_PELICAN
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/pelican/pelican.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/pelican/pelican_memory.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/pelican/pelican_test.c"
+)
+source_group("libs/libtomcrypt-1.17/src/mac/pelican" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MAC_PELICAN})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MAC_PMAC
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/pmac/pmac_done.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/pmac/pmac_file.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/pmac/pmac_init.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/pmac/pmac_memory.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/pmac/pmac_memory_multi.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/pmac/pmac_ntz.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/pmac/pmac_process.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/pmac/pmac_shift_xor.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/pmac/pmac_test.c"
+)
+source_group("libs/libtomcrypt-1.17/src/mac/pmac" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MAC_PMAC})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MAC_XCBC
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/xcbc/xcbc_done.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/xcbc/xcbc_file.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/xcbc/xcbc_init.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/xcbc/xcbc_memory.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/xcbc/xcbc_memory_multi.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/xcbc/xcbc_process.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/mac/xcbc/xcbc_test.c"
+)
+source_group("libs/libtomcrypt-1.17/src/mac/xcbc" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MAC_XCBC})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MATH
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/math/gmp_desc.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/math/ltm_desc.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/math/multi.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/math/rand_prime.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/math/tfm_desc.c"
+)
+source_group("libs/libtomcrypt-1.17/src/math" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MATH})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MATH_FP
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/math/fp/ltc_ecc_fp_mulmod.c"
+)
+source_group("libs/libtomcrypt-1.17/src/math/fp" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MATH_FP})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MISC
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/burn_stack.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/error_to_string.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/zeromem.c"
+)
+source_group("libs/libtomcrypt-1.17/src/misc" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MISC})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MISC_BASE64
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/base64/base64_decode.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/base64/base64_encode.c"
+)
+source_group("libs/libtomcrypt-1.17/src/misc/base64" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MISC_BASE64})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MISC_CRYPT
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_argchk.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_cipher_descriptor.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_cipher_is_valid.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_find_cipher.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_find_cipher_any.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_find_cipher_id.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_find_hash.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_find_hash_any.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_find_hash_id.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_find_hash_oid.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_find_prng.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_fsa.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_hash_descriptor.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_hash_is_valid.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_ltc_mp_descriptor.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_prng_descriptor.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_prng_is_valid.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_register_cipher.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_register_hash.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_register_prng.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_unregister_cipher.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_unregister_hash.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/crypt/crypt_unregister_prng.c"
+)
+source_group("libs/libtomcrypt-1.17/src/misc/crypt" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MISC_CRYPT})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MISC_PKCS5
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/pkcs5/pkcs_5_1.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/misc/pkcs5/pkcs_5_2.c"
+)
+source_group("libs/libtomcrypt-1.17/src/misc/pkcs5" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MISC_PKCS5})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_CBC
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/cbc/cbc_decrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/cbc/cbc_done.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/cbc/cbc_encrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/cbc/cbc_getiv.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/cbc/cbc_setiv.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/cbc/cbc_start.c"
+)
+source_group("libs/libtomcrypt-1.17/src/modes/cbc" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_CBC})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_CFB
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/cfb/cfb_decrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/cfb/cfb_done.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/cfb/cfb_encrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/cfb/cfb_getiv.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/cfb/cfb_setiv.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/cfb/cfb_start.c"
+)
+source_group("libs/libtomcrypt-1.17/src/modes/cfb" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_CFB})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_CTR
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/ctr/ctr_decrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/ctr/ctr_done.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/ctr/ctr_encrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/ctr/ctr_getiv.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/ctr/ctr_setiv.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/ctr/ctr_start.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/ctr/ctr_test.c"
+)
+source_group("libs/libtomcrypt-1.17/src/modes/ctr" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_CTR})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_ECB
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/ecb/ecb_decrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/ecb/ecb_done.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/ecb/ecb_encrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/ecb/ecb_start.c"
+)
+source_group("libs/libtomcrypt-1.17/src/modes/ecb" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_ECB})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_F8
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/f8/f8_decrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/f8/f8_done.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/f8/f8_encrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/f8/f8_getiv.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/f8/f8_setiv.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/f8/f8_start.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/f8/f8_test_mode.c"
+)
+source_group("libs/libtomcrypt-1.17/src/modes/f8" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_F8})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_OFB
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/ofb/ofb_decrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/ofb/ofb_done.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/ofb/ofb_encrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/ofb/ofb_getiv.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/ofb/ofb_setiv.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/ofb/ofb_start.c"
+)
+source_group("libs/libtomcrypt-1.17/src/modes/ofb" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_OFB})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_XTS
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/xts/xts_decrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/xts/xts_done.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/xts/xts_encrypt.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/xts/xts_init.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/xts/xts_mult_x.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/modes/xts/xts_test.c"
+)
+source_group("libs/libtomcrypt-1.17/src/modes/xts" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_XTS})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_BIT
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/bit/der_decode_bit_string.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/bit/der_encode_bit_string.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/bit/der_length_bit_string.c"
+)
+source_group("libs/libtomcrypt-1.17/src/pk/asn1/der/bit" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_BIT})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_BOOLEAN
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/boolean/der_decode_boolean.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/boolean/der_encode_boolean.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/boolean/der_length_boolean.c"
+)
+source_group("libs/libtomcrypt-1.17/src/pk/asn1/der/boolean" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_BOOLEAN})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_CHOICE
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/choice/der_decode_choice.c"
+)
+source_group("libs/libtomcrypt-1.17/src/pk/asn1/der/choice" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_CHOICE})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_IA5
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/ia5/der_decode_ia5_string.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/ia5/der_encode_ia5_string.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/ia5/der_length_ia5_string.c"
+)
+source_group("libs/libtomcrypt-1.17/src/pk/asn1/der/ia5" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_IA5})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_INTEGER
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/integer/der_decode_integer.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/integer/der_encode_integer.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/integer/der_length_integer.c"
+)
+source_group("libs/libtomcrypt-1.17/src/pk/asn1/der/integer" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_INTEGER})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_OBJECT_IDENTIFIER
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/object_identifier/der_decode_object_identifier.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/object_identifier/der_encode_object_identifier.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/object_identifier/der_length_object_identifier.c"
+)
+source_group("libs/libtomcrypt-1.17/src/pk/asn1/der/object_identifier" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_OBJECT_IDENTIFIER})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_OCTET
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/octet/der_decode_octet_string.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/octet/der_encode_octet_string.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/octet/der_length_octet_string.c"
+)
+source_group("libs/libtomcrypt-1.17/src/pk/asn1/der/octet" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_OCTET})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_PRINTABLE_STRING
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/printable_string/der_decode_printable_string.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/printable_string/der_encode_printable_string.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/printable_string/der_length_printable_string.c"
+)
+source_group("libs/libtomcrypt-1.17/src/pk/asn1/der/printable_string" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_PRINTABLE_STRING})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_SEQUENCE
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/sequence/der_decode_sequence_ex.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/sequence/der_decode_sequence_flexi.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/sequence/der_decode_sequence_multi.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/sequence/der_encode_sequence_ex.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/sequence/der_encode_sequence_multi.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/sequence/der_length_sequence.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/sequence/der_sequence_free.c"
+)
+source_group("libs/libtomcrypt-1.17/src/pk/asn1/der/sequence" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_SEQUENCE})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_SET
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/set/der_encode_set.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/set/der_encode_setof.c"
+)
+source_group("libs/libtomcrypt-1.17/src/pk/asn1/der/set" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_SET})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_SHORT_INTEGER
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/short_integer/der_decode_short_integer.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/short_integer/der_encode_short_integer.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/short_integer/der_length_short_integer.c"
+)
+source_group("libs/libtomcrypt-1.17/src/pk/asn1/der/short_integer" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_SHORT_INTEGER})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_UTCTIME
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/utctime/der_decode_utctime.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/utctime/der_encode_utctime.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/utctime/der_length_utctime.c"
+)
+source_group("libs/libtomcrypt-1.17/src/pk/asn1/der/utctime" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_UTCTIME})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_UTF8
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/utf8/der_decode_utf8_string.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/utf8/der_encode_utf8_string.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/asn1/der/utf8/der_length_utf8_string.c"
+)
+source_group("libs/libtomcrypt-1.17/src/pk/asn1/der/utf8" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_UTF8})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_DSA
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/dsa/dsa_decrypt_key.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/dsa/dsa_encrypt_key.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/dsa/dsa_export.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/dsa/dsa_free.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/dsa/dsa_import.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/dsa/dsa_make_key.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/dsa/dsa_shared_secret.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/dsa/dsa_sign_hash.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/dsa/dsa_verify_hash.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/dsa/dsa_verify_key.c"
+)
+source_group("libs/libtomcrypt-1.17/src/pk/dsa" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_DSA})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ECC
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ecc.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ecc_ansi_x963_export.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ecc_ansi_x963_import.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ecc_decrypt_key.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ecc_encrypt_key.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ecc_export.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ecc_free.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ecc_get_size.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ecc_import.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ecc_make_key.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ecc_shared_secret.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ecc_sign_hash.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ecc_sizes.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ecc_test.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ecc_verify_hash.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ltc_ecc_is_valid_idx.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ltc_ecc_map.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ltc_ecc_mul2add.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ltc_ecc_mulmod.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ltc_ecc_mulmod_timing.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ltc_ecc_points.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ltc_ecc_projective_add_point.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/ecc/ltc_ecc_projective_dbl_point.c"
+)
+source_group("libs/libtomcrypt-1.17/src/pk/ecc" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ECC})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_KATJA
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/katja/katja_decrypt_key.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/katja/katja_encrypt_key.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/katja/katja_export.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/katja/katja_exptmod.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/katja/katja_free.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/katja/katja_import.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/katja/katja_make_key.c"
+)
+source_group("libs/libtomcrypt-1.17/src/pk/katja" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_KATJA})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_PKCS1
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/pkcs1/pkcs_1_i2osp.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/pkcs1/pkcs_1_mgf1.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/pkcs1/pkcs_1_oaep_decode.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/pkcs1/pkcs_1_oaep_encode.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/pkcs1/pkcs_1_os2ip.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/pkcs1/pkcs_1_pss_decode.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/pkcs1/pkcs_1_pss_encode.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/pkcs1/pkcs_1_v1_5_decode.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/pkcs1/pkcs_1_v1_5_encode.c"
+)
+source_group("libs/libtomcrypt-1.17/src/pk/pkcs1" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_PKCS1})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_RSA
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/rsa/rsa_decrypt_key.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/rsa/rsa_encrypt_key.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/rsa/rsa_export.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/rsa/rsa_exptmod.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/rsa/rsa_free.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/rsa/rsa_import.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/rsa/rsa_make_key.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/rsa/rsa_sign_hash.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/pk/rsa/rsa_verify_hash.c"
+)
+source_group("libs/libtomcrypt-1.17/src/pk/rsa" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_RSA})
+
+set(SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PRNGS
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/prngs/fortuna.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/prngs/rc4.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/prngs/rng_get_bytes.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/prngs/rng_make_prng.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/prngs/sprng.c"
+	"${SRC_DIR}/libs/libtomcrypt-1.17/src/prngs/yarrow.c"
+)
+source_group("libs/libtomcrypt-1.17/src/prngs" FILES ${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PRNGS})
+
+set(SRC_LIBS_LIBTOMMATH_1_0
+	"${SRC_DIR}/libs/libtommath-1.0/bn_error.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_fast_mp_invmod.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_fast_mp_montgomery_reduce.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_fast_s_mp_mul_digs.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_fast_s_mp_mul_high_digs.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_fast_s_mp_sqr.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_2expt.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_abs.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_add.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_add_d.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_addmod.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_and.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_clamp.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_clear.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_clear_multi.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_cmp.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_cmp_d.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_cmp_mag.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_cnt_lsb.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_copy.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_count_bits.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_div.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_div_2.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_div_2d.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_div_3.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_div_d.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_dr_is_modulus.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_dr_reduce.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_dr_setup.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_exch.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_export.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_expt_d.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_expt_d_ex.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_exptmod.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_exptmod_fast.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_exteuclid.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_fread.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_fwrite.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_gcd.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_get_int.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_get_long.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_get_long_long.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_grow.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_import.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_init.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_init_copy.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_init_multi.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_init_set.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_init_set_int.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_init_size.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_invmod.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_invmod_slow.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_is_square.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_jacobi.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_karatsuba_mul.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_karatsuba_sqr.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_lcm.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_lshd.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_mod.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_mod_2d.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_mod_d.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_montgomery_calc_normalization.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_montgomery_reduce.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_montgomery_setup.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_mul.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_mul_2.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_mul_2d.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_mul_d.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_mulmod.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_n_root.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_n_root_ex.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_neg.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_or.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_prime_fermat.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_prime_is_divisible.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_prime_is_prime.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_prime_miller_rabin.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_prime_next_prime.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_prime_rabin_miller_trials.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_prime_random_ex.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_radix_size.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_radix_smap.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_rand.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_read_radix.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_read_signed_bin.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_read_unsigned_bin.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_reduce.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_reduce_2k.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_reduce_2k_l.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_reduce_2k_setup.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_reduce_2k_setup_l.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_reduce_is_2k.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_reduce_is_2k_l.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_reduce_setup.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_rshd.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_set.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_set_int.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_set_long.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_set_long_long.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_shrink.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_signed_bin_size.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_sqr.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_sqrmod.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_sqrt.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_sqrtmod_prime.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_sub.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_sub_d.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_submod.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_to_signed_bin.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_to_signed_bin_n.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_to_unsigned_bin.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_to_unsigned_bin_n.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_toom_mul.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_toom_sqr.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_toradix.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_toradix_n.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_unsigned_bin_size.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_xor.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_mp_zero.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_prime_tab.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_reverse.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_s_mp_add.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_s_mp_exptmod.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_s_mp_mul_digs.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_s_mp_mul_high_digs.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_s_mp_sqr.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bn_s_mp_sub.c"
+	"${SRC_DIR}/libs/libtommath-1.0/bncore.c"
+	"${SRC_DIR}/libs/libtommath-1.0/tommath.h"
+	"${SRC_DIR}/libs/libtommath-1.0/tommath_class.h"
+	"${SRC_DIR}/libs/libtommath-1.0/tommath_private.h"
+	"${SRC_DIR}/libs/libtommath-1.0/tommath_superclass.h"
+)
+source_group("libs/libtommath-1.0" FILES ${SRC_LIBS_LIBTOMMATH_1_0})
+
+set(LIBS_FILES
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_CIPHERS}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_CIPHERS_AES}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_CIPHERS_SAFER}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_CIPHERS_TWOFISH}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_ENCAUTH_CCM}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_ENCAUTH_EAX}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_ENCAUTH_GCM}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_ENCAUTH_OCB}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_HASHES}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_HASHES_CHC}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_HASHES_HELPER}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_HASHES_SHA2}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_HEADERS}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MAC_F9}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MAC_HMAC}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MAC_OMAC}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MAC_PELICAN}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MAC_PMAC}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MAC_XCBC}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MATH}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MATH_FP}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MISC}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MISC_BASE64}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MISC_CRYPT}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MISC_PKCS5}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_CBC}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_CFB}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_CTR}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_ECB}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_F8}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_OFB}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_MODES_XTS}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_BIT}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_BOOLEAN}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_CHOICE}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_IA5}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_INTEGER}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_OBJECT_IDENTIFIER}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_OCTET}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_PRINTABLE_STRING}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_SEQUENCE}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_SET}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_SHORT_INTEGER}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_UTCTIME}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ASN1_DER_UTF8}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_DSA}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_ECC}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_KATJA}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_PKCS1}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PK_RSA}
+	${SRC_LIBS_LIBTOMCRYPT_1_17_SRC_PRNGS}
+	${SRC_LIBS_LIBTOMMATH_1_0}
+)
+
+# ----- src/live -----
+set(SRC_LIVE
+	"${SRC_DIR}/live/live.cpp"
+	"${SRC_DIR}/live/live.h"
+	"${SRC_DIR}/live/live_anticheat.cpp"
+	"${SRC_DIR}/live/live_anticheat.h"
+	"${SRC_DIR}/live/live_clans.cpp"
+	"${SRC_DIR}/live/live_clans.h"
+	"${SRC_DIR}/live/live_combatrecord.cpp"
+	"${SRC_DIR}/live/live_combatrecord.h"
+	"${SRC_DIR}/live/live_contracts.cpp"
+	"${SRC_DIR}/live/live_contracts.h"
+	"${SRC_DIR}/live/live_counter.cpp"
+	"${SRC_DIR}/live/live_counter.h"
+	"${SRC_DIR}/live/live_fileshare.cpp"
+	"${SRC_DIR}/live/live_fileshare.h"
+	"${SRC_DIR}/live/live_fileshare_cache.cpp"
+	"${SRC_DIR}/live/live_fileshare_cache.h"
+	"${SRC_DIR}/live/live_fileshare_search.cpp"
+	"${SRC_DIR}/live/live_fileshare_search.h"
+	"${SRC_DIR}/live/live_friends_pc.cpp"
+	"${SRC_DIR}/live/live_friends_pc.h"
+	"${SRC_DIR}/live/live_groups_dw.cpp"
+	"${SRC_DIR}/live/live_groups_dw.h"
+	"${SRC_DIR}/live/live_leaderboard.cpp"
+	"${SRC_DIR}/live/live_leaderboard.h"
+	"${SRC_DIR}/live/live_meetplayer.cpp"
+	"${SRC_DIR}/live/live_meetplayer.h"
+	"${SRC_DIR}/live/live_news.cpp"
+	"${SRC_DIR}/live/live_news.h"
+	"${SRC_DIR}/live/live_pcache.cpp"
+	"${SRC_DIR}/live/live_pcache.h"
+	"${SRC_DIR}/live/live_pcache_profile.cpp"
+	"${SRC_DIR}/live/live_pcache_profile.h"
+	"${SRC_DIR}/live/live_presence_win.cpp"
+	"${SRC_DIR}/live/live_presence_win.h"
+	"${SRC_DIR}/live/live_sessions.cpp"
+	"${SRC_DIR}/live/live_sessions.h"
+	"${SRC_DIR}/live/live_sessions_win.cpp"
+	"${SRC_DIR}/live/live_sessions_win.h"
+	"${SRC_DIR}/live/live_stats.cpp"
+	"${SRC_DIR}/live/live_stats.h"
+	"${SRC_DIR}/live/live_steam.cpp"
+	"${SRC_DIR}/live/live_steam.h"
+	"${SRC_DIR}/live/live_steam_achievements.cpp"
+	"${SRC_DIR}/live/live_steam_achievements.h"
+	"${SRC_DIR}/live/live_steam_client.cpp"
+	"${SRC_DIR}/live/live_steam_client.h"
+	"${SRC_DIR}/live/live_steam_server.cpp"
+	"${SRC_DIR}/live/live_steam_server.h"
+	"${SRC_DIR}/live/live_steamp2p.cpp"
+	"${SRC_DIR}/live/live_steamp2p.h"
+	"${SRC_DIR}/live/live_storage.cpp"
+	"${SRC_DIR}/live/live_storage.h"
+	"${SRC_DIR}/live/live_storage_pub.cpp"
+	"${SRC_DIR}/live/live_storage_pub.h"
+	"${SRC_DIR}/live/live_storage_win.cpp"
+	"${SRC_DIR}/live/live_storage_win.h"
+	"${SRC_DIR}/live/live_ticker.cpp"
+	"${SRC_DIR}/live/live_ticker.h"
+	"${SRC_DIR}/live/live_win.cpp"
+	"${SRC_DIR}/live/live_win.h"
+	"${SRC_DIR}/live/live_win_common.cpp"
+	"${SRC_DIR}/live/live_win_common.h"
+)
+source_group("live" FILES ${SRC_LIVE})
+
+set(LIVE_FILES
+	${SRC_LIVE}
+)
+
+# ----- src/minilzo -----
+set(SRC_MINILZO
+	"${SRC_DIR}/minilzo/lzoconf.h"
+	"${SRC_DIR}/minilzo/lzodefs.h"
+	"${SRC_DIR}/minilzo/minilzo.cpp"
+	"${SRC_DIR}/minilzo/minilzo.h"
+)
+source_group("minilzo" FILES ${SRC_MINILZO})
+
+set(MINILZO_FILES
+	${SRC_MINILZO}
+)
+
+# ----- src/mjpeg -----
+set(SRC_MJPEG
+	"${SRC_DIR}/mjpeg/avi.cpp"
+	"${SRC_DIR}/mjpeg/avi.h"
+	"${SRC_DIR}/mjpeg/mjpeg.cpp"
+	"${SRC_DIR}/mjpeg/mjpeg.h"
+	"${SRC_DIR}/mjpeg/yuv.cpp"
+	"${SRC_DIR}/mjpeg/yuv.h"
+)
+source_group("mjpeg" FILES ${SRC_MJPEG})
+
+set(MJPEG_FILES
+	${SRC_MJPEG}
+)
+
+# ----- src/monkey -----
+set(SRC_MONKEY
+	"${SRC_DIR}/monkey/monkey.cpp"
+	"${SRC_DIR}/monkey/monkey.h"
+	"${SRC_DIR}/monkey/monkey_comm.cpp"
+	"${SRC_DIR}/monkey/monkey_comm.h"
+)
+source_group("monkey" FILES ${SRC_MONKEY})
+
+set(MONKEY_FILES
+	${SRC_MONKEY}
+)
+
+# ----- src/nvapi -----
+set(SRC_NVAPI
+	"${SRC_DIR}/nvapi/nvapi.h"
+)
+source_group("nvapi" FILES ${SRC_NVAPI})
+
+set(NVAPI_FILES
+	${SRC_NVAPI}
+)
+
+# ----- src/physics -----
+set(SRC_PHYSICS
+	"${SRC_DIR}/physics/destructible.cpp"
+	"${SRC_DIR}/physics/destructible.h"
+	"${SRC_DIR}/physics/destructibledef_load_obj.cpp"
+	"${SRC_DIR}/physics/destructibledef_load_obj.h"
+	"${SRC_DIR}/physics/phys_assert.cpp"
+	"${SRC_DIR}/physics/phys_assert.h"
+	"${SRC_DIR}/physics/phys_auto_rigid_body.cpp"
+	"${SRC_DIR}/physics/phys_auto_rigid_body.h"
+	"${SRC_DIR}/physics/phys_broad_phase.cpp"
+	"${SRC_DIR}/physics/phys_broad_phase.h"
+	"${SRC_DIR}/physics/phys_colgeom.cpp"
+	"${SRC_DIR}/physics/phys_colgeom.h"
+	"${SRC_DIR}/physics/phys_collision.cpp"
+	"${SRC_DIR}/physics/phys_collision.h"
+	"${SRC_DIR}/physics/phys_collision_multithreaded.cpp"
+	"${SRC_DIR}/physics/phys_collision_multithreaded.h"
+	"${SRC_DIR}/physics/phys_constraint_solver_multithreaded.cpp"
+	"${SRC_DIR}/physics/phys_constraint_solver_multithreaded.h"
+	"${SRC_DIR}/physics/phys_contact_manifold.cpp"
+	"${SRC_DIR}/physics/phys_contact_manifold.h"
+	"${SRC_DIR}/physics/phys_convex_hull.cpp"
+	"${SRC_DIR}/physics/phys_convex_hull.h"
+	"${SRC_DIR}/physics/phys_effects.cpp"
+	"${SRC_DIR}/physics/phys_effects.h"
+	"${SRC_DIR}/physics/phys_gjk.cpp"
+	"${SRC_DIR}/physics/phys_gjk.h"
+	"${SRC_DIR}/physics/phys_gjk_collision_detection.cpp"
+	"${SRC_DIR}/physics/phys_gjk_collision_detection.h"
+	"${SRC_DIR}/physics/phys_gjk_sep_dir.cpp"
+	"${SRC_DIR}/physics/phys_gjk_sep_dir.h"
+	"${SRC_DIR}/physics/phys_local.h"
+	"${SRC_DIR}/physics/phys_main.cpp"
+	"${SRC_DIR}/physics/phys_main.h"
+	"${SRC_DIR}/physics/phys_mem_new.cpp"
+	"${SRC_DIR}/physics/phys_mem_new.h"
+	"${SRC_DIR}/physics/phys_render.cpp"
+	"${SRC_DIR}/physics/phys_render.h"
+	"${SRC_DIR}/physics/phys_task_manager.cpp"
+	"${SRC_DIR}/physics/phys_task_manager.h"
+	"${SRC_DIR}/physics/phys_transient_allocator.cpp"
+	"${SRC_DIR}/physics/phys_transient_allocator.h"
+	"${SRC_DIR}/physics/phys_traverse.cpp"
+	"${SRC_DIR}/physics/phys_traverse.h"
+	"${SRC_DIR}/physics/phys_util.cpp"
+	"${SRC_DIR}/physics/phys_util.h"
+	"${SRC_DIR}/physics/physconstraints_load_obj.cpp"
+	"${SRC_DIR}/physics/physconstraints_load_obj.h"
+	"${SRC_DIR}/physics/physics_system.cpp"
+	"${SRC_DIR}/physics/physics_system.h"
+	"${SRC_DIR}/physics/physics_system_internal.cpp"
+	"${SRC_DIR}/physics/physics_system_internal.h"
+	"${SRC_DIR}/physics/physpreset_load_obj.cpp"
+	"${SRC_DIR}/physics/physpreset_load_obj.h"
+	"${SRC_DIR}/physics/rigid_body.cpp"
+	"${SRC_DIR}/physics/rigid_body.h"
+	"${SRC_DIR}/physics/rope.cpp"
+	"${SRC_DIR}/physics/rope.h"
+	"${SRC_DIR}/physics/rope_gamestate.cpp"
+	"${SRC_DIR}/physics/rope_gamestate.h"
+	"${SRC_DIR}/physics/xdoll.cpp"
+	"${SRC_DIR}/physics/xdoll.h"
+)
+source_group("physics" FILES ${SRC_PHYSICS})
+
+set(PHYSICS_FILES
+	${SRC_PHYSICS}
+)
+
+# ----- src/qcommon -----
+set(SRC_QCOMMON
+	"${SRC_DIR}/qcommon/bitarray.h"
+	"${SRC_DIR}/qcommon/blackbox.cpp"
+	"${SRC_DIR}/qcommon/blackbox.h"
+	"${SRC_DIR}/qcommon/cm_load.cpp"
+	"${SRC_DIR}/qcommon/cm_load.h"
+	"${SRC_DIR}/qcommon/cm_load_obj.cpp"
+	"${SRC_DIR}/qcommon/cm_load_obj.h"
+	"${SRC_DIR}/qcommon/cm_mesh.cpp"
+	"${SRC_DIR}/qcommon/cm_mesh.h"
+	"${SRC_DIR}/qcommon/cm_showcollision.cpp"
+	"${SRC_DIR}/qcommon/cm_showcollision.h"
+	"${SRC_DIR}/qcommon/cm_staticmodel.cpp"
+	"${SRC_DIR}/qcommon/cm_staticmodel.h"
+	"${SRC_DIR}/qcommon/cm_staticmodel_load_obj.cpp"
+	"${SRC_DIR}/qcommon/cm_staticmodel_load_obj.h"
+	"${SRC_DIR}/qcommon/cm_test.cpp"
+	"${SRC_DIR}/qcommon/cm_test.h"
+	"${SRC_DIR}/qcommon/cm_trace.cpp"
+	"${SRC_DIR}/qcommon/cm_trace.h"
+	"${SRC_DIR}/qcommon/cm_tracebox.cpp"
+	"${SRC_DIR}/qcommon/cm_tracebox.h"
+	"${SRC_DIR}/qcommon/cm_mapkit.cpp"
+	"${SRC_DIR}/qcommon/cm_mapkit.h"
+	"${SRC_DIR}/qcommon/cm_noperks.cpp"
+	"${SRC_DIR}/qcommon/cm_world.cpp"
+	"${SRC_DIR}/qcommon/cm_world.h"
+	"${SRC_DIR}/qcommon/cmd.cpp"
+	"${SRC_DIR}/qcommon/cmd.h"
+	"${SRC_DIR}/qcommon/com_bsp.cpp"
+	"${SRC_DIR}/qcommon/com_bsp.h"
+	"${SRC_DIR}/qcommon/com_bsp_load_obj.cpp"
+	"${SRC_DIR}/qcommon/com_bsp_load_obj.h"
+	"${SRC_DIR}/qcommon/com_clients.cpp"
+	"${SRC_DIR}/qcommon/com_clients.h"
+	"${SRC_DIR}/qcommon/com_gamemodes.cpp"
+	"${SRC_DIR}/qcommon/com_gamemodes.h"
+	"${SRC_DIR}/qcommon/com_profilemapload.cpp"
+	"${SRC_DIR}/qcommon/com_profilemapload.h"
+	"${SRC_DIR}/qcommon/common.cpp"
+	"${SRC_DIR}/qcommon/common.h"
+	"${SRC_DIR}/qcommon/dl_main.cpp"
+	"${SRC_DIR}/qcommon/dl_main.h"
+	"${SRC_DIR}/qcommon/dobj_management.cpp"
+	"${SRC_DIR}/qcommon/dobj_management.h"
+	"${SRC_DIR}/qcommon/dvar_cmds.cpp"
+	"${SRC_DIR}/qcommon/dvar_cmds.h"
+	"${SRC_DIR}/qcommon/ent.h"
+	"${SRC_DIR}/qcommon/files.cpp"
+	"${SRC_DIR}/qcommon/files.h"
+	"${SRC_DIR}/qcommon/graph.cpp"
+	"${SRC_DIR}/qcommon/graph.h"
+	"${SRC_DIR}/qcommon/huffman.cpp"
+	"${SRC_DIR}/qcommon/huffman.h"
+	"${SRC_DIR}/qcommon/legacyhacks.cpp"
+	"${SRC_DIR}/qcommon/legacyhacks.h"
+	"${SRC_DIR}/qcommon/md4.cpp"
+	"${SRC_DIR}/qcommon/md4.h"
+	"${SRC_DIR}/qcommon/mem_track.cpp"
+	"${SRC_DIR}/qcommon/mem_track.h"
+	"${SRC_DIR}/qcommon/msg.cpp"
+	"${SRC_DIR}/qcommon/msg.h"
+	"${SRC_DIR}/qcommon/msg_mp.cpp"
+	"${SRC_DIR}/qcommon/msg_mp.h"
+	"${SRC_DIR}/qcommon/net_chan_mp.cpp"
+	"${SRC_DIR}/qcommon/net_chan_mp.h"
+	"${SRC_DIR}/qcommon/profanityfilter.cpp"
+	"${SRC_DIR}/qcommon/profanityfilter.h"
+	"${SRC_DIR}/qcommon/radiant_remote.cpp"
+	"${SRC_DIR}/qcommon/radiant_remote.h"
+	"${SRC_DIR}/qcommon/statmonitor.cpp"
+	"${SRC_DIR}/qcommon/statmonitor.h"
+	"${SRC_DIR}/qcommon/sv_msg_write.cpp"
+	"${SRC_DIR}/qcommon/sv_msg_write.h"
+	"${SRC_DIR}/qcommon/sv_msg_write_mp.cpp"
+	"${SRC_DIR}/qcommon/sv_msg_write_mp.h"
+	"${SRC_DIR}/qcommon/threads.cpp"
+	"${SRC_DIR}/qcommon/threads.h"
+	"${SRC_DIR}/qcommon/tl_support.cpp"
+	"${SRC_DIR}/qcommon/tl_support.h"
+	"${SRC_DIR}/qcommon/unzip.cpp"
+	"${SRC_DIR}/qcommon/unzip.h"
+)
+source_group("qcommon" FILES ${SRC_QCOMMON})
+
+set(QCOMMON_FILES
+	${SRC_QCOMMON}
+)
+
+# ----- src/ragdoll -----
+set(SRC_RAGDOLL
+	"${SRC_DIR}/ragdoll/ragdoll.cpp"
+	"${SRC_DIR}/ragdoll/ragdoll.h"
+	"${SRC_DIR}/ragdoll/ragdoll_cmds.cpp"
+	"${SRC_DIR}/ragdoll/ragdoll_cmds.h"
+	"${SRC_DIR}/ragdoll/ragdoll_controller.cpp"
+	"${SRC_DIR}/ragdoll/ragdoll_controller.h"
+	"${SRC_DIR}/ragdoll/ragdoll_quat.cpp"
+	"${SRC_DIR}/ragdoll/ragdoll_quat.h"
+	"${SRC_DIR}/ragdoll/ragdoll_update.cpp"
+	"${SRC_DIR}/ragdoll/ragdoll_update.h"
+)
+source_group("ragdoll" FILES ${SRC_RAGDOLL})
+
+set(RAGDOLL_FILES
+	${SRC_RAGDOLL}
+)
+
+# ----- src/server -----
+set(SRC_SERVER
+	"${SRC_DIR}/server/server.h"
+	"${SRC_DIR}/server/sv_autoplaylist.cpp"
+	"${SRC_DIR}/server/sv_autoplaylist.h"
+	"${SRC_DIR}/server/sv_game.cpp"
+	"${SRC_DIR}/server/sv_game.h"
+	"${SRC_DIR}/server/sv_live_stats.cpp"
+	"${SRC_DIR}/server/sv_live_stats.h"
+	"${SRC_DIR}/server/sv_world.cpp"
+	"${SRC_DIR}/server/sv_world.h"
+)
+source_group("server" FILES ${SRC_SERVER})
+
+set(SERVER_FILES
+	${SRC_SERVER}
+)
+
+# ----- src/server_mp -----
+set(SRC_SERVER_MP
+	"${SRC_DIR}/server_mp/server_mp.h"
+	"${SRC_DIR}/server_mp/sv_archive_mp.cpp"
+	"${SRC_DIR}/server_mp/sv_archive_mp.h"
+	"${SRC_DIR}/server_mp/sv_bot_mp.cpp"
+	"${SRC_DIR}/server_mp/sv_bot_mp.h"
+	"${SRC_DIR}/server_mp/sv_ccmds_mp.cpp"
+	"${SRC_DIR}/server_mp/sv_ccmds_mp.h"
+	"${SRC_DIR}/server_mp/sv_init_mp.cpp"
+	"${SRC_DIR}/server_mp/sv_init_mp.h"
+	"${SRC_DIR}/server_mp/sv_main_mp.cpp"
+	"${SRC_DIR}/server_mp/sv_main_mp.h"
+	"${SRC_DIR}/server_mp/sv_main_pc_mp.cpp"
+	"${SRC_DIR}/server_mp/sv_main_pc_mp.h"
+	"${SRC_DIR}/server_mp/sv_net_chan_mp.cpp"
+	"${SRC_DIR}/server_mp/sv_net_chan_mp.h"
+	"${SRC_DIR}/server_mp/sv_snapshot_mp.cpp"
+	"${SRC_DIR}/server_mp/sv_snapshot_mp.h"
+	"${SRC_DIR}/server_mp/sv_snapshot_profile_mp.cpp"
+	"${SRC_DIR}/server_mp/sv_snapshot_profile_mp.h"
+	"${SRC_DIR}/server_mp/sv_voice_mp.cpp"
+	"${SRC_DIR}/server_mp/sv_voice_mp.h"
+)
+source_group("server_mp" FILES ${SRC_SERVER_MP})
+
+set(SERVER_MP_FILES
+	${SRC_SERVER_MP}
+)
+
+# ----- src/sound -----
+set(SRC_SOUND
+	"${SRC_DIR}/sound/snd.cpp"
+	"${SRC_DIR}/sound/snd.h"
+	"${SRC_DIR}/sound/snd_bank.cpp"
+	"${SRC_DIR}/sound/snd_bank.h"
+	"${SRC_DIR}/sound/snd_db.cpp"
+	"${SRC_DIR}/sound/snd_db.h"
+	"${SRC_DIR}/sound/snd_debug.cpp"
+	"${SRC_DIR}/sound/snd_debug.h"
+	"${SRC_DIR}/sound/snd_driver_xaudio2.cpp"
+	"${SRC_DIR}/sound/snd_driver_xaudio2.h"
+	"${SRC_DIR}/sound/snd_driver_xaudio2_dsp.cpp"
+	"${SRC_DIR}/sound/snd_driver_xaudio2_dsp.h"
+	"${SRC_DIR}/sound/snd_dsp.cpp"
+	"${SRC_DIR}/sound/snd_dsp.h"
+	"${SRC_DIR}/sound/snd_dvar.cpp"
+	"${SRC_DIR}/sound/snd_dvar.h"
+	"${SRC_DIR}/sound/snd_globals.cpp"
+	"${SRC_DIR}/sound/snd_globals.h"
+	"${SRC_DIR}/sound/snd_local.cpp"
+	"${SRC_DIR}/sound/snd_local.h"
+	"${SRC_DIR}/sound/snd_bo1_trace.cpp"
+	"${SRC_DIR}/sound/snd_bo1_trace.h"
+	"${SRC_DIR}/sound/snd_log.cpp"
+	"${SRC_DIR}/sound/snd_log.h"
+	"${SRC_DIR}/sound/snd_occlusion.cpp"
+	"${SRC_DIR}/sound/snd_occlusion.h"
+	"${SRC_DIR}/sound/snd_public_async.cpp"
+	"${SRC_DIR}/sound/snd_public_async.h"
+	"${SRC_DIR}/sound/snd_public_async_q.cpp"
+	"${SRC_DIR}/sound/snd_public_async_q.h"
+	"${SRC_DIR}/sound/snd_radverb.cpp"
+	"${SRC_DIR}/sound/snd_radverb.h"
+	"${SRC_DIR}/sound/snd_stream.cpp"
+	"${SRC_DIR}/sound/snd_stream.h"
+	"${SRC_DIR}/sound/snd_utils.cpp"
+	"${SRC_DIR}/sound/snd_utils.h"
+)
+source_group("sound" FILES ${SRC_SOUND})
+
+set(SOUND_FILES
+	${SRC_SOUND}
+)
+
+# ----- src/speex -----
+set(SRC_SPEEX
+	"${SRC_DIR}/speex/speex.h"
+	"${SRC_DIR}/speex/speex_bits.h"
+	"${SRC_DIR}/speex/speex_callbacks.h"
+	"${SRC_DIR}/speex/speex_echo.h"
+	"${SRC_DIR}/speex/speex_header.h"
+	"${SRC_DIR}/speex/speex_jitter.h"
+	"${SRC_DIR}/speex/speex_preprocess.h"
+	"${SRC_DIR}/speex/speex_stereo.h"
+	"${SRC_DIR}/speex/speex_types.h"
+)
+source_group("speex" FILES ${SRC_SPEEX})
+
+set(SPEEX_FILES
+	${SRC_SPEEX}
+)
+
+# ----- src/steam -----
+set(SRC_STEAM
+	"${SRC_DIR}/steam/isteamapps.h"
+	"${SRC_DIR}/steam/isteamclient.h"
+	"${SRC_DIR}/steam/isteamfriends.h"
+	"${SRC_DIR}/steam/isteamgamecoordinator.h"
+	"${SRC_DIR}/steam/isteamgameserver.h"
+	"${SRC_DIR}/steam/isteamgameserverstats.h"
+	"${SRC_DIR}/steam/isteamgamestats.h"
+	"${SRC_DIR}/steam/isteammasterserverupdater.h"
+	"${SRC_DIR}/steam/isteammatchmaking.h"
+	"${SRC_DIR}/steam/isteamnetworking.h"
+	"${SRC_DIR}/steam/isteamremotestorage.h"
+	"${SRC_DIR}/steam/isteamuser.h"
+	"${SRC_DIR}/steam/isteamuserstats.h"
+	"${SRC_DIR}/steam/isteamutils.h"
+	"${SRC_DIR}/steam/matchmakingtypes.h"
+	"${SRC_DIR}/steam/steam_api.h"
+	"${SRC_DIR}/steam/steam_gameserver.h"
+	"${SRC_DIR}/steam/steamclientpublic.h"
+	"${SRC_DIR}/steam/steamencryptedappticket.h"
+	"${SRC_DIR}/steam/steamtypes.h"
+)
+source_group("steam" FILES ${SRC_STEAM})
+
+set(STEAM_FILES
+	${SRC_STEAM}
+)
+
+# ----- src/stringed -----
+set(SRC_STRINGED
+	"${SRC_DIR}/stringed/stringed_hooks.cpp"
+	"${SRC_DIR}/stringed/stringed_hooks.h"
+	"${SRC_DIR}/stringed/stringed_ingame.cpp"
+	"${SRC_DIR}/stringed/stringed_ingame.h"
+	"${SRC_DIR}/stringed/stringed_interface.cpp"
+	"${SRC_DIR}/stringed/stringed_interface.h"
+	"${SRC_DIR}/stringed/stringed_remote.cpp"
+	"${SRC_DIR}/stringed/stringed_remote.h"
+)
+source_group("stringed" FILES ${SRC_STRINGED})
+
+set(STRINGED_FILES
+	${SRC_STRINGED}
+)
+
+# ----- src/tracy -----
+set(SRC_TRACY_PUBLIC
+	"${SRC_DIR}/tracy/public/TracyClient.cpp"
+)
+source_group("tracy/public" FILES ${SRC_TRACY_PUBLIC})
+
+set(SRC_TRACY_PUBLIC_TRACY
+	"${SRC_DIR}/tracy/public/tracy/Tracy.hpp"
+	"${SRC_DIR}/tracy/public/tracy/TracyC.h"
+)
+source_group("tracy/public/tracy" FILES ${SRC_TRACY_PUBLIC_TRACY})
+
+set(TRACY_FILES
+	${SRC_TRACY_PUBLIC}
+	${SRC_TRACY_PUBLIC_TRACY}
+)
+
+# ----- src/turret -----
+set(SRC_TURRET
+	"${SRC_DIR}/turret/turret_placement.cpp"
+	"${SRC_DIR}/turret/turret_placement.h"
+)
+source_group("turret" FILES ${SRC_TURRET})
+
+set(TURRET_FILES
+	${SRC_TURRET}
+)
+
+# ----- src/ui -----
+set(SRC_UI
+	"${SRC_DIR}/ui/keycodes.h"
+	"${SRC_DIR}/ui/l_memory.cpp"
+	"${SRC_DIR}/ui/l_memory.h"
+	"${SRC_DIR}/ui/l_precomp.cpp"
+	"${SRC_DIR}/ui/l_precomp.h"
+	"${SRC_DIR}/ui/l_script.cpp"
+	"${SRC_DIR}/ui/l_script.h"
+	"${SRC_DIR}/ui/ui_atoms.cpp"
+	"${SRC_DIR}/ui/ui_atoms.h"
+	"${SRC_DIR}/ui/ui_commands.cpp"
+	"${SRC_DIR}/ui/ui_commands.h"
+	"${SRC_DIR}/ui/ui_emblem.cpp"
+	"${SRC_DIR}/ui/ui_emblem.h"
+	"${SRC_DIR}/ui/ui_feeders.cpp"
+	"${SRC_DIR}/ui/ui_feeders.h"
+	"${SRC_DIR}/ui/ui_friends.cpp"
+	"${SRC_DIR}/ui/ui_friends.h"
+	"${SRC_DIR}/ui/ui_keyboard.cpp"
+	"${SRC_DIR}/ui/ui_keyboard.h"
+	"${SRC_DIR}/ui/ui_localvars.cpp"
+	"${SRC_DIR}/ui/ui_localvars.h"
+	"${SRC_DIR}/ui/ui_main.cpp"
+	"${SRC_DIR}/ui/ui_main.h"
+	"${SRC_DIR}/ui/ui_main_pc.cpp"
+	"${SRC_DIR}/ui/ui_main_pc.h"
+	"${SRC_DIR}/ui/ui_mem_track.cpp"
+	"${SRC_DIR}/ui/ui_mem_track.h"
+	"${SRC_DIR}/ui/ui_playlists.cpp"
+	"${SRC_DIR}/ui/ui_playlists.h"
+	"${SRC_DIR}/ui/ui_screenshot.cpp"
+	"${SRC_DIR}/ui/ui_screenshot.h"
+	"${SRC_DIR}/ui/ui_server.cpp"
+	"${SRC_DIR}/ui/ui_server.h"
+	"${SRC_DIR}/ui/ui_shared.cpp"
+	"${SRC_DIR}/ui/ui_shared.h"
+	"${SRC_DIR}/ui/ui_shared_obj.cpp"
+	"${SRC_DIR}/ui/ui_shared_obj.h"
+	"${SRC_DIR}/ui/ui_utils.cpp"
+	"${SRC_DIR}/ui/ui_utils.h"
+	"${SRC_DIR}/ui/ui_viewer.cpp"
+	"${SRC_DIR}/ui/ui_viewer.h"
+)
+source_group("ui" FILES ${SRC_UI})
+
+set(UI_FILES
+	${SRC_UI}
+)
+
+# ----- src/ui_mp -----
+set(SRC_UI_MP
+	"${SRC_DIR}/ui_mp/ui_feeders_mp.cpp"
+	"${SRC_DIR}/ui_mp/ui_feeders_mp.h"
+	"${SRC_DIR}/ui_mp/ui_gametype_custom_mp.cpp"
+	"${SRC_DIR}/ui_mp/ui_gametype_custom_mp.h"
+	"${SRC_DIR}/ui_mp/ui_gametype_variants_mp.cpp"
+	"${SRC_DIR}/ui_mp/ui_gametype_variants_mp.h"
+	"${SRC_DIR}/ui_mp/ui_main_mp.cpp"
+	"${SRC_DIR}/ui_mp/ui_main_mp.h"
+)
+source_group("ui_mp" FILES ${SRC_UI_MP})
+
+set(UI_MP_FILES
+	${SRC_UI_MP}
+)
+
+# ----- src/universal -----
+set(SRC_UNIVERSAL
+	"${SRC_DIR}/universal/base64.cpp"
+	"${SRC_DIR}/universal/base64.h"
+	"${SRC_DIR}/universal/CurveManager.cpp"
+	"${SRC_DIR}/universal/CurveManager.h"
+	"${SRC_DIR}/universal/UserInfo.cpp"
+	"${SRC_DIR}/universal/UserInfo.h"
+	"${SRC_DIR}/universal/aabbtree.cpp"
+	"${SRC_DIR}/universal/aabbtree.h"
+	"${SRC_DIR}/universal/assertive.cpp"
+	"${SRC_DIR}/universal/assertive.h"
+	"${SRC_DIR}/universal/com_buildinfo.cpp"
+	"${SRC_DIR}/universal/com_buildinfo.h"
+	"${SRC_DIR}/universal/com_constantconfigstrings.cpp"
+	"${SRC_DIR}/universal/com_constantconfigstrings.h"
+	"${SRC_DIR}/universal/com_convexhull.cpp"
+	"${SRC_DIR}/universal/com_convexhull.h"
+	"${SRC_DIR}/universal/com_encode.cpp"
+	"${SRC_DIR}/universal/com_encode.h"
+	"${SRC_DIR}/universal/com_expressions.cpp"
+	"${SRC_DIR}/universal/com_expressions.h"
+	"${SRC_DIR}/universal/com_expressions_eval.cpp"
+	"${SRC_DIR}/universal/com_expressions_eval.h"
+	"${SRC_DIR}/universal/com_fileaccess.cpp"
+	"${SRC_DIR}/universal/com_fileaccess.h"
+	"${SRC_DIR}/universal/com_files.cpp"
+	"${SRC_DIR}/universal/com_files.h"
+	"${SRC_DIR}/universal/com_loadutils.cpp"
+	"${SRC_DIR}/universal/com_loadutils.h"
+	"${SRC_DIR}/universal/com_math.cpp"
+	"${SRC_DIR}/universal/com_math.h"
+	"${SRC_DIR}/universal/com_math_anglevectors.cpp"
+	"${SRC_DIR}/universal/com_math_anglevectors.h"
+	"${SRC_DIR}/universal/com_memory.cpp"
+	"${SRC_DIR}/universal/com_memory.h"
+	"${SRC_DIR}/universal/com_pack.cpp"
+	"${SRC_DIR}/universal/com_pack.h"
+	"${SRC_DIR}/universal/com_shared.cpp"
+	"${SRC_DIR}/universal/com_shared.h"
+	"${SRC_DIR}/universal/com_stringtable.cpp"
+	"${SRC_DIR}/universal/com_stringtable.h"
+	"${SRC_DIR}/universal/com_stringtable_obj.cpp"
+	"${SRC_DIR}/universal/com_stringtable_obj.h"
+	"${SRC_DIR}/universal/com_tasks.cpp"
+	"${SRC_DIR}/universal/com_tasks.h"
+	"${SRC_DIR}/universal/com_vector4_const.cpp"
+	"${SRC_DIR}/universal/com_vector4_const.h"
+	"${SRC_DIR}/universal/com_workercmds.cpp"
+	"${SRC_DIR}/universal/com_workercmds.h"
+	"${SRC_DIR}/universal/curve.cpp"
+	"${SRC_DIR}/universal/curve.h"
+	"${SRC_DIR}/universal/dvar.cpp"
+	"${SRC_DIR}/universal/dvar.h"
+	"${SRC_DIR}/universal/eval.cpp"
+	"${SRC_DIR}/universal/eval.h"
+	"${SRC_DIR}/universal/fft.cpp"
+	"${SRC_DIR}/universal/fft.h"
+	"${SRC_DIR}/universal/mem_firstfit.cpp"
+	"${SRC_DIR}/universal/mem_firstfit.h"
+	"${SRC_DIR}/universal/mem_fixed.cpp"
+	"${SRC_DIR}/universal/mem_fixed.h"
+	"${SRC_DIR}/universal/mem_largelocal.cpp"
+	"${SRC_DIR}/universal/mem_largelocal.h"
+	"${SRC_DIR}/universal/mem_userhunk.cpp"
+	"${SRC_DIR}/universal/mem_userhunk.h"
+	"${SRC_DIR}/universal/memfile.cpp"
+	"${SRC_DIR}/universal/memfile.h"
+	"${SRC_DIR}/universal/physicalmemory.cpp"
+	"${SRC_DIR}/universal/physicalmemory.h"
+	"${SRC_DIR}/universal/profile.cpp"
+	"${SRC_DIR}/universal/profile.h"
+	"${SRC_DIR}/universal/q_parse.cpp"
+	"${SRC_DIR}/universal/q_parse.h"
+	"${SRC_DIR}/universal/q_shared.cpp"
+	"${SRC_DIR}/universal/q_shared.h"
+	"${SRC_DIR}/universal/reliablemsg.cpp"
+	"${SRC_DIR}/universal/reliablemsg.h"
+	"${SRC_DIR}/universal/surfaceflags.cpp"
+	"${SRC_DIR}/universal/surfaceflags.h"
+	"${SRC_DIR}/universal/timing.cpp"
+	"${SRC_DIR}/universal/timing.h"
+)
+source_group("universal" FILES ${SRC_UNIVERSAL})
+
+set(UNIVERSAL_FILES
+	${SRC_UNIVERSAL}
+)
+
+# ----- src/vehicle -----
+set(SRC_VEHICLE
+	"${SRC_DIR}/vehicle/nitrous_vehicle.cpp"
+	"${SRC_DIR}/vehicle/nitrous_vehicle.h"
+	"${SRC_DIR}/vehicle/nitrous_vehicle_constraint.cpp"
+	"${SRC_DIR}/vehicle/nitrous_vehicle_constraint.h"
+	"${SRC_DIR}/vehicle/nitrous_vehicle_controller.cpp"
+	"${SRC_DIR}/vehicle/nitrous_vehicle_controller.h"
+	"${SRC_DIR}/vehicle/nitrous_vehicle_effects.cpp"
+	"${SRC_DIR}/vehicle/nitrous_vehicle_effects.h"
+)
+source_group("vehicle" FILES ${SRC_VEHICLE})
+
+set(VEHICLE_FILES
+	${SRC_VEHICLE}
+)
+
+# ----- src/vpx -----
+set(SRC_VPX
+	"${SRC_DIR}/vpx/vpx.cpp"
+	"${SRC_DIR}/vpx/vpx.h"
+)
+source_group("vpx" FILES ${SRC_VPX})
+
+set(VPX_FILES
+	${SRC_VPX}
+)
+
+# ----- src/win32 -----
+set(SRC_WIN32
+	"${SRC_DIR}/win32/win_common.cpp"
+	"${SRC_DIR}/win32/win_common.h"
+	"${SRC_DIR}/win32/win_configure.cpp"
+	"${SRC_DIR}/win32/win_configure.h"
+	"${SRC_DIR}/win32/win_content.cpp"
+	"${SRC_DIR}/win32/win_content.h"
+	"${SRC_DIR}/win32/win_gamepad.cpp"
+	"${SRC_DIR}/win32/win_gamepad.h"
+	"${SRC_DIR}/win32/win_gamerprofile.cpp"
+	"${SRC_DIR}/win32/win_gamerprofile.h"
+	"${SRC_DIR}/win32/win_input.cpp"
+	"${SRC_DIR}/win32/win_input.h"
+	"${SRC_DIR}/win32/win_libspeex_misc.cpp"
+	"${SRC_DIR}/win32/win_libspeex_misc.h"
+	"${SRC_DIR}/win32/win_local.h"
+	"${SRC_DIR}/win32/win_localize.cpp"
+	"${SRC_DIR}/win32/win_localize.h"
+	"${SRC_DIR}/win32/win_main.cpp"
+	"${SRC_DIR}/win32/win_main.h"
+	"${SRC_DIR}/win32/win_mini_dumper.cpp"
+	"${SRC_DIR}/win32/win_mini_dumper.h"
+	"${SRC_DIR}/win32/win_net.cpp"
+	"${SRC_DIR}/win32/win_net.h"
+	"${SRC_DIR}/win32/win_shared.cpp"
+	"${SRC_DIR}/win32/win_shared.h"
+	"${SRC_DIR}/win32/win_splash.cpp"
+	"${SRC_DIR}/win32/win_splash.h"
+	"${SRC_DIR}/win32/win_stream.cpp"
+	"${SRC_DIR}/win32/win_stream.h"
+	"${SRC_DIR}/win32/win_steam.cpp"
+	"${SRC_DIR}/win32/win_steam.h"
+	"${SRC_DIR}/win32/win_syscon.cpp"
+	"${SRC_DIR}/win32/win_syscon.h"
+	"${SRC_DIR}/win32/win_tasks.cpp"
+	"${SRC_DIR}/win32/win_tasks.h"
+	"${SRC_DIR}/win32/win_voice.cpp"
+	"${SRC_DIR}/win32/win_voice.h"
+	"${SRC_DIR}/win32/win_wndproc.cpp"
+	"${SRC_DIR}/win32/win_wndproc.h"
+	"${SRC_DIR}/win32/win_workercmds.cpp"
+	"${SRC_DIR}/win32/win_workercmds.h"
+)
+source_group("win32" FILES ${SRC_WIN32})
+
+set(WIN32_FILES
+	${SRC_WIN32}
+)
+
+# ----- src/xanim -----
+set(SRC_XANIM
+	"${SRC_DIR}/xanim/dobj.cpp"
+	"${SRC_DIR}/xanim/dobj.h"
+	"${SRC_DIR}/xanim/dobj_skel.cpp"
+	"${SRC_DIR}/xanim/dobj_skel.h"
+	"${SRC_DIR}/xanim/dobj_utils.cpp"
+	"${SRC_DIR}/xanim/dobj_utils.h"
+	"${SRC_DIR}/xanim/xanim.cpp"
+	"${SRC_DIR}/xanim/xanim.h"
+	"${SRC_DIR}/xanim/xanim_calc.cpp"
+	"${SRC_DIR}/xanim/xanim_calc.h"
+	"${SRC_DIR}/xanim/xanim_clientnotify.cpp"
+	"${SRC_DIR}/xanim/xanim_clientnotify.h"
+	"${SRC_DIR}/xanim/xanim_load_obj.cpp"
+	"${SRC_DIR}/xanim/xanim_load_obj.h"
+	"${SRC_DIR}/xanim/xmodel.cpp"
+	"${SRC_DIR}/xanim/xmodel.h"
+	"${SRC_DIR}/xanim/xmodel_load_obj.cpp"
+	"${SRC_DIR}/xanim/xmodel_load_obj.h"
+	"${SRC_DIR}/xanim/xmodel_load_phys_collmap.cpp"
+	"${SRC_DIR}/xanim/xmodel_load_phys_collmap.h"
+	"${SRC_DIR}/xanim/xmodel_utils.cpp"
+	"${SRC_DIR}/xanim/xmodel_utils.h"
+)
+source_group("xanim" FILES ${SRC_XANIM})
+
+set(XANIM_FILES
+	${SRC_XANIM}
+)
+
+# ----- src/zlib -----
+set(SRC_ZLIB
+	"${SRC_DIR}/zlib/adler32.c"
+	"${SRC_DIR}/zlib/compress.c"
+	"${SRC_DIR}/zlib/crc32.c"
+	"${SRC_DIR}/zlib/crc32.h"
+	"${SRC_DIR}/zlib/deflate.c"
+	"${SRC_DIR}/zlib/deflate.h"
+	"${SRC_DIR}/zlib/gzio.c"
+	"${SRC_DIR}/zlib/inffast.c"
+	"${SRC_DIR}/zlib/inffast.h"
+	"${SRC_DIR}/zlib/inffixed.h"
+	"${SRC_DIR}/zlib/inflate.c"
+	"${SRC_DIR}/zlib/inflate.h"
+	"${SRC_DIR}/zlib/inftrees.c"
+	"${SRC_DIR}/zlib/inftrees.h"
+	"${SRC_DIR}/zlib/trees.c"
+	"${SRC_DIR}/zlib/trees.h"
+	"${SRC_DIR}/zlib/uncompr.c"
+	"${SRC_DIR}/zlib/zconf.h"
+	"${SRC_DIR}/zlib/zlib.h"
+	"${SRC_DIR}/zlib/zutil.c"
+	"${SRC_DIR}/zlib/zutil.h"
+)
+source_group("zlib" FILES ${SRC_ZLIB})
+
+set(ZLIB_FILES
+	${SRC_ZLIB}
+)
+
+# ======================================================================
+# tl/
+# ======================================================================
+
+# ----- tl/ (root files) -----
+set(TL
+	"${TL_DIR}/gdt_remote.cpp"
+	"${TL_DIR}/tl_system.cpp"
+)
+source_group("tl/" FILES ${TL})
+
+set(TL_TLROOT_FILES
+	${TL}
+)
+
+# ----- tl/base -----
+set(TL_BASE
+	"${TL_DIR}/base/tl_thread.h"
+)
+source_group("tl/base" FILES ${TL_BASE})
+
+set(TL_BASE_FILES
+	${TL_BASE}
+)
+
+# ----- tl/jobqueue -----
+set(TL_JOBQUEUE
+	"${TL_DIR}/jobqueue/jobqueue_all.cpp"
+	"${TL_DIR}/jobqueue/jobqueue_all.h"
+)
+source_group("tl/jobqueue" FILES ${TL_JOBQUEUE})
+
+set(TL_JOBQUEUE_FILES
+	${TL_JOBQUEUE}
+)
+
+# ----- tl/physics -----
+set(TL_PHYSICS
+	"${TL_DIR}/physics/rbc_def_contact.cpp"
+	"${TL_DIR}/physics/rbc_def_contact.h"
+	"${TL_DIR}/physics/rbc_def_custom.cpp"
+	"${TL_DIR}/physics/rbc_def_custom.h"
+	"${TL_DIR}/physics/rbc_def_generic.cpp"
+	"${TL_DIR}/physics/rbc_def_generic.h"
+	"${TL_DIR}/physics/rbc_def_ragdoll.cpp"
+	"${TL_DIR}/physics/rbc_def_ragdoll.h"
+	"${TL_DIR}/physics/rbc_def_vehicle.cpp"
+	"${TL_DIR}/physics/rbc_def_vehicle.h"
+)
+source_group("tl/physics" FILES ${TL_PHYSICS})
+
+set(TL_PHYSICS_FILES
+	${TL_PHYSICS}
+)
+
+# ======================================================================
+# Build target
+# ======================================================================
+
+add_executable(${BIN_NAME}
+	${DW_DEMONWAREROOT_FILES}
+	${DW_BDCORE_FILES}
+	${DW_BDPLATFORM_FILES}
+	${CUBEMAPGENLIB_FILES}
+	${DW_FILES}
+	${DYNENTITY_FILES}
+	${EFFECTSCORE_FILES}
+	${AIM_ASSIST_FILES}
+	${BGAME_FILES}
+	${BINKLIB_FILES}
+	${CGAME_FILES}
+	${CGAME_MP_FILES}
+	${CLIENT_FILES}
+	${CLIENT_MP_FILES}
+	${CLIENTSCRIPT_FILES}
+	${COMMON_FILES}
+	${DATABASE_FILES}
+	${DDL_FILES}
+	${DEMO_FILES}
+	${DEVGUI_FILES}
+	${FLAME_FILES}
+	${GAME_FILES}
+	${GAME_MP_FILES}
+	${GAME_SP_FILES}
+	${GFX_D3D_FILES}
+	${GLASS_FILES}
+	${GROUPVOICE_FILES}
+	${IK_FILES}
+	${JPEG_FILES}
+	${LIBS_FILES}
+	${LIVE_FILES}
+	${MINILZO_FILES}
+	${MJPEG_FILES}
+	${MONKEY_FILES}
+	${NVAPI_FILES}
+	${PHYSICS_FILES}
+	${QCOMMON_FILES}
+	${RAGDOLL_FILES}
+	${SERVER_FILES}
+	${SERVER_MP_FILES}
+	${SOUND_FILES}
+	${SPEEX_FILES}
+	${STEAM_FILES}
+	${STRINGED_FILES}
+	${TRACY_FILES}
+	${TURRET_FILES}
+	${UI_FILES}
+	${UI_MP_FILES}
+	${UNIVERSAL_FILES}
+	${VEHICLE_FILES}
+	${VPX_FILES}
+	${WIN32_FILES}
+	${XANIM_FILES}
+	${ZLIB_FILES}
+	${TL_TLROOT_FILES}
+	${TL_BASE_FILES}
+	${TL_JOBQUEUE_FILES}
+	${TL_PHYSICS_FILES}
+)
