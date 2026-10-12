@@ -2857,6 +2857,82 @@ void Com_LoadUiFastFile()
     }
 }
 
+// BO1FIX: SP plays the level's main\video\<map>_load.bik on the loading screen - the comic art with its
+// music - and this port never started it. The loading/briefing screen draws "$levelbriefing", so that
+// material is swapped (DB_ReplaceXAsset keeps its name) for the still loadscreen_<map> art while the
+// client shuts down (CL_ShutdownAll stops any cinematic), then for the engine's "cinematic" material - it
+// samples the playing Bink's frames (TEXTURE_SRC_CODE_CINEMATIC_*) - once the level's zones load and the
+// video starts. Maps that ship no video keep the still art. Both sources sit in never-freed zones
+// (loadscreen_<map>: code_post_gfx / patch; cinematic: code_post_gfx), so the clones cannot dangle.
+static bool s_mapLoadCinematicPlaying;
+static volatile bool s_mapLoadCinematicHandoffPending;
+static char s_mapLoadCinematicMap[64];
+static char s_mapLoadCinematicName[72]; // <map>_load, read by the render thread
+
+static bool Com_MapLoadCinematicExists(const char *mapName)
+{
+    // the paths R_Cinematic_BinkOpen tries for a streamed (non memory-resident) Bink
+    const char *cwd = Sys_Cwd();
+    if (GetFileAttributesA(va("%s\\main\\video\\%s_load.bik", cwd, mapName)) != INVALID_FILE_ATTRIBUTES)
+        return true;
+    return GetFileAttributesA(va("%s\\raw\\video\\%s_load.bik", cwd, mapName)) != INVALID_FILE_ATTRIBUTES;
+}
+
+static void Com_SetLevelBriefingMaterial(const char *replacement)
+{
+    // the render thread draws the loading screen under CRITSECT_DBHASH (RB_RenderThread)
+    Sys_EnterCriticalSection(CRITSECT_DBHASH);
+    DB_ReplaceXAsset(ASSET_TYPE_MATERIAL, (char *)"$levelbriefing", replacement);
+    Sys_LeaveCriticalSection(CRITSECT_DBHASH);
+}
+
+static void Com_StartMapLoadCinematic(const char *mapName)
+{
+    if (IsDedicatedServer())
+        return;
+    if (!Com_MapLoadCinematicExists(mapName))
+    {
+        Com_Printf(8, "no loading video for '%s', keeping the still loading art\n", mapName);
+        return;
+    }
+    Com_Printf(8, "playing loading video '%s_load'\n", mapName);
+    I_strncpyz(s_mapLoadCinematicMap, mapName, sizeof(s_mapLoadCinematicMap));
+    Com_sprintf(s_mapLoadCinematicName, sizeof(s_mapLoadCinematicName), "%s_load", mapName);
+    s_mapLoadCinematicHandoffPending = true;
+    s_mapLoadCinematicPlaying = true;
+    // 2: loop, so the art and music last through a load longer than the video
+    R_Cinematic_StartPlayback_SP(s_mapLoadCinematicName, 2, 1.0f);
+}
+
+// BO1FIX: called by the loading screen draw (main or render thread). The still art stays up until the
+// video has a decoded frame; switching earlier showed whatever the cinematic images held (a stale frame of
+// the previous video, or black) between the two.
+void __cdecl Com_UpdateMapLoadCinematicMaterial()
+{
+    if (!s_mapLoadCinematicHandoffPending || !R_Cinematic_IsShowingFrameOf(s_mapLoadCinematicName))
+        return;
+    s_mapLoadCinematicHandoffPending = false;
+    Com_SetLevelBriefingMaterial("cinematic");
+}
+
+// BO1FIX: called every client frame. The load is not over at the first snapshot: the first world frame
+// still sorts the materials and runs the shader warm pass (R_BeginFrame / RB_ShaderWarming, seconds behind
+// PATCH_SHADER_WARMING), so the video and its music run until that is done and the level fades in.
+void __cdecl Com_UpdateMapLoadCinematic(int localClientNum)
+{
+    if (!s_mapLoadCinematicPlaying || CL_GetLocalClientConnectionState(localClientNum) != CA_ACTIVE)
+        return;
+    if (!rgp.world || rgp.needSortMaterials)
+        return;
+    if (r_shaderWarming && r_shaderWarming->current.enabled && rgp.needMaterialPreload)
+        return;
+    s_mapLoadCinematicPlaying = false;
+    s_mapLoadCinematicHandoffPending = false;
+    R_Cinematic_StopPlayback();
+    // anything that still draws "$levelbriefing" (in-game menus) gets the still art, not a stopped video
+    Com_SetLevelBriefingMaterial(va("loadscreen_%s", s_mapLoadCinematicMap));
+}
+
 void __cdecl Com_LoadMapLoadingScreenFastFile(const char *mapName)
 {
     if (!IsDedicatedServer())
@@ -2870,11 +2946,12 @@ void __cdecl Com_LoadMapLoadingScreenFastFile(const char *mapName)
         // and cod5 maps) - so there is no per-map loading-screen fastfile to load here, and the release above
         // only clears in-use marks: lookups still find them.
         UI_SetLoadingScreenMaterial(mapName);
-        // BO1FIX: the loading/briefing screen draws the data material "$levelbriefing" and never the
-        // loadscreen art. Swap the briefing material for this level's loading art; DB_ReplaceXAsset keeps
-        // the "$levelbriefing" name, so every menu item that uses it now renders the map's art. The source
-        // material sits in a never-freed zone, so the clone cannot dangle.
-        DB_ReplaceXAsset(ASSET_TYPE_MATERIAL, (char *)"$levelbriefing", (char *)va("loadscreen_%s", mapName));
+        // BO1FIX: show the level's still art until Com_LoadLevelFastFiles starts its loading video (see
+        // above). A load that never reached the level (an error, a disconnect) left no video running: the
+        // client shutdown stops it, so forget it here.
+        s_mapLoadCinematicPlaying = false;
+        s_mapLoadCinematicHandoffPending = false;
+        Com_SetLevelBriefingMaterial(va("loadscreen_%s", mapName));
     }
 }
 
@@ -2904,6 +2981,9 @@ void __cdecl Com_LoadLevelFastFiles(char *mapName)
     zoneCount = 0;
     DB_ResetZoneSize(0);
     UI_SetLoadingScreenMaterial(mapName);
+    // BO1FIX: the client has shut down by now, so the level's loading video (art + music) can start; it
+    // plays through the zone load and stops at the first snapshot (CL_FirstSnapshot).
+    Com_StartMapLoadCinematic(mapName);
     Com_sprintf(levelPatchZoneName, 0x40u, "%s_patch", mapName);
     ControllerIndex = Com_LocalClient_GetControllerIndex(0);
     Cbuf_ExecuteBuffer(0, ControllerIndex, (char *)"ui_animate connect * meet 500 1;\n");

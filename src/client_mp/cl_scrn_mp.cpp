@@ -825,6 +825,7 @@ LABEL_31:
                     case CA_LOADING:
                     case CA_PRIMED:
                         SCR_ClearScreen();
+                        Com_UpdateMapLoadCinematicMaterial(); // BO1FIX: loading video handoff
                         UI_Refresh(localClientNum);
                         UI_DrawConnectScreen(localClientNum);
                         refreshedUI = 1;
