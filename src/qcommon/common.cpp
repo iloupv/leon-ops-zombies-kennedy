@@ -2862,10 +2862,22 @@ void __cdecl Com_LoadMapLoadingScreenFastFile(const char *mapName)
     if (!IsDedicatedServer())
     {
         //track_set_max_memory_level(mapName);
-        DB_ResetZoneSize(0);
-        if (useFastFile->current.enabled)
-            DB_ReleaseXAssets();
+        // BO1FIX: take the loading-screen handle while the asset DB is still live. DB_ReleaseXAssets()
+        // below marks every asset not-in-use, and this port never re-loads the loading-screen fastfile
+        // (its DB_LoadXAssets is gone), so registering after the release can only return the per-type
+        // default - the missing-material checkerboard.
         UI_SetLoadingScreenMaterial(mapName);
+        // BO1FIX: the loading/briefing screen draws the data material "$levelbriefing" and never the
+        // loadscreen art. Swap the briefing material for this level's loading art; DB_ReplaceXAsset keeps
+        // the "$levelbriefing" name, so every menu item that uses it now renders the map's art.
+        DB_ReplaceXAsset(ASSET_TYPE_MATERIAL, (char *)"$levelbriefing", (char *)va("loadscreen_%s", mapName));
+        DB_ResetZoneSize(0);
+        // BO1NOTE: DB_ReleaseXAssets() marks *every* asset not-in-use, and this port never loads the
+        // loading-screen fastfile afterwards (the original DB_LoadXAssets is gone from this function), so
+        // the art/thumbnails can no longer be found once it runs. Skipping it here keeps them alive for
+        // the loading screen; loading that fastfile back after the release is the proper fix.
+        //if (useFastFile->current.enabled)
+        //    DB_ReleaseXAssets();
     }
 }
 
