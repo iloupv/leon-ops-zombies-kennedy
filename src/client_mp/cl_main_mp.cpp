@@ -1648,7 +1648,10 @@ void __cdecl CL_Snd_Restart_f()
 {
     int n; // [esp+0h] [ebp-4h]
 
-    if ( !com_sv_running->current.enabled || Com_IsMenuLevel(0) )
+    // BO1FIX: the SP front end is a running level ("frontend") too, so applying a new sound device from its
+    // options was refused ("Listen server cannot sound restart") and the choice was never stored in
+    // sd_xa2_device_guid - the device reverted. It is a menu level like Com_IsMenuLevel's, so allow it there.
+    if ( !com_sv_running->current.enabled || Com_IsMenuLevel(0) || Com_IsSPFrontEndRunning() )
     {
         n = Dvar_GetInt("sd_xa2_device_name");
         Dvar_SetIntByName("sd_xa2_device_guid", n);
