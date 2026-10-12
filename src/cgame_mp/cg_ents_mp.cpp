@@ -891,11 +891,6 @@ void __cdecl CG_SetFrameInterpolation(int localClientNum)
         cgameGlob->frameInterpolation = (float)(cgameGlob->time - cgameGlob->snap->serverTime) / (float)delta;
         if ( cgameGlob->frameInterpolation < 0.0 )
             cgameGlob->frameInterpolation = 0.0f;
-        // BO1FIX: the factor is a 0..1 blend; past nextSnap->serverTime it overshoots (the port's own note
-        // above records t reaching ~2 on Five's portal light). Extrapolation flips lerped light colours
-        // negative, so clamp to the segment.
-        if ( cgameGlob->frameInterpolation > 1.0 )
-            cgameGlob->frameInterpolation = 1.0f;
     }
     else
     {
@@ -2092,17 +2087,27 @@ void __cdecl CG_PrimaryLight(int localClientNum, centity_s *cent)
     newColor[0] = v5 * newColor[0];
     newColor[1] = v5 * newColor[1];
     newColor[2] = v5 * newColor[2];
-    // BO1FIX(flicker): a client-side light entity ('makeLight') leaves its next state at 0 when the map
-    // never animates it, while currentState holds the real BSP light. Interpolating the map light toward
-    // that zero made it fade to black and snap back every snapshot (the flickering lamps/banner on Kino).
-    // When the next state is unset, hold the current one instead of fading toward black.
-    if ( v5 <= 0.0f && v6 > 0.0f )
+    // BO1FIX(flicker): a map light's next state can arrive unset - intensity and packed colour all 0 - while
+    // currentState holds the real BSP light (what writes the zeros is not known yet; makeLight and the server
+    // spawn both fill them in). Interpolating toward it made the light fade to black and snap back every
+    // snapshot (the flickering lamps/banner on Kino), so hold the current state. Only a fully unset state is
+    // held: setlightintensity writes the intensity alone, so a script turning a light off (intensity 0, its
+    // colour kept) still turns it off.
+    const unsigned __int8 *nextColorBytes = cent->nextState.lerp.u.primaryLight.colorAndExp;
+    if ( v5 <= 0.0f && v6 > 0.0f && !nextColorBytes[0] && !nextColorBytes[1] && !nextColorBytes[2] )
     {
         newColor[0] = oldColor[0];
         newColor[1] = oldColor[1];
         newColor[2] = oldColor[2];
     }
-    Vec3Lerp(oldColor, newColor, cgameGlob->frameInterpolation, light->color);
+    // BO1FIX: lerp the light within its snapshot pair. frameInterpolation is only clamped below 0 (as in SP)
+    // and reaches ~2 when a transition leaves snap == nextSnap (see the note below); extrapolating past the pair
+    // flipped lerped light colours negative. Clamped here, not in CG_SetFrameInterpolation, so every other
+    // user of the factor (entity positions, vehicles, lean, ...) keeps retail's extrapolation.
+    float lerpFrac = cgameGlob->frameInterpolation;
+    if ( lerpFrac > 1.0f )
+        lerpFrac = 1.0f;
+    Vec3Lerp(oldColor, newColor, lerpFrac, light->color);
     light->diffuseColor[0] = light->color[0];
     light->diffuseColor[1] = light->color[1];
     light->diffuseColor[2] = light->color[2];
@@ -2128,18 +2133,18 @@ void __cdecl CG_PrimaryLight(int localClientNum, centity_s *cent)
         CG_ClampPrimaryLightOrigin(light, refLight);
     }
     light->radius = (float)((float)(cent->nextState.lerp.u.turret.gunAngles[2] - cent->currentState.u.turret.gunAngles[2])
-                                                * cgameGlob->frameInterpolation)
+                                                * lerpFrac)
                                 + cent->currentState.u.turret.gunAngles[2];
     light->cosHalfFovOuter = (float)((float)(cent->nextState.lerp.u.primaryLight.cosHalfFovOuter
                                                                                  - cent->currentState.u.primaryLight.cosHalfFovOuter)
-                                                                 * cgameGlob->frameInterpolation)
+                                                                 * lerpFrac)
                                                  + cent->currentState.u.primaryLight.cosHalfFovOuter;
     light->cosHalfFovInner = (float)((float)(cent->nextState.lerp.u.turret.heatVal - cent->currentState.u.turret.heatVal)
-                                                                 * cgameGlob->frameInterpolation)
+                                                                 * lerpFrac)
                                                  + cent->currentState.u.turret.heatVal;
     light->exponent = (int)(float)((float)(cent->nextState.lerp.u.primaryLight.colorAndExp[3]
                                                                              - cent->currentState.u.primaryLight.colorAndExp[3])
-                                                             * cgameGlob->frameInterpolation)
+                                                             * lerpFrac)
                                     + cent->currentState.u.primaryLight.colorAndExp[3];
     // zombies: SP CG_PrimaryLight (0x00775F40) stores the lerped pair unchecked. frameInterpolation is only clamped
     // below 0 (SP CG_SetFrameInterpolation 0x00556480, same as here) and is not recomputed when a snapshot transition
