@@ -891,6 +891,11 @@ void __cdecl CG_SetFrameInterpolation(int localClientNum)
         cgameGlob->frameInterpolation = (float)(cgameGlob->time - cgameGlob->snap->serverTime) / (float)delta;
         if ( cgameGlob->frameInterpolation < 0.0 )
             cgameGlob->frameInterpolation = 0.0f;
+        // BO1FIX: the factor is a 0..1 blend; past nextSnap->serverTime it overshoots (the port's own note
+        // above records t reaching ~2 on Five's portal light). Extrapolation flips lerped light colours
+        // negative, so clamp to the segment.
+        if ( cgameGlob->frameInterpolation > 1.0 )
+            cgameGlob->frameInterpolation = 1.0f;
     }
     else
     {
@@ -2087,6 +2092,16 @@ void __cdecl CG_PrimaryLight(int localClientNum, centity_s *cent)
     newColor[0] = v5 * newColor[0];
     newColor[1] = v5 * newColor[1];
     newColor[2] = v5 * newColor[2];
+    // BO1FIX(flicker): a client-side light entity ('makeLight') leaves its next state at 0 when the map
+    // never animates it, while currentState holds the real BSP light. Interpolating the map light toward
+    // that zero made it fade to black and snap back every snapshot (the flickering lamps/banner on Kino).
+    // When the next state is unset, hold the current one instead of fading toward black.
+    if ( v5 <= 0.0f && v6 > 0.0f )
+    {
+        newColor[0] = oldColor[0];
+        newColor[1] = oldColor[1];
+        newColor[2] = oldColor[2];
+    }
     Vec3Lerp(oldColor, newColor, cgameGlob->frameInterpolation, light->color);
     light->diffuseColor[0] = light->color[0];
     light->diffuseColor[1] = light->color[1];
