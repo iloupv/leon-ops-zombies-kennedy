@@ -38,8 +38,11 @@ leon_spawn_test()
 	right = anglesToRight( ( 0, yaw, 0 ) );
 	logPrint( "leon: player at " + player.origin + " yaw " + yaw + "\n" );
 
-	player detachAll();
-	player setModel( "leon" );
+	if ( getDvar( "leon_nomodel" ) != "1" ) // tests: BO1's own player model
+	{
+		player detachAll();
+		player setModel( "leon" );
+	}
 	logPrint( "leon: player model " + player.model + "\n" );
 	if ( getDvar( "leon_thirdperson" ) == "1" )
 		setDvar( "cg_thirdPerson", "1" );
@@ -51,6 +54,8 @@ leon_spawn_test()
 		setDvar( "cg_thirdPersonAimTest", getDvar( "leon_aimtest" ) ); // tests: aiming without input
 	if ( getDvar( "leon_aimpitch" ) != "" )
 		player setPlayerAngles( ( getDvarFloat( "leon_aimpitch" ), yaw, 0 ) ); // tests: the view pitch (+ down)
+	if ( getDvar( "leon_damagelog" ) == "1" )
+		player thread leon_damage_log(); // tests: the damage the player takes (zombie attacks)
 	if ( getDvar( "leon_hurttest" ) != "" )
 		player thread leon_hurt_loop( getDvarInt( "leon_hurttest" ) ); // tests: hits (and going down) without zombies
 
@@ -77,6 +82,36 @@ leon_spawn_test()
 	leon thread leon_pace( right, 320, 173, false );
 	leon = leon_spawn( player.origin + forward * 400 + right * 40, yaw + 90, "back" );
 	leon thread leon_pace( right * -1, 100, 78, true );
+}
+
+// Logs every damage the player takes, and once a second his health and the nearest zombie's distance.
+leon_damage_log()
+{
+	self endon( "disconnect" );
+	self thread leon_damage_log_events();
+	for ( ;; )
+	{
+		wait 1;
+		zombies = getAiArray( "axis" );
+		nearest = 99999;
+		for ( i = 0; i < zombies.size; i++ )
+		{
+			d = distance( zombies[i].origin, self.origin );
+			if ( d < nearest )
+				nearest = d;
+		}
+		logPrint( "leon: health " + self.health + " zombies " + zombies.size + " nearest " + int( nearest ) + "\n" );
+	}
+}
+
+leon_damage_log_events()
+{
+	self endon( "disconnect" );
+	for ( ;; )
+	{
+		self waittill( "damage", amount, attacker, dir, point, mod );
+		logPrint( "leon: damage " + amount + " mod " + mod + " health " + self.health + "\n" );
+	}
 }
 
 // Damages the player every 3 s from a point in front of him (tests: his hit reaction, voice and going down).

@@ -632,7 +632,30 @@ static const XModel *RtBuildModel(const char *name, const void *data, int size, 
                 model.trans[3 * i + k] = localTrans[3 * b + k];
         }
     }
+    // the hit locations (hitLocation_t) of the bones named as BO1's, as a BO1 character's: a server trace (an AI's
+    // melee, a bullet: DObjTraceline) only tests bones whose location ranks, so an unclassified body is never hit; the
+    // other bones (fingers, hair, RE4's extra ones) take their parent's
+    static const struct { const char *bone; unsigned char loc; } s_hitLocations[] = {
+        { "j_mainroot", HITLOC_TORSO_LWR }, { "j_spinelower", HITLOC_TORSO_LWR }, { "j_spine4", HITLOC_TORSO_UPR },
+        { "j_neck", HITLOC_NECK }, { "j_head", HITLOC_HEAD },
+        { "j_clavicle_ri", HITLOC_TORSO_UPR }, { "j_shoulder_ri", HITLOC_R_ARM_UPR }, { "j_elbow_ri", HITLOC_R_ARM_LWR },
+        { "j_wristtwist_ri", HITLOC_R_ARM_LWR }, { "j_wrist_ri", HITLOC_R_HAND },
+        { "j_clavicle_le", HITLOC_TORSO_UPR }, { "j_shoulder_le", HITLOC_L_ARM_UPR }, { "j_elbow_le", HITLOC_L_ARM_LWR },
+        { "j_wristtwist_le", HITLOC_L_ARM_LWR }, { "j_wrist_le", HITLOC_L_HAND },
+        { "j_hip_ri", HITLOC_R_LEG_UPR }, { "j_knee_ri", HITLOC_R_LEG_LWR }, { "j_ankle_ri", HITLOC_R_FOOT },
+        { "j_ball_ri", HITLOC_R_FOOT },
+        { "j_hip_le", HITLOC_L_LEG_UPR }, { "j_knee_le", HITLOC_L_LEG_LWR }, { "j_ankle_le", HITLOC_L_FOOT },
+        { "j_ball_le", HITLOC_L_FOOT },
+    };
     model.partClassification = (unsigned __int8 *)RtAlloc(boneCount);
+    for ( unsigned int b = 0; b < boneCount; ++b )
+    {
+        for ( const auto &hit : s_hitLocations )
+        {
+            if ( boneName[b] == hit.bone )
+                model.partClassification[b] = hit.loc;
+        }
+    }
     model.baseMat = (DObjAnimMat *)RtAlloc(sizeof(DObjAnimMat) * boneCount);
     for ( unsigned int b = 0; b < boneCount; ++b )
     {

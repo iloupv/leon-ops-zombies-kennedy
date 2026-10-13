@@ -2854,12 +2854,16 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
             s_lastWantAngles[i] = wantAngles[i];
         }
     }
-    // always straight out of the barrel; off while the weapon cannot fire again (the shot, a pump or bolt), and after a
-    // shot until the barrel has settled back onto the aim (within 2.5 degrees of where the shots land)
-    if (weaponState == WEAPON_FIRING || weaponState == WEAPON_RECHAMBERING || weaponState == WEAPON_FIRING_LEFT
-        || weaponState == WEAPON_FIRING_BOTH)
+    // always straight out of the barrel; a single-shot weapon's is off while it cannot fire again (the shot, a pump or
+    // bolt) and after a shot until the barrel has settled back onto the aim (within 2.5 degrees of where the shots
+    // land); an automatic's stays on through its fire
+    const weapFireType_t fireType = BG_GetWeaponDef(cgameGlob->predictedPlayerState.weapon)->fireType;
+    const bool automatic = fireType == WEAPON_FIRETYPE_FULLAUTO || fireType == WEAPON_FIRETYPE_MINIGUN
+        || (fireType >= WEAPON_FIRETYPE_BURSTFIRE2 && fireType <= WEAPON_FIRETYPE_BURSTFIRE4);
+    if (!automatic && (weaponState == WEAPON_FIRING || weaponState == WEAPON_RECHAMBERING
+                       || weaponState == WEAPON_FIRING_LEFT || weaponState == WEAPON_FIRING_BOTH))
         return;
-    if (s_shoulderRecoil > 0.0f && (!wantValid || Vec3Dot(want, orient.axis[0]) < 0.99905f))
+    if (!automatic && s_shoulderRecoil > 0.0f && (!wantValid || Vec3Dot(want, orient.axis[0]) < 0.99905f))
         return;
     // none on a launcher (the aim correction above still points it)
     if (BG_GetWeaponDef(cgameGlob->predictedPlayerState.weapon)->weapClass == WEAPCLASS_ROCKETLAUNCHER)
