@@ -108,7 +108,7 @@ static XAssetHeader RtLink(XAssetType type, XAssetHeader header, int zoneIndex)
     // allowOverride: an earlier lookup of the name (the server's precache runs before the client builds the model)
     // left a default entry; overriding swaps this asset into that entry, so every holder of it sees the model.
     // Without it the link only queues a delayed clone, which a zone load applies - and none follows.
-    XAssetEntryPoolEntry *linked = DB_LinkXAssetEntry(&entry, 1);
+    XAssetEntryPoolEntry *linked = DB_LinkXAssetEntry(&entry, type == ASSET_TYPE_XMODEL);
     g_zoneIndex = savedZone;
     Sys_LeaveCriticalSection(CRITSECT_DBHASH);
     return linked->entry.asset.header;
