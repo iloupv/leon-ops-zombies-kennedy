@@ -588,7 +588,8 @@ static void CL_HeadlessKeys(int localClientNum, usercmd_s *cmd)
 
 // mod (the Leon mod, player_tankControls): RE4's quick turn (pl_R1_Turn180), back + run (BO1's sprint key) pressed
 // together while not aiming. The view turns along the turn motion's own root yaw (half a turn in its first 14 frames)
-// and he stands until frame 19, where RE4 lets a key end it; cgame plays the motion on the body meanwhile
+// and he stands until frame 14, the turn done (RE4 holds him to frame 19 and plays on to 22: it felt slow), the motion
+// ending at frame 16 (R_RuntimeXModel_PoseDObj blends it out over 14..16); cgame plays the motion on the body meanwhile
 // (CL_LeonQuickTurnTime). On the client's input, as a mouse turn, so the server and the prediction just follow it.
 static int cl_quickTurnStart = -1;
 static float cl_quickTurnYaw;
@@ -626,7 +627,7 @@ static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
         cl_quickTurnYaw = yaw;
     }
     const float t = CL_LeonQuickTurnTime();
-    if ( !R_RuntimeXModel_RootYaw("turn180", t, &yaw, &length) || t >= length )
+    if ( !R_RuntimeXModel_RootYaw("turn180", t, &yaw, &length) || t >= (length < 16.0f / 30.0f ? length : 16.0f / 30.0f) )
     {
         cl_quickTurnStart = -1; // the motion is over (cgame's blend out ends with it)
         return;
@@ -636,7 +637,7 @@ static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
     cl_quickTurnYaw = yaw;
     cl->viewangles[1] = AngleNormalize360(cl->viewangles[1] + turn);
     cmd->angles[1] = (unsigned __int16)(int)((cl->viewangles[1] + cl->cgameKickAngles[1]) * 182.04445f);
-    if ( t < 19.0f / 30.0f ) // he stands (no move, aim or shot) until RE4's frame 19
+    if ( t < 14.0f / 30.0f ) // he stands (no move, aim or shot) until the turn is done (frame 14)
     {
         cmd->forwardmove = 0;
         cmd->rightmove = 0;
