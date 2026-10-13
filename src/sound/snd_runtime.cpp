@@ -282,6 +282,12 @@ float __cdecl SND_Runtime_VoiceScale(unsigned int id)
         scale = 0.0f;
     else if ( list && list->name && !_strnicmp(list->name, "chr_breathing", 13) )
         scale = 0.32f;
+    // George Romero (Call of the Dead's boss, "the director"): his effects and voice at half (-6 dB) - every one full
+    // in its group out to 800 / 1000 units, and several at once, he drowned everything (the master limiter squashing it)
+    else if ( list && list->name
+              && (!_strnicmp(list->name, "zmb_director_", 13) || !_strnicmp(list->name, "vox_romero_", 11)
+                  || !_strnicmp(list->name, "vox_director_", 13)) )
+        scale = 0.5f;
     s_answers.push_back({ id, scale });
     return scale;
 }

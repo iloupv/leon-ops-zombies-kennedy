@@ -10,6 +10,7 @@
 #include "snd_radverb.h"
 #include "snd_bank.h"
 #include "snd_globals.h"
+#include "snd_bo1_trace.h"
 #include <win32/win_main.h>
 
 const dvar_t *sd_xa2_num_devices;
@@ -1005,6 +1006,20 @@ void __cdecl SD_PreUpdate()
     g_sd.masterParams.limitTA = master->limitTA;
     g_sd.masterParams.limitTR = master->limitTR;
     g_sd.masterBus->SetEffectParameters(0, &g_sd.masterParams, 96u, 0);
+    // zombies: bo1_audio trace only - the master's EQ and limiter settings, when they change (the snapshot's)
+    if (SND_BO1TraceEnabled())
+    {
+        static float s_lastLimit[7] = { -1.0f };
+        const float limit[7] = { master->limitE, master->limitPG, master->limitMG, master->limitT, master->limitR,
+                                 master->limitTA, master->limitTR };
+        if (memcmp(limit, s_lastLimit, sizeof(limit)))
+        {
+            memcpy(s_lastLimit, limit, sizeof(limit));
+            SND_BO1TraceText("snd_master limit E %g PG %g MG %g T %g R %g TA %g TR %g eqG %g comp E %g T %g R %g",
+                limit[0], limit[1], limit[2], limit[3], limit[4], limit[5], limit[6], master->eqG, master->compE,
+                master->compT, master->compR);
+        }
+    }
     g_sd.novoiceParams.compE = 0.0;
     g_sd.novoiceParams.compPG = 0.0;
     g_sd.novoiceParams.compMG = 0.0;
