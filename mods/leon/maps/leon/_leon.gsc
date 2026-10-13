@@ -55,6 +55,8 @@ leon_spawn_test()
 		player setPlayerAngles( ( getDvarFloat( "leon_aimpitch" ), yaw, 0 ) ); // tests: the view pitch (+ down)
 	if ( getDvar( "leon_damagelog" ) == "1" )
 		player thread leon_damage_log(); // tests: the damage the player takes (zombie attacks)
+	if ( getDvar( "leon_power" ) != "" )
+		player thread leon_power_on( getDvarFloat( "leon_power" ) ); // tests: the map's power switch thrown
 	if ( getDvar( "leon_emptyclip" ) == "1" )
 		player thread leon_empty_clip(); // tests: a reload to make (a headless client fires only aimed in)
 	if ( getDvar( "leon_hurttest" ) != "" )
@@ -113,6 +115,25 @@ leon_damage_log_events()
 		self waittill( "damage", amount, attacker, dir, point, mod );
 		logPrint( "leon: damage " + amount + " mod " + mod + " health " + self.health + "\n" );
 	}
+}
+
+// Throws the map's power switch (its use trigger, "use_power_switch" / "use_elec_switch") after `delay` s (tests: the
+// lights the power turns on).
+leon_power_on( delay )
+{
+	wait delay;
+	names = array( "use_power_switch", "use_elec_switch", "use_master_switch" );
+	for ( i = 0; i < names.size; i++ )
+	{
+		trig = getEnt( names[i], "targetname" );
+		if ( isDefined( trig ) )
+		{
+			logPrint( "leon: power switch " + names[i] + " at " + getTime() + "\n" );
+			trig notify( "trigger", self );
+			return;
+		}
+	}
+	logPrint( "leon: no power switch found\n" );
 }
 
 // One round left in the clip every 3 s (tests: a reload is always there to make).
