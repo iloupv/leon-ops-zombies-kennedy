@@ -1,3 +1,4 @@
+#include <bgame/bg_weapons_def.h>
 #include "cg_pose_mp.h"
 #include "cg_view_mp.h"
 #include <client_mp/cl_input_mp.h>
@@ -839,6 +840,12 @@ static const char *CG_RuntimeXModel_AnimSet(unsigned int weapon)
         return "shotgun";
     case WEAPCLASS_ROCKETLAUNCHER:
         return "launcher";
+    case WEAPCLASS_PISTOL:
+    {
+        // the revolvers (BO1's Python) take RE4's magnum; the other pistols the default, its handgun
+        const WeaponVariantDef *variant = BG_GetWeaponVariantDef(weapon);
+        return variant && variant->szInternalName && strstr(variant->szInternalName, "python") ? "magnum" : 0;
+    }
     case WEAPCLASS_RIFLE:
         return def->bBoltAction || def->overlayReticle != WEAPOVERLAYRETICLE_NONE ? "rifle" : "smg";
     case WEAPCLASS_MG:
@@ -856,15 +863,19 @@ static int s_leonHitStart = -100000;
 static bool s_leonHitBack;
 
 // mod: the local player going down (BO1's last stand) or dying, from his player state every frame (also while the
-// game's end camera looks elsewhere): RE4's death on him and his scream (the runtime sound "leon_death": SE 0xD), once
-static int s_leonDownStart = -100000;
+// game's end camera looks elsewhere): RE4's death on him and his scream (the runtime sound "leon_death": SE 0xD), once.
+// Down: frozen at the game's end (pm_type 5: solo with no Quick Revive), last stand (6 / 7), dead (9 on), or a fall
+// from alive into spectating (4).
+static int s_leonDownStart = -100000, s_leonLastPmType = -1;
 static bool s_leonDown;
 
 void __cdecl CG_RuntimeXModel_PlayerState(int localClientNum, const playerState_s *ps)
 {
     const cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
-    // 5: frozen at the game's end (solo, no Quick Revive: the death ends the game); 6 / 7: last stand; 9 on: dead
-    const bool down = ps->pm_type >= 5 && ps->pm_type != 8;
+    const bool alive = ps->pm_type <= 3;
+    const bool wasAlive = s_leonLastPmType >= 0 && s_leonLastPmType <= 3;
+    s_leonLastPmType = ps->pm_type;
+    const bool down = !alive && ps->pm_type != 8 && (ps->pm_type != 4 || wasAlive || s_leonDown);
     if ( down && !s_leonDown )
     {
         s_leonDownStart = cgameGlob->time;
