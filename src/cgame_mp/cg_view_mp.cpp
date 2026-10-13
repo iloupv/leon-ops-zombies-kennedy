@@ -3051,7 +3051,7 @@ void CG_OffsetThirdPersonView(int localClientNum)
         AngleVectors(cameraAngles, fwd, right, up);
         const float side = cg_thirdPersonShoulder->current.value * (1.0f - 0.1f * ads);
         const float lift = cg_thirdPersonShoulderUp->current.value * (1.0f - 0.15f * ads);
-        const float range = cg_thirdPersonRange->current.value * (1.0f - 0.2f * ads);
+        const float range = cg_thirdPersonRange->current.value * (1.0f - 0.35f * ads); // 35 % closer (20 % was too little)
         // The two legs are traced, and their allowed lengths smoothed: a wall or prop behind (or beside) pulls the
         // camera in fast, open space lets it ease back out, so turning past corners does not make it jump
         static float s_side = -1.0f, s_back = -1.0f;

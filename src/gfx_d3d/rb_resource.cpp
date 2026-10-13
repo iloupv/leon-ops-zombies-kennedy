@@ -268,6 +268,15 @@ void RB_Resource_Update_Internal()
                 mipCount = action->p1;
                 imageFormat = (_D3DFORMAT)(action->p2);
                 flags = action->p3;
+                // BO1FIX: an image that has its texture already is made again (Image_Create*Texture_PC asserted
+                // !image->texture.basemap, a crash): a creation queued by the main thread while the device was lost
+                // (alt-tab out of fullscreen) ran after the recovery had made that image itself on this thread
+                // (R_Cinematic_EndLostDevice). The newer one replaces it.
+                if ( image->texture.basemap )
+                {
+                    image->texture.basemap->Release();
+                    image->texture.basemap = 0;
+                }
                 mapType = image->mapType;
                 if ( mapType == MAPTYPE_2D)
                 {
