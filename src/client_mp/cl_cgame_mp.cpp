@@ -2,6 +2,7 @@
 #include <qcommon/actor_model_state.h>
 #include <cgame_mp/cg_anim_commands.h>
 #include "cl_cgame_mp.h"
+#include <gfx_d3d/r_runtime_xmodel.h>
 #include <universal/assertive.h>
 #include "cl_main_mp.h"
 #include <qcommon/common.h>
@@ -1129,6 +1130,7 @@ void __cdecl CL_InitCGame(int localClientNum)
         Com_InitDObj();
         if ( useFastFile->current.enabled )
             Com_LoadLevelFastFiles(mapname);
+            R_RuntimeXModel_LoadForLevel(mapname); // mod: bo1_rtmodels (runtime models, before CG_Init registers them)
         else
             CL_SetExpectedHunkUsage(LocalClientGlobals->mapname);
     }

@@ -426,3 +426,5 @@ FodyWeavers.xsd
 .idea/*
 Debug/*
 __BO1Zombies
+# runtime models converted on the player's PC from games they own (never committed)
+mods/*/rtmodels/
