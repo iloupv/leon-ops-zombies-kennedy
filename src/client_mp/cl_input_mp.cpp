@@ -28,6 +28,7 @@
 #include <bgame/bg_misc.h>
 #include <qcommon/cmd.h>
 #include <universal/dvar.h>
+#include <gfx_d3d/r_runtime_xmodel.h>
 
 kbutton_t playersKb[1][47];
 bool gAttackEdgeDetected[1];
@@ -500,7 +501,7 @@ void __cdecl CL_CreateNewCommands(int localClientNum)
 // runs every entry at start + k * period + offset (cgame time); "hold" ORs usercmd button <bit> (0 attack, 1 sprint,
 // 4 reload) into the commands for <ms>, "fwd" also moves forward (sprint needs it). Logs bo1_keys / bo1_weapsel.
 static const dvar_t *cl_headlessKeys;
-static int cl_headlessHoldBit = -1, cl_headlessHoldEnd, cl_headlessHoldFwd;
+static int cl_headlessHoldBit = -1, cl_headlessHoldEnd, cl_headlessHoldFwd; // fwd: 1 forward, -1 back
 
 static void CL_HeadlessKeys(int localClientNum, usercmd_s *cmd)
 {
@@ -563,7 +564,7 @@ static void CL_HeadlessKeys(int localClientNum, usercmd_s *cmd)
             {
                 cl_headlessHoldBit = bit;
                 cl_headlessHoldEnd = now + ms;
-                cl_headlessHoldFwd = !strcmp(fwd, "fwd");
+                cl_headlessHoldFwd = !strcmp(fwd, "fwd") ? 1 : (!strcmp(fwd, "back") ? -1 : 0);
             }
             else
             {
@@ -578,9 +579,64 @@ static void CL_HeadlessKeys(int localClientNum, usercmd_s *cmd)
     lastTime = now;
     if (cl_headlessHoldBit >= 0 && now < cl_headlessHoldEnd)
     {
-        cmd->button_bits.setBit(cl_headlessHoldBit);
+        if (cl_headlessHoldBit < 51) // 99: no button, only the move
+            cmd->button_bits.setBit(cl_headlessHoldBit);
         if (cl_headlessHoldFwd)
-            cmd->forwardmove = 127;
+            cmd->forwardmove = cl_headlessHoldFwd > 0 ? 127 : -127;
+    }
+}
+
+// mod (the Leon mod, player_tankControls): RE4's quick turn (pl_R1_Turn180), back + run (BO1's sprint key) pressed
+// together while not aiming. The view turns along the turn motion's own root yaw (half a turn in its first 14 frames)
+// and he stands until frame 19, where RE4 lets a key end it; cgame plays the motion on the body meanwhile
+// (CL_LeonQuickTurnTime). On the client's input, as a mouse turn, so the server and the prediction just follow it.
+static int cl_quickTurnStart = -1;
+static float cl_quickTurnYaw;
+static bool cl_quickTurnKeys;
+
+float __cdecl CL_LeonQuickTurnTime()
+{
+    if ( cl_quickTurnStart < 0 )
+        return -1.0f;
+    return (float)(int)(Sys_Milliseconds() - (unsigned int)cl_quickTurnStart) * 0.001f;
+}
+
+static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
+{
+    const bool keys = cmd->button_bits.testBit(1u) && cmd->forwardmove < 0 && !cmd->button_bits.testBit(0xBu);
+    const bool pressed = keys && !cl_quickTurnKeys;
+    cl_quickTurnKeys = keys;
+    float yaw, length;
+    if ( !player_tankControls || !player_tankControls->current.enabled )
+    {
+        cl_quickTurnStart = -1;
+        return;
+    }
+    if ( cl_quickTurnStart < 0 )
+    {
+        if ( !pressed || !R_RuntimeXModel_RootYaw("turn180", 0.0f, &yaw, &length) )
+            return;
+        cl_quickTurnStart = (int)Sys_Milliseconds();
+        cl_quickTurnYaw = yaw;
+    }
+    const float t = CL_LeonQuickTurnTime();
+    if ( !R_RuntimeXModel_RootYaw("turn180", t, &yaw, &length) || t >= length )
+    {
+        cl_quickTurnStart = -1; // the motion is over (cgame's blend out ends with it)
+        return;
+    }
+    clientActive_t *cl = CL_GetLocalClientGlobals(localClientNum);
+    const float turn = AngleNormalize180(yaw - cl_quickTurnYaw);
+    cl_quickTurnYaw = yaw;
+    cl->viewangles[1] = AngleNormalize360(cl->viewangles[1] + turn);
+    cmd->angles[1] = (unsigned __int16)(int)((cl->viewangles[1] + cl->cgameKickAngles[1]) * 182.04445f);
+    if ( t < 19.0f / 30.0f ) // he stands (no move, aim or shot) until RE4's frame 19
+    {
+        cmd->forwardmove = 0;
+        cmd->rightmove = 0;
+        cmd->button_bits.resetBit(0);
+        cmd->button_bits.resetBit(1u);
+        cmd->button_bits.resetBit(0xBu);
     }
 }
 
@@ -671,6 +727,7 @@ usercmd_s *__cdecl CL_CreateCmd(usercmd_s *result, int localClientNum)
     }
     if ( Sys_IsHeadlessClient() )
         CL_HeadlessKeys(localClientNum, &cmd);
+    CL_LeonQuickTurn(localClientNum, &cmd); // mod
     memcpy(result, &cmd, sizeof(usercmd_s));
     return result;
 }

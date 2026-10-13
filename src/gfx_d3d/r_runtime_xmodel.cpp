@@ -904,6 +904,27 @@ const XModel *__cdecl R_RuntimeXModel_Laser(bool dot)
     return s_laserModels[dot ? 1 : 0];
 }
 
+bool __cdecl R_RuntimeXModel_RootYaw(const char *name, float time, float *yaw, float *duration)
+{
+    for ( const RtAnim &anim : s_anims )
+    {
+        if ( strcmp(anim.name, name) || anim.frameCount < 2 || anim.fps <= 0.0f )
+            continue;
+        *duration = (float)(anim.frameCount - 1) / anim.fps;
+        float phase = time * anim.fps;
+        phase = phase < 0.0f ? 0.0f : (phase > (float)(anim.frameCount - 1) ? (float)(anim.frameCount - 1) : phase);
+        const int f0 = (int)phase, f1 = f0 + 1 < anim.frameCount ? f0 + 1 : f0;
+        // bone 0's rotation (about up): the frame's yaw, unwrapped toward the previous one across +-180
+        const float *q0 = anim.frames + (size_t)f0 * anim.boneCount * 7, *q1 = anim.frames + (size_t)f1 * anim.boneCount * 7;
+        const float y0 = 2.0f * atan2f(q0[2], q0[3]) * 57.29578f;
+        float y1 = 2.0f * atan2f(q1[2], q1[3]) * 57.29578f;
+        y1 = y0 + AngleNormalize180(y1 - y0);
+        *yaw = y0 + (y1 - y0) * (phase - (float)f0);
+        return true;
+    }
+    return false;
+}
+
 // Called by CL_InitCGame once the level's fastfiles are queued, before CG_Init registers the models.
 void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
 {
@@ -1031,7 +1052,7 @@ static float RtCycleRate(const RtAnim &anim, float speed)
 
 // The cycle for the entity's motion: idle when (nearly) still, back when moving against its facing, run past the
 // geometric mean of the walk and run speeds, else walk; hysteresis keeps it from flickering at the thresholds.
-static int RtChooseCycle(const XModel *model, const RtAnimState &st)
+static int RtChooseCycle(const XModel *model, const RtAnimState &st, bool turnToMotion)
 {
     const int idle = RtFindAnim(model, "idle"), walk = RtFindAnim(model, "walk"), run = RtFindAnim(model, "run");
     const int back = RtFindAnim(model, "back");
@@ -1039,7 +1060,10 @@ static int RtChooseCycle(const XModel *model, const RtAnimState &st)
     const bool moving = st.cur >= 0 && st.cur != still;
     if ( st.speed < (moving ? 6.0f : 12.0f) || (walk < 0 && run < 0) )
         return still;
-    if ( back >= 0 && fabsf(st.moveRel) > (st.cur == back ? 100.0f : 115.0f) )
+    // under tank controls (no sideways motion) anything against the facing is the back step, with a wide margin: a
+    // turn while stepping back leaves the measured motion trailing the facing, and must not flip it to a walk
+    const float backIn = turnToMotion ? 115.0f : 90.0f, backOut = turnToMotion ? 100.0f : 45.0f;
+    if ( back >= 0 && fabsf(st.moveRel) > (st.cur == back ? backOut : backIn) )
         return back;
     if ( walk < 0 )
         return run;
@@ -1052,7 +1076,7 @@ static int RtChooseCycle(const XModel *model, const RtAnimState &st)
 // Advances the entity's locomotion state to timeMs (once per game time; the pose functions run several times a
 // frame) and returns a copy.
 static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const float *origin, const float *angles,
-                                     int timeMs)
+                                     int timeMs, bool turnToMotion)
 {
     while ( _InterlockedCompareExchange(&s_animStateLock, 1, 0) )
         _mm_pause();
@@ -1084,7 +1108,7 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
             if ( st.speed > 1.0f )
                 st.moveRel = AngleNormalize180(atan2f(st.vel[1], st.vel[0]) * 57.29578f - angles[1]);
 
-            const int target = RtChooseCycle(model, st);
+            const int target = RtChooseCycle(model, st, turnToMotion);
             if ( target != st.cur && target >= 0 )
             {
                 const RtAnim &from = s_anims[st.cur], &to = s_anims[target];
@@ -1097,9 +1121,11 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
                 st.cur = target;
                 st.blend = 0.0f;
             }
-            // the body turns toward a sideways motion (backward: the back step, turned the other way)
+            // the body turns toward a sideways motion (backward: the back step, turned the other way); not for a
+            // player under RE4's tank controls, who never moves sideways (the noise in his measured motion twisted
+            // him on the back step)
             float bodyTarget = 0.0f;
-            if ( s_anims[st.cur].moveSpeed > 0.0f )
+            if ( turnToMotion && s_anims[st.cur].moveSpeed > 0.0f )
             {
                 const bool backStep = !strcmp(s_anims[st.cur].name, "back");
                 bodyTarget = backStep ? AngleNormalize180(st.moveRel - 180.0f) : st.moveRel;
@@ -1136,14 +1162,14 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
 // for an XAnim pose (the rotation absolute, the translation added to the model's rest offset).
 float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const float *angles, int timeMs,
                                       bool isPlayer, float aimFrac, float aimPitch, RtAction action, float actionTime,
-                                      float actionDuration, const float *aimCorrection)
+                                      float actionDuration, const float *aimCorrection, bool turnToMotion)
 {
     if ( s_anims.empty() || !obj->numModels || !obj->skel.mat )
         return 0.0f;
     const XModel *model = obj->localModels[0];
     if ( RtFindAnim(model, 0) < 0 )
         return 0.0f;
-    const RtAnimState st = RtUpdateAnimState(obj, model, origin, angles, timeMs);
+    const RtAnimState st = RtUpdateAnimState(obj, model, origin, angles, timeMs, turnToMotion);
     if ( st.cur < 0 )
         return 0.0f;
     const RtAnim &cur = s_anims[st.cur];
@@ -1189,6 +1215,22 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
                 actionPitched = RtFindAnim(model, r >= 0.0f ? "fire_up" : "fire_down");
                 actionPitchBlend = fabsf(r);
             }
+        }
+    }
+    else if ( action == RT_ACTION_TURN )
+    {
+        // the quick turn: the whole body, at its own rate (the view turns along its root yaw: CL_LeonQuickTurn); the
+        // last 0.15 s blend back into the locomotion
+        actionAnim = RtFindAnim(model, "turn180");
+        if ( actionAnim >= 0 )
+        {
+            const RtAnim &turn = s_anims[actionAnim];
+            const float length = (float)(turn.frameCount - 1) / turn.fps;
+            actionPhase = actionTime * turn.fps;
+            if ( actionTime >= length )
+                actionAnim = -1;
+            else
+                actionWeight = length - actionTime < 0.15f ? (length - actionTime) / 0.15f : 1.0f;
         }
     }
     else if ( action == RT_ACTION_RELOAD && actionDuration > 0.0f )
@@ -1260,7 +1302,8 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             }
             RtBlendPose(mat->quat, mat->trans, quat, trans, aimFrac);
         }
-        if ( actionAnim >= 0 && actionWeight > 0.0f && cur.upperBody && cur.upperBody[b] )
+        if ( actionAnim >= 0 && actionWeight > 0.0f
+             && (action == RT_ACTION_TURN || (cur.upperBody && cur.upperBody[b])) )
         {
             float quat[4], trans[3];
             RtSampleBone(s_anims[actionAnim], actionPhase, b, quat, trans);
