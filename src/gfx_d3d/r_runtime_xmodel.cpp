@@ -702,24 +702,33 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
         RB_Resource_Flush();
 }
 
-// Called by CG_DObjCalcPose before DObjCalcSkel. A DObj whose model has a baked animation gets every bone's local
-// pose from it (the first animation, looping, neighbouring frames blended), marked as animated so DObjCalcAnim
-// leaves the bones alone; DObjCalcSkel then builds the skeleton as for an XAnim pose (the rotation absolute, the
-// translation added to the model's rest offset).
+static const RtAnim *RtFindAnim(const XModel *model)
+{
+    for ( const RtAnim &a : s_anims )
+    {
+        if ( a.model == model )
+            return &a;
+    }
+    return 0;
+}
+
+// R_AddDObjToScene: a one-model DObj without an XAnim tree normally draws as a scene model in the model's base
+// pose; one with a baked animation takes the posed (scene DObj) path, which calls R_RuntimeXModel_PoseDObj.
+bool __cdecl R_RuntimeXModel_IsAnimated(const XModel *model)
+{
+    return !s_anims.empty() && RtFindAnim(model);
+}
+
+// Called by CG_DObjCalcPose / CG_DObjCalcBone before DObjCalcSkel. A DObj whose model has a baked animation gets
+// every bone's local pose from it (the first animation, looping, neighbouring frames blended), marked as animated so
+// DObjCalcAnim leaves the bones alone; DObjCalcSkel then builds the skeleton as for an XAnim pose (the rotation
+// absolute, the translation added to the model's rest offset).
 void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, int timeMs)
 {
     if ( s_anims.empty() || !obj->numModels || !obj->skel.mat )
         return;
     const XModel *model = obj->localModels[0];
-    const RtAnim *anim = 0;
-    for ( const RtAnim &a : s_anims )
-    {
-        if ( a.model == model )
-        {
-            anim = &a;
-            break;
-        }
-    }
+    const RtAnim *anim = RtFindAnim(model);
     if ( !anim )
         return;
     const float t = fmodf((float)(timeMs % 3600000) * 0.001f * anim->fps, (float)anim->frameCount);
@@ -731,6 +740,8 @@ void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, int timeMs)
         numBones = obj->numBones;
     for ( int b = 0; b < numBones; ++b )
     {
+        if ( obj->skel.partBits.anim[b >> 5] & (0x80000000 >> (b & 31)) )
+            continue; // posed already this frame (an earlier CG_DObjCalcBone / CG_DObjCalcPose)
         const float *a = &anim->frames[7 * (f0 * anim->boneCount + b)];
         const float *c = &anim->frames[7 * (f1 * anim->boneCount + b)];
         const float sign = a[0] * c[0] + a[1] * c[1] + a[2] * c[2] + a[3] * c[3] < 0.0f ? -1.0f : 1.0f;

@@ -53,6 +53,7 @@
 #include <game_sp/g_sp_measure.h>
 #include "cg_anim_commands.h"
 #include <clientscript/cscr_animtree.h>
+#include <gfx_d3d/r_runtime_xmodel.h>
 
 const unsigned short *controller_names[6] =
 {
@@ -3836,6 +3837,7 @@ void __cdecl CG_DObjCalcBone(const cpose_t *pose, DObj *obj, int boneIndex)
 
         DObjGetHierarchyBits(obj, boneIndex, partBits);
         CG_DoControllers(pose, obj, partBits);
+        R_RuntimeXModel_PoseDObj(obj, CG_GetLocalClientGlobals(pose->localClientNum)->time); // mod: runtime model animation
         DObjCalcSkel(obj, partBits);
         DObjUnlock(obj);
     }
