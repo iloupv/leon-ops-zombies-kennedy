@@ -612,7 +612,9 @@ static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
         cl_quickTurnStart = -1;
         return;
     }
-    // Leon stands: no prone (bit 8), crouch (9) or jump (10)
+    // Leon stands: no prone (bit 8), crouch (9) or jump (10); the jump key (Space) is the knife: BO1's melee (bit 2)
+    if ( cmd->button_bits.testBit(0xAu) )
+        cmd->button_bits.setBit(2u);
     cmd->button_bits.resetBit(8u);
     cmd->button_bits.resetBit(9u);
     cmd->button_bits.resetBit(0xAu);
