@@ -98,6 +98,7 @@ void __cdecl CL_CreateCmdsDuringConnection(int localClientNum);
 void __cdecl CL_CreateNewCommands(int localClientNum);
 usercmd_s *__cdecl CL_CreateCmd(usercmd_s *result, int localClientNum);
 float __cdecl CL_LeonQuickTurnTime(); // mod: seconds into the quick turn, -1 when not turning
+float __cdecl CL_LeonQuickTurnCameraLag(); // mod: degrees the shoulder camera trails the view through the quick turn
 void __cdecl CL_AdjustAngles(int localClientNum);
 double __cdecl CL_KeyState(kbutton_t *key);
 void __cdecl CL_KeyMove(int localClientNum, usercmd_s *cmd);
