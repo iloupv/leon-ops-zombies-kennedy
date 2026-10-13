@@ -1,7 +1,6 @@
 #include <qcommon/actor_model_state.h>
 #include <cgame_mp/cg_anim_commands.h>
 #include "cl_main_mp.h"
-#include <gfx_d3d/r_runtime_xmodel.h>
 #include <cgame_mp/cg_main_mp.h>
 #include <qcommon/common.h>
 #include <qcommon/sv_msg_write.h>
@@ -3238,7 +3237,6 @@ void __cdecl CL_Frame(int localClientNum, int msec)
             CG_Flame_Age_All_Objects(LocalClientGlobals->serverTime);
             CG_GenerateFireSounds(localClientNum);
             Com_UpdateMapLoadCinematic(localClientNum); // BO1FIX: ends the loading video once the level shows
-            R_RuntimeXModel_DebugFrame(); // BO1DEBUG (temporary)
         }
         CG_UpdateDestructibles(localClientNum, msec);
     }
