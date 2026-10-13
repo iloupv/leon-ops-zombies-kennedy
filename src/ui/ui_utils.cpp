@@ -873,6 +873,12 @@ void __cdecl CL_SelectStringTableEntryInDvar_f()
             v3 = atoi(v2);
             ColumnValueForRow = (char *)StringTable_GetColumnValueForRow(table, row, v3);
             v4 = Cmd_Argv(3);
+            // mod: +set bo1_noloadhints 1 (PlayLeon.bat) - no "Did you know" hint on the loading screen
+            const dvar_s *noLoadHints = Dvar_FindVar("bo1_noloadhints");
+            if ( !I_stricmp(v4, "didyouknow") && noLoadHints
+                 && (noLoadHints->type == DVAR_TYPE_BOOL ? noLoadHints->current.enabled
+                     : noLoadHints->type == DVAR_TYPE_STRING && noLoadHints->current.string && atoi(noLoadHints->current.string)) )
+                ColumnValueForRow = (char *)"";
             Dvar_SetStringByName(v4, ColumnValueForRow);
         }
         else

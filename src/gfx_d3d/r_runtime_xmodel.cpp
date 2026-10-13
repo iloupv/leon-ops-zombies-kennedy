@@ -987,7 +987,8 @@ bool __cdecl R_RuntimeXModel_RootYaw(const char *name, float time, float *yaw, f
 void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
 {
     R_RuntimeXModel_RegisterDvars();
-    if ( !bo1_rtmodels->current.string[0] || IsDedicatedServer() )
+    // (not on the SP front end: its menus' level, launched into with the mod's dvars set)
+    if ( !bo1_rtmodels->current.string[0] || IsDedicatedServer() || !I_stricmp(mapName, "frontend") )
         return;
     DB_SyncXAssets();
     const int zoneIndex = RtLevelZoneIndex(mapName);

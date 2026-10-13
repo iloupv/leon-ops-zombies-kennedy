@@ -385,6 +385,19 @@ void CG_SP_OpenMainMenuCommand(int localClientNum)
             Com_Printf(14, "bo1_menu: UI_SetActiveMenu(%d) = %d, top '%s'\n", menu, opened,
                 UI_GetTopActiveMenuName(localClientNum) ? UI_GetTopActiveMenuName(localClientNum) : "");
         Dvar_SetInt((dvar_s *)com_desiredMenu, 0);
+        // mod: +set bo1_frontend_menu <menu> (PlayLeon.bat: levels_zombie, the zombies map list) - the front end opens
+        // straight at it, along the menus' own path (main_text's Zombies, main_online's Solo: the 3D TV opening
+        // next_menu_name), so its Back still leads to main_online
+        const dvar_s *frontEndMenu = Dvar_FindVar("bo1_frontend_menu");
+        if (frontEndMenu && frontEndMenu->type == DVAR_TYPE_STRING && frontEndMenu->current.string
+            && frontEndMenu->current.string[0])
+        {
+            Cbuf_AddText(localClientNum,
+                va("set ui_skipMainLockout 1; set zombiemode 1; set blackopsmode 0; set spmode 0; set onlinegame 0; "
+                   "set systemlink 0; closemenu main_lockout; closemenu main_text; openmenu main_online; "
+                   "set menu_parent_3d_tv_name main_online; set next_menu_name %s; openmenu blackout_3d_tv\n",
+                   frontEndMenu->current.string));
+        }
         return;
     }
     UI_OpenMenu(localClientNum, menuName);

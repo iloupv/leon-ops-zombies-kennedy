@@ -4005,6 +4005,141 @@ static void UI_SP_FrontEndZombiesOnly(UiContext *dc)
     }
 }
 
+// mod: a Settings button on the zombies map list (levels_zombie), just above its Back: a copy of Back (its look and
+// place, a row higher) opening the options the way the main menu's Options does - through the 3D TV, back to the map
+// list. Menus are reloaded with their zone, so this runs on every load and does nothing once the button is there.
+static void UI_SP_LevelsZombieAddSettings(UiContext *dc)
+{
+    menuDef_t *menu = Menus_FindByName(dc, "levels_zombie");
+    if ( !menu || !menu->items || menu->itemCount >= 255 )
+        return;
+    int back = -1;
+    for ( int i = 0; i < menu->itemCount; ++i )
+    {
+        const itemDef_s *item = menu->items[i];
+        if ( !item )
+            continue;
+        if ( item->window.name && !I_stricmp(item->window.name, "bo1_settings") )
+            return; // there already
+        for ( const GenericEventHandler *handler = item->onEvent; handler && back < 0; handler = handler->next )
+        {
+            if ( !handler->name || I_stricmp(handler->name, "action") )
+                continue;
+            for ( const GenericEventScript *script = handler->eventScript; script; script = script->next )
+                if ( item->type == 3 && script->action && I_stristr(script->action, "close blackout_3d_tv")
+                     && I_stristr(script->action, "close self") )
+                    back = i;
+        }
+    }
+    if ( back < 0 || !menu->items[back]->typeData.textDef )
+        return;
+
+    static itemDef_s *s_items[256];
+    static itemDef_s s_item;
+    static textDef_s s_text;
+    static focusItemDef_s s_focus;
+    static GenericEventScript s_script;
+    static GenericEventHandler s_handler;
+    const itemDef_s *backItem = menu->items[back];
+    s_item = *backItem;
+    s_text = *backItem->typeData.textDef;
+    if ( s_text.textTypeData.focusItemDef )
+    {
+        s_focus = *s_text.textTypeData.focusItemDef;
+        s_focus.onKey = 0;
+        s_text.textTypeData.focusItemDef = &s_focus;
+    }
+    s_text.text = "@MENU_SETTINGS_CAPS";
+    s_text.textExpData = 0;
+    s_item.typeData.textDef = &s_text;
+    s_item.window.name = "bo1_settings";
+    s_item.window.dynamicFlags[0] &= ~2u; // not focused
+    s_item.window.rect.y -= 22.0f;
+    s_item.window.rectClient.y -= 22.0f;
+    s_item.animInfo = 0;
+    s_item.parent = menu;
+    memset(&s_script, 0, sizeof(s_script));
+    // the map list closes (drawn over the options otherwise) and comes back when they close (bo1_menu_return)
+    s_script.action = "play \"uin_navigation_click\" ; setdvar bo1_menu_return \"levels_zombie\" ; close self ; "
+                      "open options_new_pc ;";
+    s_handler.name = "action";
+    s_handler.eventScript = &s_script;
+    s_handler.next = 0;
+    s_item.onEvent = &s_handler;
+
+    // the new item just before Back (up / down follows the item order)
+    int count = 0;
+    for ( int i = 0; i < menu->itemCount; ++i )
+    {
+        if ( i == back )
+            s_items[count++] = &s_item;
+        s_items[count++] = menu->items[i];
+    }
+    menu->items = s_items;
+    menu->itemCount = count;
+    Com_Printf(13, "bo1_menu: levels_zombie: Settings added above Back (item %d), %d items\n", back, count);
+
+    // opened at launch (bo1_frontend_menu: a zombies-only mod's launcher), the map list is the front end: its Back
+    // and Escape quit the game (the main menu's Quit popup) instead of going back to menus it skipped
+    const dvar_s *frontEndMenu = Dvar_FindVar("bo1_frontend_menu");
+    if ( frontEndMenu && frontEndMenu->type == DVAR_TYPE_STRING && frontEndMenu->current.string
+         && !I_stricmp(frontEndMenu->current.string, "levels_zombie") )
+    {
+        static GenericEventScript s_quitScript;
+        memset(&s_quitScript, 0, sizeof(s_quitScript));
+        s_quitScript.action = "play \"uin_navigation_click\" ; open quit_popmenu ;";
+        itemDef_s *backButton = s_items[back + 1];
+        for ( GenericEventHandler *handler = backButton->onEvent; handler; handler = handler->next )
+            if ( handler->name && !I_stricmp(handler->name, "action") )
+                handler->eventScript = &s_quitScript;
+        backButton->typeData.textDef->text = "@MENU_QUIT_CAPS";
+        backButton->typeData.textDef->textExpData = 0;
+        for ( GenericEventHandler *handler = menu->onEvent; handler; handler = handler->next )
+            if ( handler->name && !I_stricmp(handler->name, "onESC") )
+                handler->eventScript = &s_quitScript;
+    }
+
+    // the options' close runs bo1_menu_return: the menu they were opened from opens again
+    menuDef_t *options = Menus_FindByName(dc, "options_new_pc");
+    static GenericEventScript s_returnScript;
+    static GenericEventHandler s_returnHandler;
+    if ( options )
+    {
+        memset(&s_returnScript, 0, sizeof(s_returnScript));
+        s_returnScript.action = "exec \"bo1_menu_return\" ;";
+        // after the onClose handler's own scripts (or as its handler, when it has none)
+        GenericEventHandler *onClose = 0;
+        for ( GenericEventHandler *handler = options->onEvent; handler && !onClose; handler = handler->next )
+            if ( handler->name && !I_stricmp(handler->name, "onClose") )
+                onClose = handler;
+        if ( onClose )
+        {
+            GenericEventScript **tail = &onClose->eventScript;
+            bool added = false;
+            for ( ; *tail; tail = &(*tail)->next )
+                added |= *tail == &s_returnScript;
+            if ( !added )
+                *tail = &s_returnScript;
+        }
+        else if ( options->onEvent != &s_returnHandler )
+        {
+            s_returnHandler.name = "onClose";
+            s_returnHandler.eventScript = &s_returnScript;
+            s_returnHandler.next = options->onEvent;
+            options->onEvent = &s_returnHandler;
+        }
+    }
+}
+
+// bo1_menu_return: opens the menu bo1_menu_return names, once (the options closing, opened from the map list)
+static void UI_SP_MenuReturn_f()
+{
+    const dvar_s *ret = Dvar_FindVar("bo1_menu_return");
+    if ( !ret || ret->type != DVAR_TYPE_STRING || !ret->current.string || !ret->current.string[0] )
+        return;
+    Cbuf_AddText(0, va("openmenu %s; set bo1_menu_return \"\"\n", ret->current.string));
+}
+
 void __cdecl UI_LoadIngameMenus(int contextIndex)
 {
     const char *v1; // eax
@@ -4043,6 +4178,7 @@ void __cdecl UI_LoadIngameMenus(int contextIndex)
                     UI_AddMenuList(contextIndex, &uiInfo->uiDC, menuList, 1);
             }
             UI_SP_FrontEndZombiesOnly(&uiInfo->uiDC);
+            UI_SP_LevelsZombieAddSettings(&uiInfo->uiDC);
             Menus_CloseAll(contextIndex, &uiInfo->uiDC);
         }
         if ( zombiemode && zombiemode->current.enabled )
@@ -4058,6 +4194,8 @@ void __cdecl UI_LoadIngameMenus(int contextIndex)
         {
             Cmd_AddCommandInternal("update_sv_savegameavailable", UI_SP_UpdateSaveGameAvailable_f,
                 &updateSaveGameAvailableCommand);
+            static cmd_function_s menuReturnCommand; // mod: the map list's Settings
+            Cmd_AddCommandInternal("bo1_menu_return", UI_SP_MenuReturn_f, &menuReturnCommand);
             commandRegistered = true;
         }
         UI_ModFov_PatchMenus(&uiInfo->uiDC); // mod: bo1_mod_fov
