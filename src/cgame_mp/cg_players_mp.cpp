@@ -1863,8 +1863,14 @@ void __cdecl CG_UpdateWeaponVisibilityInternal(int localClientNum, centity_s *ce
         {
             const DObj *bodyObj = Com_GetClientDObj(p_nextState->number, localClientNum);
             if ( bodyObj && bodyObj->numModels && R_RuntimeXModel_IsAnimated(bodyObj->localModels[0]) )
+            {
                 addKnife = p_nextState->clientNum == cgameGlob->predictedPlayerState.clientNum
                            && CG_RuntimeXModel_KnifeOut();
+                // and its grenade (a frag, the monkey...) in hand from its readying (the pin pulled, cooked) to its
+                // release, not with BO1's throw torso animation (which showed it only after the release)
+                addGrenade = p_nextState->clientNum == cgameGlob->predictedPlayerState.clientNum
+                             && CG_RuntimeXModel_GrenadeOut();
+            }
         }
         if ( !addKnife || ci->usingKnife )
         {

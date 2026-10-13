@@ -834,27 +834,51 @@ static const char *CG_RuntimeXModel_AnimSet(unsigned int weapon)
     const WeaponDef *def = weapon ? BG_GetWeaponDef(weapon) : 0;
     if ( !def )
         return 0;
+    const WeaponVariantDef *variant = BG_GetWeaponVariantDef(weapon);
+    const char *name = variant && variant->szInternalName ? variant->szInternalName : "";
+    // RE4's sets (the converter's WEAPON_SETS) by the BO1 weapon: its name where one has a clear match, else its class.
+    // The wonder weapons first: RE4's mine thrower (a shouldered launcher racked by the left hand)
+    static const char *const s_mineWeapons[] = { "thundergun", "tesla_gun", "freezegun", "humangun", "crossbow",
+                                                 "china_lake" };
+    for ( const char *mine : s_mineWeapons )
+        if ( strstr(name, mine) )
+            return "mine";
     switch ( def->weapClass )
     {
     case WEAPCLASS_SPREAD:
-        return "shotgun";
+        // the semi-automatic shell-by-shell ones (SPAS, HS10): the Striker; the pump and the double barrels: the shotgun
+        return strstr(name, "spas") || strstr(name, "hs10") ? "striker" : "shotgun";
     case WEAPCLASS_ROCKETLAUNCHER:
         return "launcher";
     case WEAPCLASS_PISTOL:
-    {
-        // the revolvers (BO1's Python) take RE4's magnum; the other pistols the default, its handgun
-        const WeaponVariantDef *variant = BG_GetWeaponVariantDef(weapon);
-        return variant && variant->szInternalName && strstr(variant->szInternalName, "python") ? "magnum" : 0;
-    }
+        // the Python: the Broken Butterfly (a revolver, round by round); the M1911: the Killer7 (RE4's Colt
+        // Government); the Ray Gun: the Killer7's two-handed stance and magazine; the others: the handgun
+        if ( strstr(name, "python") )
+            return "revolver";
+        if ( strstr(name, "m1911") || strstr(name, "ray_gun") )
+            return "government";
+        return 0;
     case WEAPCLASS_RIFLE:
-        return def->bBoltAction || def->overlayReticle != WEAPOVERLAYRETICLE_NONE ? "rifle" : "smg";
-    case WEAPCLASS_MG:
+        // bolt actions (Kar98k, L96, Scavenger): the rifle; the scoped and the single-shot semi-automatics (Dragunov,
+        // M14, FN FAL, M1 Garand, Gewehr 43): the semi-auto rifle; burst and automatic ones: the Chicago Typewriter
+        if ( def->bBoltAction )
+            return "rifle";
+        if ( def->overlayReticle != WEAPOVERLAYRETICLE_NONE || def->fireType == WEAPON_FIRETYPE_SINGLESHOT )
+            return "semi";
+        return "smg";
     case WEAPCLASS_SMG:
+        // the period submachine guns (Thompson, MP40, Type 100, PPSh): the Chicago Typewriter; the modern compact ones
+        // (MP5K, AK74u, MPL, Spectre, PM63, Kiparis): the TMP
+        if ( strstr(name, "thompson") || strstr(name, "mp40") || strstr(name, "type100") || strstr(name, "ppsh") )
+            return "smg";
+        return "tmp";
+    case WEAPCLASS_MG:
         return "smg";
     default:
         return 0;
     }
 }
+
 
 // mod: the local player's hit (CG_TransitionPlayerState's damage feedback): RE4's front or back reaction, by where the
 // damage came from against his facing, and his pain grunt (the runtime sound "leon_pain": RE4's SE 9 / 10 / 11);
@@ -877,6 +901,15 @@ static bool s_leonKnifeOut;
 bool __cdecl CG_RuntimeXModel_KnifeOut()
 {
     return s_leonKnifeOut;
+}
+
+// mod: the local player's grenade in his hand: while RE4's ready pose plays (BO1's offhand init / prepare / start /
+// hold, up to the release: then it is thrown)
+static bool s_leonGrenadeOut;
+
+bool __cdecl CG_RuntimeXModel_GrenadeOut()
+{
+    return s_leonGrenadeOut;
 }
 
 void __cdecl CG_RuntimeXModel_PlayerState(int localClientNum, const playerState_s *ps)
@@ -1124,6 +1157,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         float knifeYaw, knifeLength = 1.0f;
         R_RuntimeXModel_RootYaw("knife", 0.0f, &knifeYaw, &knifeLength);
         s_leonKnifeOut = action == RT_ACTION_KNIFE && actionTime < knifeLength - 0.1f;
+        s_leonGrenadeOut = action == RT_ACTION_THROW_READY;
     }
     // the weapon whose motion set he moves with: the local player's predicted one, another player's from his entity
     unsigned int animWeapon = 0;
@@ -1150,8 +1184,10 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         static float s_look;
         static int s_lookTime = -1;
         float want = 0.0f;
-        const bool free = aimFrac < 0.1f && action != RT_ACTION_TURN && action != RT_ACTION_KICK
-                          && action != RT_ACTION_DEATH && action != RT_ACTION_HIT_FRONT && action != RT_ACTION_HIT_BACK;
+        // (not while aiming - nor raising the aim - or slashing: his head is on the aim / the slash then)
+        const bool free = aimFrac < 0.01f && action != RT_ACTION_TURN
+                          && action != RT_ACTION_KICK && action != RT_ACTION_KNIFE && action != RT_ACTION_DEATH
+                          && action != RT_ACTION_HIT_FRONT && action != RT_ACTION_HIT_BACK;
         if ( free && cgameGlob->snap )
         {
             float best = 197.0f * 197.0f;
@@ -1175,7 +1211,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         const float dt = s_lookTime >= 0 && cgameGlob->time > s_lookTime && cgameGlob->time - s_lookTime < 250
                              ? (float)(cgameGlob->time - s_lookTime) * 0.001f : 0.0f;
         s_lookTime = cgameGlob->time;
-        const float step = 180.0f * dt;
+        const float step = (free ? 180.0f : 720.0f) * dt; // (back from a look at once when he aims or slashes)
         s_look = want > s_look ? (want - s_look > step ? s_look + step : want)
                                : (s_look - want > step ? s_look - step : want);
         R_RuntimeXModel_SetLookYaw(s_look);

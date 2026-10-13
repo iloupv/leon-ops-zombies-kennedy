@@ -1332,12 +1332,16 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
         {
             const RtAnim &motion = s_anims[actionAnim];
             actionPhase = actionTime * motion.fps;
-            if ( actionPhase >= (float)(motion.frameCount - 1) )
+            // the kick ends at frame 34, blending back over its last 8 (from frame 30 to its end at 49 he stays down in
+            // the recovery, 4 cm lower and leaning: it ended hunched); the others at their end, over 4
+            const float last = action == RT_ACTION_KICK && motion.frameCount - 1 > 34 ? 34.0f : (float)(motion.frameCount - 1);
+            const float blendFrames = action == RT_ACTION_KICK ? 8.0f : 4.0f;
+            if ( actionPhase >= last )
                 actionAnim = -1;
             else
             {
-                const float left = (float)(motion.frameCount - 1) - actionPhase;
-                actionWeight = left < 4.0f ? left / 4.0f : 1.0f; // the last frames blend back into the aim
+                const float left = last - actionPhase;
+                actionWeight = left < blendFrames ? left / blendFrames : 1.0f; // the last frames blend back into the aim
                 if ( action != RT_ACTION_FIRE && actionPhase < 2.0f )
                     actionWeight *= actionPhase / 2.0f; // the slash and the throw come in over 2 frames
                 if ( action != RT_ACTION_THROW && action != RT_ACTION_KICK )

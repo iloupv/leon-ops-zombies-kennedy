@@ -16,4 +16,5 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj);
 void __cdecl CG_RuntimeXModel_PlayerHit(int localClientNum, int yawByte, int pitchByte); // mod
 void __cdecl CG_RuntimeXModel_PlayerState(int localClientNum, const struct playerState_s *ps); // mod
 bool __cdecl CG_RuntimeXModel_KnifeOut(); // mod
+bool __cdecl CG_RuntimeXModel_GrenadeOut(); // mod
 DObjAnimMat *__cdecl CG_DObjCalcPose(const cpose_t *remote_pose, DObj *obj, int *partBits);
