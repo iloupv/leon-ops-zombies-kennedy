@@ -2999,14 +2999,27 @@ void CG_OffsetThirdPersonView(int localClientNum)
     {
         float fwd[3], right[3], up[3], shoulder[3], back[3], dir[3], angles[3];
 
-        // aiming pulls the camera in toward the shoulder, as RE4's aim camera does (gently: closer felt cramped)
-        const float ads = CG_ShoulderAimFrac(cgameGlob);
+        // aiming pulls the camera in toward the shoulder, as RE4's aim camera does (gently: closer felt cramped), eased
+        // over ~0.3 s instead of the weapon's quick raise
+        const float adsRaw = CG_ShoulderAimFrac(cgameGlob);
+        static float s_camAds;
+        static int s_camAdsTime;
+        const int camAdsGap = cgameGlob->time - s_camAdsTime;
+        s_camAdsTime = cgameGlob->time;
+        if (camAdsGap < 0 || camAdsGap > 250)
+            s_camAds = adsRaw;
+        else
+        {
+            const float k = camAdsGap * 0.01f < 1.0f ? camAdsGap * 0.01f : 1.0f;
+            s_camAds += (adsRaw - s_camAds) * k;
+        }
+        const float ads = s_camAds;
         // the camera's yaw trails the aim inside the dead zone (in by the aim; out of it the camera is the view)
         const float viewYaw = cgameGlob->refdefViewAngles[1];
         if (!s_shoulderCameraYawSet)
             s_shoulderCameraYaw = viewYaw;
         s_shoulderCameraYawSet = true;
-        const float deadZone = SHOULDER_AIM_DEADZONE * ads;
+        const float deadZone = SHOULDER_AIM_DEADZONE * adsRaw;
         const float trail = AngleNormalize180(viewYaw - s_shoulderCameraYaw);
         if (trail > deadZone)
             s_shoulderCameraYaw = AngleNormalize360(viewYaw - deadZone);

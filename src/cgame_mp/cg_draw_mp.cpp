@@ -402,7 +402,7 @@ static void CG_DrawLeonKickPrompt(int localClientNum)
     char key[256];
     if ( !UI_GetKeyBindingLocalizedString(localClientNum, "+activate", key, 0) )
         I_strncpyz(key, "F", sizeof(key));
-    const char *text = va("Press [%s] to KICK", key);
+    const char *text = va("Press ^3[%s]^7 to KICK", key); // the key in yellow, as BO1's use hints
     const float width = (float)UI_TextWidth(text, 0x7FFFFFFF, font, fontScale);
     UI_DrawText(scrPlace, (char *)text, 0x7FFFFFFF, font, -0.5f * width, 300.0f, 2, 1, fontScale, colorWhite, 3);
 }
