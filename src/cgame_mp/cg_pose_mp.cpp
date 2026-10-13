@@ -947,6 +947,8 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         static int s_knifeStart = -100000, s_throwStart = -100000, s_readyStart = -100000;
         static int s_kickStart = -100000, s_kickStamp; // the script's kick (leon_kick_stamp: its time at the kick)
         static int s_reloadLength = 1;
+        // a round-by-round reload's stage (bSegmentedReload): 1 the open, 2 a round, 3 the close; its start and length
+        static int s_stage, s_stageStart = -100000, s_stageLength = 1;
         const playerState_s *ps = &cgameGlob->predictedPlayerState;
         const int state = ps->weaponstate;
         const bool firing = state == WEAPON_FIRING || state == WEAPON_FIRING_LEFT || state == WEAPON_FIRING_BOTH
@@ -997,6 +999,27 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                 s_readyStart = cgameGlob->time;
             if ( !readying )
                 s_readyStart = -100000;
+            // the stages: BO1's reload start (open), each round (its reloading state, restarted per round with the
+            // round's time) and its reload end (close), each over the weapon time it starts with
+            const bool opening = state == WEAPON_RELOAD_START || state == WEAPON_RELOAD_START_INTERUPT;
+            const bool loading = state == WEAPON_RELOADING || state == WEAPON_RELOADING_INTERUPT;
+            const bool wasOpening = s_lastState == WEAPON_RELOAD_START || s_lastState == WEAPON_RELOAD_START_INTERUPT;
+            const bool wasLoading = s_lastState == WEAPON_RELOADING || s_lastState == WEAPON_RELOADING_INTERUPT;
+            int stage = 0;
+            if ( opening && !wasOpening )
+                stage = 1;
+            else if ( loading && (!wasLoading || ps->weaponTime > s_lastWeaponTime + 1) )
+                stage = 2;
+            else if ( state == WEAPON_RELOAD_END && s_lastState != WEAPON_RELOAD_END )
+                stage = 3;
+            if ( stage )
+            {
+                s_stage = stage;
+                s_stageStart = cgameGlob->time;
+                s_stageLength = ps->weaponTime > 50 ? ps->weaponTime : 50;
+            }
+            if ( !reloading )
+                s_stage = 0;
             if ( reloading && !wasReloading )
             {
                 s_reloadStart = cgameGlob->time;
@@ -1005,6 +1028,15 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             }
             s_lastState = state;
             s_lastWeaponTime = ps->weaponTime;
+        }
+        // the weapon's reload by stages, when it reloads round by round and its motion set has them (the magnum's, the
+        // shotgun's: converter's reload_start / reload_loop / reload_end)
+        bool segmentedReload = false;
+        {
+            const WeaponDef *reloadDef = ps->weapon ? BG_GetWeaponDef(ps->weapon) : 0;
+            const char *set = CG_RuntimeXModel_AnimSet(ps->weapon);
+            if ( reloadDef && reloadDef->bSegmentedReload )
+                segmentedReload = R_RuntimeXModel_HasAnim(set ? va("%s:reload_loop", set) : "reload_loop");
         }
         const float turnTime = CL_LeonQuickTurnTime();
         if ( s_leonDown )
@@ -1050,6 +1082,14 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         {
             action = RT_ACTION_THROW;
             actionTime = (float)(cgameGlob->time - s_throwStart) * 0.001f;
+        }
+        else if ( reloading && s_stage && segmentedReload )
+        {
+            // a round-by-round reload: the stage BO1 is in, over its own time (the revolver's open, each round, the
+            // close) - as one motion it ran out over the open alone and stood while the rounds went in
+            action = s_stage == 1 ? RT_ACTION_RELOAD_START : (s_stage == 2 ? RT_ACTION_RELOAD_LOOP : RT_ACTION_RELOAD_END);
+            actionTime = (float)(cgameGlob->time - s_stageStart) * 0.001f;
+            actionDuration = (float)s_stageLength * 0.001f;
         }
         else if ( reloading && s_reloadStart > -100000 )
         {

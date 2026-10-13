@@ -57,6 +57,11 @@ leon_spawn_test()
 		player thread leon_damage_log(); // tests: the damage the player takes (zombie attacks)
 	if ( getDvar( "leon_power" ) != "" )
 		player thread leon_power_on( getDvarFloat( "leon_power" ) ); // tests: the map's power switch thrown
+	if ( getDvar( "leon_give" ) != "" )
+	{
+		player giveWeapon( getDvar( "leon_give" ) ); // tests: a weapon in hand (e.g. python_zm)
+		player switchToWeapon( getDvar( "leon_give" ) );
+	}
 	if ( getDvar( "leon_emptyclip" ) == "1" )
 		player thread leon_empty_clip(); // tests: a reload to make (a headless client fires only aimed in)
 	if ( getDvar( "leon_hurttest" ) != "" )
