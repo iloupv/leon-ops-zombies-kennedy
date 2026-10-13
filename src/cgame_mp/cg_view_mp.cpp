@@ -2853,21 +2853,13 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
             s_lastWantAngles[i] = wantAngles[i];
         }
     }
-    // off while the weapon cannot fire again (the shot, a pump or bolt); back as soon as it can, then through the rest
-    // of the shot's motion along where the shots land (not the kicking barrel), blending back onto it as the motion ends
+    // always straight out of the barrel; off while the weapon cannot fire again (the shot, a pump or bolt), and after a
+    // shot until the barrel has settled back onto the aim (within 2.5 degrees of where the shots land)
     if (weaponState == WEAPON_FIRING || weaponState == WEAPON_RECHAMBERING || weaponState == WEAPON_FIRING_LEFT
         || weaponState == WEAPON_FIRING_BOTH)
         return;
-    if (wantValid && s_shoulderRecoil > 0.0f)
-    {
-        const float r = s_shoulderRecoil < 1.0f ? s_shoulderRecoil : 1.0f;
-        float dir[3], angles[3];
-        for (int k = 0; k < 3; ++k)
-            dir[k] = orient.axis[0][k] + (want[k] - orient.axis[0][k]) * r;
-        Vec3Normalize(dir);
-        vectoangles(dir, angles);
-        AnglesToAxis(angles, orient.axis);
-    }
+    if (s_shoulderRecoil > 0.0f && (!wantValid || Vec3Dot(want, orient.axis[0]) < 0.99905f))
+        return;
     // none on a launcher (the aim correction above still points it)
     if (BG_GetWeaponDef(cgameGlob->predictedPlayerState.weapon)->weapClass == WEAPCLASS_ROCKETLAUNCHER)
         return;

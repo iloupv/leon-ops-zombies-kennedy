@@ -298,6 +298,20 @@ static Material *RtCreateMaterial(const Material *templ, GfxImage *colorMap, con
             table[i].u.image = rgp.blackImage;
     }
     material.textureTable = table;
+    // the template's environment reflection (envMapParms: the reflection probe's min / max by the view's angle, its
+    // falloff and the sun's specular) is its own surface's (the zombies templates are polished steel and the like):
+    // Leon's cloth, leather and skin take none, or they look wet
+    if ( templ->constantCount && templ->constantTable )
+    {
+        MaterialConstantDef *constants = (MaterialConstantDef *)RtAlloc(sizeof(MaterialConstantDef) * templ->constantCount);
+        for ( int i = 0; i < templ->constantCount; ++i )
+        {
+            constants[i] = templ->constantTable[i];
+            if ( !strncmp(constants[i].name, "envMapParms", 11) )
+                constants[i].literal[3] = 0.0f;
+        }
+        material.constantTable = constants;
+    }
     return RtLink(ASSET_TYPE_MATERIAL, (XAssetHeader)&material, zoneIndex).material;
 }
 
@@ -799,7 +813,7 @@ static void RtLaserTexel(bool radial, float u, float v, unsigned char *bgra)
     bgra[0] = (unsigned char)(40.0f + hot * core); // B
     bgra[1] = (unsigned char)(40.0f + hot * core); // G
     bgra[2] = 255;                                    // R
-    bgra[3] = (unsigned char)(255.0f * a);
+    bgra[3] = (unsigned char)(255.0f * a * (radial ? 1.0f : 0.45f)); // the beam faint, the dot bright
 }
 
 // a version 1 .rlm with one glow texture (radial: the dot's, else the beam's) and one surface of quads (4 corners
