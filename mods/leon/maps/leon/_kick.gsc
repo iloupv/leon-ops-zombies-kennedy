@@ -122,13 +122,14 @@ leon_staggered()
 }
 
 // The nearest staggered zombie in reach in front of the player, or undefined: RE4's prompt (em10.cpp
-// em10ActEvtSetKick) within 1.5 m (59"), 60 degrees of his facing and 0.7 m (27") of height.
+// em10ActEvtSetKick: 1.5 m, 60 degrees of his facing, 0.7 m of height), its reach widened to 85" (centre to centre
+// the zombies close in nearer than Ganados: at RE4's 59" it showed only face to face).
 leon_kick_target()
 {
 	forward = anglesToForward( ( 0, self.angles[1], 0 ) );
 	zombies = getAiArray( "axis" );
 	best = undefined;
-	bestDist = 59;
+	bestDist = 85;
 	for ( i = 0; i < zombies.size; i++ )
 	{
 		z = zombies[i];
@@ -165,7 +166,8 @@ leon_kick_watch()
 }
 
 // The kick: RE4's (em10.cpp plem10Kick) lands at its frame 16 (0.53 s) on every enemy within 1.2 m (47") of a point
-// 0.3 m (12") in front of him; each dies and flies. Its hit sound (SE 0xF) plays once if it hits.
+// 0.3 m (12") in front of him, here 62" around a point 24" ahead (reaching the prompt's 85"); each dies and flies. Its
+// hit sound (SE 0xF) plays once if it hits.
 leon_kick()
 {
 	self endon( "disconnect" );
@@ -174,14 +176,14 @@ leon_kick()
 	setDvar( "leon_kick_ready", "0" ); // no prompt through the kick
 	wait 0.53;
 	forward = anglesToForward( ( 0, self.angles[1], 0 ) );
-	center = self.origin + forward * 12;
+	center = self.origin + forward * 24;
 	zombies = getAiArray( "axis" );
 	hit = false;
 	for ( i = 0; i < zombies.size; i++ )
 	{
 		z = zombies[i];
 		offset = z.origin - center;
-		if ( length( ( offset[0], offset[1], 0 ) ) > 47 || abs( offset[2] ) > 48 )
+		if ( length( ( offset[0], offset[1], 0 ) ) > 62 || abs( offset[2] ) > 48 )
 			continue;
 		z thread leon_kicked( self, forward );
 		hit = true;
