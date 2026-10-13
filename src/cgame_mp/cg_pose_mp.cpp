@@ -996,7 +996,12 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             }
             s_frame = cgameGlob->time;
             if ( firing && (state != s_lastState || ps->weaponTime > s_lastWeaponTime + 1) )
+            {
+                // a shot overrides a slash or a throw still holding the action (theirs runs 2 s, their motions end
+                // sooner: the shot's recoil did not play after a slash)
                 s_fireStart = cgameGlob->time;
+                s_knifeStart = s_throwStart = -100000;
+            }
             // a melee (Space under tank controls: CL_LeonQuickTurn) slashes the knife; a grenade's throw (its
             // release: BO1's offhand start) throws
             // each new action overrides the one playing: a slash a hit reaction, a reload a hit or a slash, the kick
