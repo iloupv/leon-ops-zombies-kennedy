@@ -17,6 +17,7 @@ init()
 	level thread leon_spawn_test();
 	level thread maps\leon\_kick::init(); // RE4's stagger and kick
 	level thread maps\leon\_helmet::init(); // Moon's astronaut helmet on him
+	maps\leon\_blood::init(); // more blood on his hits (its effects loaded now, with the level's)
 }
 
 leon_spawn_test()
