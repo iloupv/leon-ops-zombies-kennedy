@@ -942,6 +942,18 @@ const XModel *__cdecl R_RuntimeXModel_Laser(bool dot)
     return s_laserModels[dot ? 1 : 0];
 }
 
+bool __cdecl R_RuntimeXModel_DvarOn(const char *name)
+{
+    const dvar_s *dvar = Dvar_FindVar(name);
+    if ( !dvar )
+        return false;
+    if ( dvar->type == DVAR_TYPE_BOOL )
+        return dvar->current.enabled;
+    if ( dvar->type == DVAR_TYPE_STRING )
+        return dvar->current.string && atoi(dvar->current.string) != 0;
+    return dvar->current.integer != 0;
+}
+
 bool __cdecl R_RuntimeXModel_RootYaw(const char *name, float time, float *yaw, float *duration)
 {
     for ( const RtAnim &anim : s_anims )
@@ -1275,11 +1287,12 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     // shot at its own rate; a reload RE4's reload stretched over BO1's; both fade in and out on the upper body
     int actionAnim = -1, actionPitched = -1;
     float actionPhase = 0.0f, actionWeight = 0.0f, actionPitchBlend = 0.0f;
-    if ( action == RT_ACTION_FIRE || action == RT_ACTION_KNIFE || action == RT_ACTION_THROW )
+    if ( action == RT_ACTION_FIRE || action == RT_ACTION_KNIFE || action == RT_ACTION_THROW || action == RT_ACTION_KICK )
     {
         // a shot, a knife slash or a grenade throw, from its start at the motion's own rate; the shot and the slash
         // blend toward their up / down versions by the pitch
-        const char *level = action == RT_ACTION_FIRE ? "fire" : (action == RT_ACTION_KNIFE ? "knife" : "throw");
+        const char *level = action == RT_ACTION_FIRE ? "fire"
+                            : (action == RT_ACTION_KNIFE ? "knife" : (action == RT_ACTION_KICK ? "kick" : "throw"));
         actionAnim = RtFindSetAnim(model, animSet, level);
         if ( actionAnim >= 0 )
         {
@@ -1293,7 +1306,7 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
                 actionWeight = left < 4.0f ? left / 4.0f : 1.0f; // the last frames blend back into the aim
                 if ( action != RT_ACTION_FIRE && actionPhase < 2.0f )
                     actionWeight *= actionPhase / 2.0f; // the slash and the throw come in over 2 frames
-                if ( action != RT_ACTION_THROW )
+                if ( action != RT_ACTION_THROW && action != RT_ACTION_KICK )
                 {
                     float r = -aimPitch / 60.0f;
                     r = r > 1.0f ? 1.0f : (r < -1.0f ? -1.0f : r);
@@ -1420,6 +1433,7 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
         }
         if ( actionAnim >= 0 && actionWeight > 0.0f
              && (action == RT_ACTION_TURN || action == RT_ACTION_HIT_FRONT || action == RT_ACTION_HIT_BACK
+                 || action == RT_ACTION_KICK
                  || action == RT_ACTION_DEATH || (cur.upperBody && cur.upperBody[b])) )
         {
             float quat[4], trans[3];

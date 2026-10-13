@@ -1,3 +1,4 @@
+#include <gfx_d3d/r_runtime_xmodel.h>
 #include <cgame/cg_sp_hud.h>
 #include <win32/win_main.h>
 #include <cgame/cg_sp_client_ext.h>
@@ -388,6 +389,24 @@ bool __cdecl CG_AreAllPlayerNamesVisible()
     return Demo_IsMovieCamera();
 }
 
+// mod (the Leon mod): RE4's action prompt for the kick, while the mod's script (zombie_theater_ffotd.gsc) has a
+// staggered zombie in reach in front of the player (leon_kick_ready: the server's script and this client share the
+// process's dvars); the use key (F) then kicks
+static void CG_DrawLeonKickPrompt(int localClientNum)
+{
+    if ( !R_RuntimeXModel_DvarOn("leon_kick_ready") )
+        return;
+    ScreenPlacement *scrPlace = &scrPlaceView[localClientNum];
+    const float fontScale = 0.5f;
+    Font_s *font = UI_GetFontHandle(scrPlace, 0, fontScale);
+    char key[256];
+    if ( !UI_GetKeyBindingLocalizedString(localClientNum, "+activate", key, 0) )
+        I_strncpyz(key, "F", sizeof(key));
+    const char *text = va("Press [%s] to KICK", key);
+    const float width = (float)UI_TextWidth(text, 0x7FFFFFFF, font, fontScale);
+    UI_DrawText(scrPlace, (char *)text, 0x7FFFFFFF, font, -0.5f * width, 300.0f, 2, 1, fontScale, colorWhite, 3);
+}
+
 void __cdecl CG_Draw2D(int localClientNum)
 {
     CG_Draw2DInternal(localClientNum);
@@ -471,6 +490,8 @@ void __cdecl CG_Draw2DInternal(int localClientNum)
                     }
                     CG_ScanForCrosshairEntity(localClientNum);
                     CG_DrawCrosshair(localClientNum);
+                    if ( drawHud )
+                        CG_DrawLeonKickPrompt(localClientNum); // mod
                     if ( drawHud )
                     {
                         if ( ps->pm_type < 9 || Demo_IsMovieCamera() )
