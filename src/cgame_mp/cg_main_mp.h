@@ -295,6 +295,7 @@ extern const dvar_s *cg_thirdPersonAngle;
 extern const dvar_s *cg_thirdPersonShoulder;
 extern const dvar_s *cg_thirdPersonShoulderUp;
 extern const dvar_s *cg_thirdPersonAimTest;
+extern const dvar_s *cg_thirdPersonActionTest;
 extern const dvar_s *cg_thirdPersonFocusDist;
 extern const dvar_s *cg_thirdPerson;
 extern const dvar_s *cg_thirdPersonMode;
