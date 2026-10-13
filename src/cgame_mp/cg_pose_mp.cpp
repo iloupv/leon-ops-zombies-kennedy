@@ -1,5 +1,6 @@
 #include "cg_pose_mp.h"
 #include "cg_view_mp.h"
+#include <client_mp/cl_input_mp.h>
 #include <xanim/dobj_utils.h>
 #include <ragdoll/ragdoll_controller.h>
 #include "cg_local_mp.h"
@@ -11,6 +12,7 @@
 #include <xanim/xmodel.h>
 #include <xanim/xmodel_utils.h>
 #include <gfx_d3d/r_runtime_xmodel.h>
+#include <bgame/bg_misc.h>
 
 float recoilVec[3] = { -1.0, 0.0, 0.0 };
 float ysScale = 1.0f;
@@ -874,7 +876,13 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             s_lastState = state;
             s_lastWeaponTime = ps->weaponTime;
         }
-        if ( reloading && s_reloadStart > -100000 )
+        const float turnTime = CL_LeonQuickTurnTime();
+        if ( turnTime >= 0.0f )
+        {
+            action = RT_ACTION_TURN; // RE4's quick turn (CL_LeonQuickTurn)
+            actionTime = turnTime;
+        }
+        else if ( reloading && s_reloadStart > -100000 )
         {
             action = RT_ACTION_RELOAD;
             actionTime = (float)(cgameGlob->time - s_reloadStart) * 0.001f;
@@ -907,7 +915,8 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         CG_ShoulderAimCorrection(aimCorrection);
     }
     const float recoil = R_RuntimeXModel_PoseDObj(obj, origin, angles, cgameGlob->time, isPlayer, aimFrac, aimPitch,
-                                                  action, actionTime, actionDuration, aimCorrection);
+                                                  action, actionTime, actionDuration, aimCorrection,
+                                                  !(isPlayer && player_tankControls && player_tankControls->current.enabled));
     if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
         CG_ShoulderRecoil(recoil);
 }

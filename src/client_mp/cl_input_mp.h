@@ -97,6 +97,7 @@ bool __cdecl CL_ReadyToSendPacket(int localClientNum);
 void __cdecl CL_CreateCmdsDuringConnection(int localClientNum);
 void __cdecl CL_CreateNewCommands(int localClientNum);
 usercmd_s *__cdecl CL_CreateCmd(usercmd_s *result, int localClientNum);
+float __cdecl CL_LeonQuickTurnTime(); // mod: seconds into the quick turn, -1 when not turning
 void __cdecl CL_AdjustAngles(int localClientNum);
 double __cdecl CL_KeyState(kbutton_t *key);
 void __cdecl CL_KeyMove(int localClientNum, usercmd_s *cmd);
