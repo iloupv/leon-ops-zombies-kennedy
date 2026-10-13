@@ -8,7 +8,7 @@ setlocal
 set "GAME=%~dp0build\Release"
 if not exist "%GAME%\BO1Zombies.exe" (echo Game not found in %GAME% & pause & exit /b 1)
 if not exist "%GAME%\mods\leon\rtmodels\leon.rlm" (echo Leon not converted: %GAME%\mods\leon\rtmodels\leon.rlm & pause & exit /b 1)
-set "LEON=+set fs_game mods/leon +set bo1_rtmodels leon +set leon_thirdperson 1 +set player_tankControls 1 +set cg_thirdPersonShoulder 18 +set cg_thirdPersonShoulderUp 6 +set cg_thirdPersonRange 42 +set cg_drawVersion 0"
+set "LEON=+set fs_game mods/leon +set bo1_rtmodels leon +set leon_thirdperson 1 +set player_tankControls 1 +set cg_thirdPersonShoulder 18 +set cg_thirdPersonShoulderUp 6 +set cg_thirdPersonRange 42 +set cg_drawVersion 0 +set bo1_noloadhints 1"
 set "START=+set bo1_frontend_menu levels_zombie"
 if not "%~1"=="" set "START=+devmap %~1"
 rem The window (borderless over the screen) only on the first run: after it, the game's own display settings, saved
