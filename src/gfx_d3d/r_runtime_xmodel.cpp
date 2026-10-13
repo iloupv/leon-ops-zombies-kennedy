@@ -358,6 +358,7 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
     R_RuntimeXModel_RegisterDvars();
     if ( !bo1_rtmodels->current.string[0] || IsDedicatedServer() )
         return;
+    Com_Printf(0, "runtime models: level '%s', building '%s'\n", mapName, bo1_rtmodels->current.string);
     DB_SyncXAssets();
     const int zoneIndex = RtLevelZoneIndex(mapName);
     if ( !zoneIndex )

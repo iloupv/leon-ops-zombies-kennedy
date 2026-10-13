@@ -1129,13 +1129,14 @@ void __cdecl CL_InitCGame(int localClientNum)
     {
         Com_InitDObj();
         if ( useFastFile->current.enabled )
-        {
             Com_LoadLevelFastFiles(mapname);
-            R_RuntimeXModel_LoadForLevel(mapname); // mod: bo1_rtmodels (runtime models, before CG_Init registers them)
-        }
         else
             CL_SetExpectedHunkUsage(LocalClientGlobals->mapname);
     }
+    // mod: bo1_rtmodels - runtime models, built before CG_Init registers the level's models (every level load,
+    // including a map the server already loaded; the builder skips a model already built for this level)
+    if ( useFastFile->current.enabled )
+        R_RuntimeXModel_LoadForLevel(mapname);
     CL_SetLocalClientConnectionState(localClientNum, CA_LOADING);
     Com_Printf(14, "Setting state to CA_LOADING in CL_InitCGame\n");
     Demo_IsPlaying();
