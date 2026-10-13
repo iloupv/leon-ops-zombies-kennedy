@@ -93,6 +93,8 @@ void __cdecl Sys_Mkdir(const char *path);
 char *__cdecl Sys_Cwd();
 const char *__cdecl Sys_DefaultCDPath();
 char *__cdecl Sys_DefaultInstallPath();
+const char *__cdecl Sys_GameDirOverride(); // mod: BO1Z_GAME_DIR, the Black Ops folder (NULL: unset)
+const char *__cdecl Sys_ExeFolder(); // mod: this exe's folder
 HunkUser **__cdecl Sys_ListFiles(char *directory, char *extension, char *filter, int *numfiles, int wantsubs);
 void __cdecl Sys_ListFilteredFiles(
                 HunkUser *user,

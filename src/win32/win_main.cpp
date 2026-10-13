@@ -1,3 +1,4 @@
+#include <win32/win_common.h>
 #include "win_main.h"
 #include "win_net.h"
 #include <game_mp/g_main_mp.h>
@@ -2244,6 +2245,13 @@ int __stdcall WinMain(HINSTANCE__ *hInstance, HINSTANCE__ *hPrevInstance, char *
     char *v5; // eax
     //jpeg_decompress_struct *SCRIPT_DEBUGGER_SMOKE_TEST_SUCCESS_EXIT_CODE; // [esp+0h] [ebp-4h]
 
+    // mod (the Melty install): run in the player's Black Ops folder (BO1Z_GAME_DIR) and load the game's DLLs from
+    // there (binkw32, d3dx9_43, xinput1_3 are delay-loaded); this exe, the mod and its config stay in its own folder
+    if ( const char *gameDir = Sys_GameDirOverride() )
+    {
+        SetDllDirectoryA(gameDir);
+        SetCurrentDirectoryA(gameDir);
+    }
     // zombies: decide headless first, before anything can open a window
     s_headless = Sys_CmdlineIntValue(lpCmdLine, "bo1_headless") != 0;
     s_headlessClient = s_headless && Sys_CmdlineIntValue(lpCmdLine, "bo1_headless_client") != 0;

@@ -2,7 +2,7 @@
 #include common_scripts\utility;
 
 // LEON MOD - not part of the original game. Loaded only with +set fs_game mods/leon (PlayLeon.bat), from the mod's
-// maps\_zombiemode_ffotd.gsc (the shared hook every zombie map runs), so it plays on any map. The engine builds the
+// maps\_mod_main.gsc (the engine runs it after every map's level main), so it plays on any map. The engine builds the
 // "leon" model at level load from rtmodels/leon.rlm (+set bo1_rtmodels leon), which the mod's converter writes from
 // the player's own Resident Evil 4, and poses him with RE4's motions; here the player becomes Leon:
 //   leon_thirdperson 1  third person (cg_thirdPerson is a cheat dvar: set once the level runs)
