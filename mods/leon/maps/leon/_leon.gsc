@@ -1,27 +1,21 @@
 #include maps\_utility;
 #include common_scripts\utility;
 
-// LEON MOD - not part of the original game. Loaded only with +set fs_game mods/leon (PlayLeon.bat).
-// Retail maps\zombie_theater_ffotd.gsc is this file with both functions empty: the map's own "fix for the day"
-// hook. The engine builds the "leon" model at level load from rtmodels/leon.rlm (+set bo1_rtmodels leon),
-// which the mod's converter writes from the player's own Resident Evil 4, and plays his RE4 cycles (idle / walk /
-// run / back step) from how each Leon moves. Here the player becomes Leon (main_end is not reached in this port,
-// so it starts from main_start):
-//   leon_thirdperson 1  third person (cg_thirdPerson is a cheat dvar: set once the devmap level runs)
+// LEON MOD - not part of the original game. Loaded only with +set fs_game mods/leon (PlayLeon.bat), from the mod's
+// maps\_zombiemode_ffotd.gsc (the shared hook every zombie map runs), so it plays on any map. The engine builds the
+// "leon" model at level load from rtmodels/leon.rlm (+set bo1_rtmodels leon), which the mod's converter writes from
+// the player's own Resident Evil 4, and poses him with RE4's motions; here the player becomes Leon:
+//   leon_thirdperson 1  third person (cg_thirdPerson is a cheat dvar: set once the level runs)
 //   leon_test player    headless test: the player is stepped through the cycles (a headless client sends no input)
 //   leon_test npc       headless test: a line of script_model Leons walking / running / back stepping / circling
 
-main_start()
+init()
 {
-	logPrint( "leon: main_start\n" );
+	logPrint( "leon: init on " + getDvar( "mapname" ) + "\n" );
 	precacheModel( "leon" );
 	precacheModel( "t5_weapon_m14_world" ); // the npc test's weapon (common_zombie: on every map)
 	level thread leon_spawn_test();
 	level thread maps\leon\_kick::init(); // RE4's stagger and kick
-}
-
-main_end()
-{
 }
 
 leon_spawn_test()
