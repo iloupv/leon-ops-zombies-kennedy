@@ -2834,7 +2834,9 @@ static void CG_ShoulderAimPoint(cg_s *cgameGlob, float *eye, float *fwd, float *
         farPoint[k] = eye[k] + fwd[k] * 8192.0f;
     CG_TraceCapsule(&trace, eye, zero, zero, farPoint, cgameGlob->predictedPlayerState.clientNum, 0x2806831, &context);
     for (int k = 0; k < 3; ++k)
-        aim[k] = eye[k] + fwd[k] * 8192.0f * trace.fraction;
+        // at least 150" out: a wall right in front put the hit at the eye, behind the muzzle, and the aim correction
+        // chasing it flipped the torso from side to side every frame
+        aim[k] = eye[k] + fwd[k] * (8192.0f * trace.fraction > 150.0f ? 8192.0f * trace.fraction : 150.0f);
 }
 
 // mod: Resident Evil 4's laser sight: while the local player aims over the shoulder, a laser from the muzzle of the
