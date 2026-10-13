@@ -1065,6 +1065,15 @@ void __cdecl PM_UpdateViewAngles_Clamp(playerState_s *ps, usercmd_s *cmd, unsign
 
     minPitch = player_view_pitch_up->current.value;
     maxPitch = player_view_pitch_down->current.value;
+    // mod: under RE4's controls (the Leon mod) the view stays inside his aim poses' reach - they lean ~60 degrees up /
+    // down (R_RuntimeXModel_PoseDObj), and past it the arms bent apart from the aim
+    if ( player_tankControls && player_tankControls->current.enabled )
+    {
+        if ( minPitch > 55.0f )
+            minPitch = 55.0f;
+        if ( maxPitch > 55.0f )
+            maxPitch = 55.0f;
+    }
     for ( i = 0; i < 3; ++i )
     {
         temp = AngleNormalize180((float)((float)cmd->angles[i] * 0.0054931641) + ps->delta_angles[i]);

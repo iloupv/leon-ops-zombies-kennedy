@@ -255,26 +255,35 @@ void __cdecl SND_Runtime_LoadForLevel()
                    (unsigned int)alias->variants.size(), templ->name);
 }
 
-bool __cdecl SND_Runtime_MutesVoice(unsigned int id)
+// Under Leon (his runtime voice loaded): the zombies characters' lines (vox_plr_*) muted, and their breathing
+// (chr_breathing_*: the gasp at a death, the hurt / better breaths) at Leon's own voice level - full scale in its group,
+// it played ~3x over him (dry 1.0 against his 0.32)
+float __cdecl SND_Runtime_VoiceScale(unsigned int id)
 {
-    static std::vector<unsigned int> s_muted, s_kept; // the answers so far, per alias id
+    struct Answer
+    {
+        unsigned int id;
+        float scale;
+    };
+    static std::vector<Answer> s_answers; // per alias id
     if ( !id || !SND_Active() )
-        return false;
+        return 1.0f;
     bool leon = false;
     for ( const SndRuntimeAlias *a : s_runtimeAliases )
         leon |= a->name == "leon_pain";
     if ( !leon )
-        return false;
-    for ( unsigned int m : s_muted )
-        if ( m == id )
-            return true;
-    for ( unsigned int k : s_kept )
-        if ( k == id )
-            return false;
+        return 1.0f;
+    for ( const Answer &answer : s_answers )
+        if ( answer.id == id )
+            return answer.scale;
     const snd_alias_list_t *list = SND_FindAliasFromId(id);
-    const bool mute = list && list->name && !_strnicmp(list->name, "vox_plr_", 8);
-    (mute ? s_muted : s_kept).push_back(id);
-    return mute;
+    float scale = 1.0f;
+    if ( list && list->name && !_strnicmp(list->name, "vox_plr_", 8) )
+        scale = 0.0f;
+    else if ( list && list->name && !_strnicmp(list->name, "chr_breathing", 13) )
+        scale = 0.32f;
+    s_answers.push_back({ id, scale });
+    return scale;
 }
 
 bool __cdecl SND_Runtime_PlayLocal(int localClientNum, const char *alias)
