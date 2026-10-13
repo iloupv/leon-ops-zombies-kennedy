@@ -1085,8 +1085,17 @@ void __cdecl CG_CopyFlagsFromSnapshotEntity(int localClientNum)
 
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     Entity = CG_GetEntity(localClientNum, cgameGlob->clientNum);
-    cgameGlob->predictedPlayerEntity.flagIndex = Entity->flagIndex;
-    cgameGlob->predictedPlayerEntity.flagState = Entity->flagState;
+    // BO1FIX: the snapshot's flag changes are handed over to the predicted entity (CG_ProcessEntity runs its client flag
+    // callbacks and resets them) and cleared on the snapshot entity, which is never processed. Copied every frame and
+    // never cleared, they fired the local player's flag callbacks every frame: Moon's helmet restarted its loop sound
+    // each frame while on, and played its off sound each frame once taken off.
+    centity_s *predicted = &cgameGlob->predictedPlayerEntity;
+    if ( Entity->flagIndex )
+    {
+        predicted->flagState = (predicted->flagState & ~Entity->flagIndex) | (Entity->flagState & Entity->flagIndex);
+        predicted->flagIndex |= Entity->flagIndex;
+        CG_ClientFlagResetAll(Entity);
+    }
 }
 
 pmove_t::pmove_t()
