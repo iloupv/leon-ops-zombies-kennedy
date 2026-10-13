@@ -368,10 +368,11 @@ void GScr_SP_LoadScripts(scriptInstance_t inst)
 
     // mod: an fs_game mod's own entry point, maps/_mod_main::main when the mod has it; Scr_LoadLevel runs it right
     // after the level main (still the level's first frame: it can precache and load effects). A mod hooks every map
-    // with it instead of shipping a changed copy of a retail script (e.g. maps/_zombiemode_ffotd.gsc).
+    // with it instead of shipping a changed copy of a retail script (e.g. maps/_zombiemode_ffotd.gsc). Zombie maps
+    // only, as that hook: the front end has none of the zombie scripts a mod's code references (the compile failed).
     extern int g_modMainScript;
     g_modMainScript = 0;
-    if ( *Dvar_GetString("fs_game") )
+    if ( *Dvar_GetString("fs_game") && G_SP_IsZombieMode() )
     {
         g_modMainScript = GScr_LoadScriptAndLabel(inst, "maps/_mod_main", "main", 0);
         Com_Printf(24, "mod: maps/_mod_main::main handle %d\n", g_modMainScript);
