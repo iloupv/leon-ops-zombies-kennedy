@@ -1148,7 +1148,10 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
     while ( _InterlockedCompareExchange(&s_animStateLock, 1, 0) )
         _mm_pause();
     RtAnimState &st = s_animStates[obj->entnum % RT_MAX_ANIM_ENTS];
-    if ( st.obj != obj || st.cur < 0 || st.cur >= (int)s_anims.size() || s_anims[st.cur].model != model )
+    // a new entity (or a stale state) restarts; the same one's DObj rebuilt (a grenade attached: the player's dobjDirty)
+    // keeps its motion going
+    if ( st.cur < 0 || st.cur >= (int)s_anims.size() || s_anims[st.cur].model != model || timeMs < st.lastTime
+         || (st.obj != obj && timeMs - st.lastTime > 500) )
     {
         memset(&st, 0, sizeof(st));
         st.obj = obj;
@@ -1224,6 +1227,7 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
         for ( int k = 0; k < 3; ++k )
             st.lastOrigin[k] = origin[k];
     }
+    st.obj = obj;
     const RtAnimState copy = st;
     _InterlockedExchange(&s_animStateLock, 0);
     return copy;
