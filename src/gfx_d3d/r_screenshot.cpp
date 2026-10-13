@@ -450,7 +450,8 @@ static char R_TakeHeadlessClientScreenshot(char *filename, int format)
     if ( hr >= 0 )
     {
         step = "D3DXSaveSurfaceToFile";
-        FS_BuildOSPath(fs_gamedir, 0, filename, ospath);
+        // mod: under fs_h, not the working folder (the Melty install runs in the player's Black Ops folder)
+        FS_BuildOSPath((char *)fs_homepath->current.integer, fs_gamedir, filename, ospath);
         if ( !FS_CreatePath(ospath) )
             hr = D3DXSaveSurfaceToFileA(ospath, (D3DXIMAGE_FILEFORMAT)format, copy, 0, 0);
     }
@@ -562,7 +563,9 @@ LABEL_12:
     sourceRect.right = width + pt.x;
     sourceRect.top = pt.y;
     sourceRect.bottom = height + pt.y;
-    FS_BuildOSPath(fs_gamedir, 0, filename, ospath);
+    // mod: under fs_h, not the working folder (retail's were the same folder; the Melty install runs in the player's
+    // Black Ops folder, which it leaves untouched)
+    FS_BuildOSPath((char *)fs_homepath->current.integer, fs_gamedir, filename, ospath);
     if ( !FS_CreatePath(ospath) )
         D3DXSaveSurfaceToFileA(ospath, (D3DXIMAGE_FILEFORMAT)format, surface, 0, &sourceRect);
     do
