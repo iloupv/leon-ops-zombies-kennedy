@@ -954,6 +954,14 @@ bool __cdecl R_RuntimeXModel_DvarOn(const char *name)
     return dvar->current.integer != 0;
 }
 
+bool __cdecl R_RuntimeXModel_HasAnim(const char *name)
+{
+    for ( const RtAnim &anim : s_anims )
+        if ( !strcmp(anim.name, name) )
+            return true;
+    return false;
+}
+
 bool __cdecl R_RuntimeXModel_RootYaw(const char *name, float time, float *yaw, float *duration)
 {
     for ( const RtAnim &anim : s_anims )
@@ -1387,6 +1395,27 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             actionPhase = t * (float)(reload.frameCount - 1);
             const float fade = 0.15f / actionDuration; // 0.15 s in and out
             actionWeight = t < fade ? t / fade : (1.0f - t < fade ? (1.0f - t) / fade : 1.0f);
+        }
+    }
+    else if ( (action == RT_ACTION_RELOAD_START || action == RT_ACTION_RELOAD_LOOP || action == RT_ACTION_RELOAD_END)
+              && actionDuration > 0.0f )
+    {
+        // a reload stage over its own time (BO1's state's): the open blends in over 0.15 s, the close out over its
+        // last 0.15 s, a round runs into the next (each one starts on the pose the last ended on)
+        actionAnim = RtFindSetAnim(model, animSet, action == RT_ACTION_RELOAD_START ? "reload_start"
+                                                    : (action == RT_ACTION_RELOAD_LOOP ? "reload_loop" : "reload_end"));
+        if ( actionAnim >= 0 )
+        {
+            const RtAnim &stage = s_anims[actionAnim];
+            float t = actionTime / actionDuration;
+            t = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
+            actionPhase = t * (float)(stage.frameCount - 1);
+            actionWeight = 1.0f;
+            if ( action == RT_ACTION_RELOAD_START && actionTime < 0.15f )
+                actionWeight = actionTime / 0.15f;
+            if ( action == RT_ACTION_RELOAD_END && actionDuration - actionTime < 0.15f )
+                actionWeight = (actionDuration - actionTime) / 0.15f;
+            actionWeight = actionWeight < 0.0f ? 0.0f : actionWeight;
         }
     }
     int numBones = cur.boneCount < model->numBones ? cur.boneCount : model->numBones;
