@@ -1,3 +1,4 @@
+#include <gfx_d3d/r_runtime_xmodel.h>
 #include "sv_init_mp.h"
 #include <server/server.h>
 #include <qcommon/common.h>
@@ -688,6 +689,9 @@ void __cdecl    SV_SpawnServer(int controllerIndex, char *server, int mapIsPrelo
     if (Com_IsSPLevel())
         g_spSaveMapChecksum = checksum;
     Com_LoadWorld(filename);
+    // mod: bo1_rtmodels - build the runtime models now: the level's zones are in and the level scripts (whose
+    // precache would otherwise leave a default entry under the name) have not run yet
+    R_RuntimeXModel_LoadForLevel(server);
     if ( !G_OnlyConnectingPaths() && !useFastFile->current.enabled )
         Com_UnloadBsp();
     CM_LinkWorld();
