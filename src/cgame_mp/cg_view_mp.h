@@ -102,6 +102,7 @@ void __cdecl CG_ShoulderAimCorrection(float *pitchYaw); // mod
 void __cdecl CG_ShoulderAimCorrectionDecay(float frac); // mod
 void __cdecl CG_ShoulderRecoil(float weight); // mod
 float __cdecl CG_ShoulderCameraYaw(const cg_s *cgameGlob); // mod
+float __cdecl CG_ShoulderCameraAds(const cg_s *cgameGlob); // mod
 void __cdecl CG_ShoulderLaser(int localClientNum, struct centity_s *cent, struct DObj *obj); // mod
 void __cdecl CG_CalcVrect(int localClientNum);
 void __cdecl CG_SmoothCameraZ(cg_s *cgameGlob);

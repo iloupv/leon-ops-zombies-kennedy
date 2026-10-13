@@ -1318,6 +1318,17 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             }
         }
     }
+    else if ( action == RT_ACTION_THROW_READY )
+    {
+        // the grenade readied: RE4's ready pose, looped, in over 0.15 s (the throw follows from it)
+        actionAnim = RtFindSetAnim(model, animSet, "throw_ready");
+        if ( actionAnim >= 0 )
+        {
+            const RtAnim &ready = s_anims[actionAnim];
+            actionPhase = RtWrapPhase(actionTime * ready.fps, ready.frameCount);
+            actionWeight = actionTime < 0.15f ? actionTime / 0.15f : 1.0f;
+        }
+    }
     else if ( action == RT_ACTION_HIT_FRONT || action == RT_ACTION_HIT_BACK )
     {
         // a hit: from it at the motion's own rate, in over 2 frames, back into the locomotion over the last 6

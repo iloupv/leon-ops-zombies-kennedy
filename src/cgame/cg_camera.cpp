@@ -881,6 +881,7 @@ double __cdecl CG_GetViewFov(int localClientNum)
             lastTime = Sys_Milliseconds();
         }
         thisTime = Sys_Milliseconds();
+        const float modBaseFov = viewFov; // mod: the unzoomed view (the shoulder camera's zoom, below)
         if ( posLerp == 1.0 )
         {
             viewFov = weaponFov;
@@ -902,6 +903,9 @@ double __cdecl CG_GetViewFov(int localClientNum)
             if ( zoomFrac > 0.0 )
                 viewFov = viewFov - (float)((float)(viewFov - weaponFov) * zoomFrac);
         }
+        // mod (the Leon mod): over the shoulder the aim zooms half as far, eased with the camera's pull-in
+        if ( CG_ShoulderCameraActive(cgameGlob) )
+            viewFov = modBaseFov - (modBaseFov - weaponFov) * 0.5f * CG_ShoulderCameraAds(cgameGlob);
         lastTime = thisTime;
     }
     if ( (cgameGlob->predictedPlayerState.otherFlags & 2) == 0

@@ -209,7 +209,7 @@ leon_kick()
 		near = getClosest( center, zombies );
 		logPrint( "leon: kick at " + getTime() + " missed, nearest " + distance( near.origin, center ) + " off " + ( near.origin - self.origin ) + " alive " + isAlive( near ) + "\n" );
 	}
-	wait 1.1; // to the motion's end (50 frames: 1.67 s)
+	wait 1.25; // to the motion's end (50 frames: 1.67 s) and its blend out
 	setDvar( "leon_kick_ready", "0" );
 	setDvar( "leon_kicking", "0" );
 	while ( self useButtonPressed() )
