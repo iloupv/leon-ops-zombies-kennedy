@@ -3046,15 +3046,9 @@ void CG_OffsetThirdPersonView(int localClientNum)
                                         AngleNormalize360(s_shoulderCameraYaw - CL_LeonQuickTurnCameraLag()
                                                           + CL_LeonCameraOrbit()), 0.0f };
         AngleVectors(cameraAngles, fwd, right, up);
-        // orbiting him (CL_LeonCameraOrbit) it leaves the shoulder: centred, further back, looking at him (fully past
-        // 25 degrees), so swinging it round shows his side and his front, not the scene past his shoulder
-        float inspect = fabsf(CL_LeonCameraOrbit()) / 25.0f;
-        inspect = inspect < 1.0f ? inspect * inspect * (3.0f - 2.0f * inspect) : 1.0f;
-        const float side = cg_thirdPersonShoulder->current.value * (1.0f - 0.1f * ads) * (1.0f - inspect);
+        const float side = cg_thirdPersonShoulder->current.value * (1.0f - 0.1f * ads);
         const float lift = cg_thirdPersonShoulderUp->current.value * (1.0f - 0.15f * ads);
-        float range = cg_thirdPersonRange->current.value * (1.0f - 0.2f * ads);
-        if (range < 85.0f)
-            range += (85.0f - range) * inspect;
+        const float range = cg_thirdPersonRange->current.value * (1.0f - 0.2f * ads);
         // The two legs are traced, and their allowed lengths smoothed: a wall or prop behind (or beside) pulls the
         // camera in fast, open space lets it ease back out, so turning past corners does not make it jump
         static float s_side = -1.0f, s_back = -1.0f;
@@ -3095,8 +3089,7 @@ void CG_OffsetThirdPersonView(int localClientNum)
         // it looks at a fixed point far ahead on the view line (not at what the line hits: sweeping past near and far
         // things swung it by the shoulder offset's parallax); the laser shows where the shots land
         for (int k = 0; k < 3; ++k)
-            dir[k] = eye[k] + fwd[k] * 1000.0f * (1.0f - inspect) - cgameGlob->refdef.vieworg[k];
-        dir[2] -= 12.0f * inspect; // orbiting: at his chest
+            dir[k] = eye[k] + fwd[k] * 1000.0f - cgameGlob->refdef.vieworg[k];
         vectoangles(dir, angles);
         AnglesToAxis(angles, cgameGlob->refdef.viewaxis);
         return;
