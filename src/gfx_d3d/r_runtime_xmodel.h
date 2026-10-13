@@ -17,6 +17,9 @@ enum RtAction
     RT_ACTION_TURN, // RE4's quick turn ("turn180"), on the whole body
     RT_ACTION_KNIFE, // RE4's knife slash ("knife", up / down by the pitch)
     RT_ACTION_THROW, // RE4's grenade throw ("throw")
+    RT_ACTION_HIT_FRONT, // RE4's hit reactions ("hit_front" / "hit_back"), on the whole body
+    RT_ACTION_HIT_BACK,
+    RT_ACTION_DEATH, // RE4's death ("death"), its last frame held, on the whole body
 };
 // a baked motion's root yaw (degrees) at time seconds into it (held at its end), and its length (seconds); false when
 // no runtime model has it (the converter keeps the root yaw of RE4's turns: ROOT_YAW_MOTIONS)

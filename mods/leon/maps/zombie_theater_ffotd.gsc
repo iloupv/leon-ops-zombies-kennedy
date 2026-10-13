@@ -51,6 +51,8 @@ leon_spawn_test()
 		setDvar( "cg_thirdPersonAimTest", getDvar( "leon_aimtest" ) ); // tests: aiming without input
 	if ( getDvar( "leon_aimpitch" ) != "" )
 		player setPlayerAngles( ( getDvarFloat( "leon_aimpitch" ), yaw, 0 ) ); // tests: the view pitch (+ down)
+	if ( getDvar( "leon_hurttest" ) != "" )
+		player thread leon_hurt_loop( getDvarInt( "leon_hurttest" ) ); // tests: hits (and going down) without zombies
 
 	test = getDvar( "leon_test" );
 	if ( test == "" )
@@ -75,6 +77,20 @@ leon_spawn_test()
 	leon thread leon_pace( right, 320, 173, false );
 	leon = leon_spawn( player.origin + forward * 400 + right * 40, yaw + 90, "back" );
 	leon thread leon_pace( right * -1, 100, 78, true );
+}
+
+// Damages the player every 3 s from a point in front of him (tests: his hit reaction, voice and going down).
+leon_hurt_loop( damage )
+{
+	self endon( "disconnect" );
+	if ( getDvar( "leon_hurtqr" ) == "1" )
+		self setPerk( "specialty_quickrevive" ); // solo: down (last stand) instead of game over
+	for ( ;; )
+	{
+		wait 3;
+		self doDamage( damage,self.origin + anglesToForward( self.angles ) * 64 + ( 0, 0, 48 ) );
+		logPrint( "leon: hurt " + damage + " health " + self.health + "\n" );
+	}
 }
 
 leon_spawn( origin, yaw, role )

@@ -2819,7 +2819,8 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
 {
     cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     if (!CG_ShoulderCameraActive(cgameGlob) || cent->nextState.number != cgameGlob->predictedPlayerState.clientNum
-        || CG_ShoulderAimFrac(cgameGlob) < 0.98f) // on once the aim is raised (firing too: PM_TankControls)
+        || CG_ShoulderAimFrac(cgameGlob) < 0.98f // on once the aim is raised (firing too: PM_TankControls)
+        || cgameGlob->predictedPlayerState.pm_type == 6 || cgameGlob->predictedPlayerState.pm_type == 7) // not down
         return;
     const int weaponState = cgameGlob->predictedPlayerState.weaponstate;
     if ((weaponState >= WEAPON_RELOADING_RIGHT && weaponState <= WEAPON_RELOAD_QUICK_EMPTY)

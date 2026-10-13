@@ -435,12 +435,14 @@ int __cdecl iSND_CreateVoice(int voiceIndex, const snd_asset *snd, int isLooping
     }
     else
     {
+        // PCM (the mod's runtime sounds, snd_runtime.cpp): the sample size first - the block alignment and byte rate
+        // come from it (they were computed from 0, which XAudio2 rejects)
         wfx->wFormatTag = 1;
+        wfx->wBitsPerSample = 16;
         wfx->nBlockAlign = (snd->channel_count * wfx->wBitsPerSample) / 8;
         wfx->nSamplesPerSec = snd->frame_rate;
         wfx->nAvgBytesPerSec = wfx->nSamplesPerSec * wfx->nBlockAlign;
-        wfx->wBitsPerSample = 16;
-        wfx->cbSize = 21072;
+        wfx->cbSize = 0;
     }
 
     XAUDIO2_BUFFER_WMA bufferWMA;

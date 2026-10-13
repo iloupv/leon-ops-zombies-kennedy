@@ -13,6 +13,7 @@
 #include <xanim/xmodel_utils.h>
 #include <gfx_d3d/r_runtime_xmodel.h>
 #include <bgame/bg_misc.h>
+#include <sound/snd_runtime.h>
 
 float recoilVec[3] = { -1.0, 0.0, 0.0 };
 float ysScale = 1.0f;
@@ -848,6 +849,28 @@ static const char *CG_RuntimeXModel_AnimSet(unsigned int weapon)
     }
 }
 
+// mod: the local player's hit (CG_TransitionPlayerState's damage feedback): RE4's front or back reaction, by where the
+// damage came from against his facing, and his pain grunt (the runtime sound "leon_pain": RE4's SE 9 / 10 / 11);
+// not again while the last one still plays its first half second
+static int s_leonHitStart = -100000;
+static bool s_leonHitBack;
+
+void __cdecl CG_RuntimeXModel_PlayerHit(int localClientNum, int yawByte, int pitchByte)
+{
+    const cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+    if ( cgameGlob->time - s_leonHitStart < 500 && cgameGlob->time >= s_leonHitStart )
+        return;
+    s_leonHitStart = cgameGlob->time;
+    s_leonHitBack = false;
+    if ( yawByte != 255 || pitchByte != 255 )
+    {
+        // the damage's direction (from the attacker): along his facing means it came from behind
+        const float yaw = (float)yawByte / 255.0f * 360.0f;
+        s_leonHitBack = cosf((yaw - cgameGlob->predictedPlayerState.viewangles[1]) * 0.017453292f) > 0.0f;
+    }
+    SND_Runtime_PlayLocal(localClientNum, "leon_pain");
+}
+
 // mod: poses a runtime model's DObj (R_RuntimeXModel_PoseDObj) before DObjCalcSkel, with the entity's origin and
 // angles; for the local player also the aim: the weapon's ADS fraction and the view pitch.
 void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
@@ -881,7 +904,8 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
     {
         static int s_frame = -1, s_lastState, s_lastWeaponTime, s_fireStart = -100000, s_reloadStart = -100000;
-        static int s_knifeStart = -100000, s_throwStart = -100000;
+        static int s_knifeStart = -100000, s_throwStart = -100000, s_downStart = -100000;
+        static bool s_down;
         static int s_reloadLength = 1;
         const playerState_s *ps = &cgameGlob->predictedPlayerState;
         const int state = ps->weaponstate;
@@ -892,10 +916,22 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         if ( s_frame != cgameGlob->time )
         {
             if ( cgameGlob->time < s_frame )
+            {
                 s_fireStart = s_reloadStart = s_knifeStart = s_throwStart = -100000; // a new level / restart
+                s_leonHitStart = -100000;
+                s_down = false;
+            }
             s_frame = cgameGlob->time;
             if ( firing && (state != s_lastState || ps->weaponTime > s_lastWeaponTime + 1) )
                 s_fireStart = cgameGlob->time;
+            // down (BO1's last stand, pm_type 6 / 7) or dead: RE4's death and his scream (SE 0xD), once
+            const bool down = ps->pm_type == 6 || ps->pm_type == 7 || ps->pm_type >= 9;
+            if ( down && !s_down )
+            {
+                s_downStart = cgameGlob->time;
+                SND_Runtime_PlayLocal(pose->localClientNum, "leon_death");
+            }
+            s_down = down;
             // a melee (Space under tank controls: CL_LeonQuickTurn) slashes the knife; a grenade's throw (its
             // release: BO1's offhand start) throws
             if ( (state == WEAPON_MELEE_INIT || state == WEAPON_MELEE_FIRE) && s_lastState != WEAPON_MELEE_INIT
@@ -913,10 +949,20 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             s_lastWeaponTime = ps->weaponTime;
         }
         const float turnTime = CL_LeonQuickTurnTime();
-        if ( turnTime >= 0.0f )
+        if ( s_down )
+        {
+            action = RT_ACTION_DEATH;
+            actionTime = (float)(cgameGlob->time - s_downStart) * 0.001f;
+        }
+        else if ( turnTime >= 0.0f )
         {
             action = RT_ACTION_TURN; // RE4's quick turn (CL_LeonQuickTurn)
             actionTime = turnTime;
+        }
+        else if ( cgameGlob->time - s_leonHitStart < 2500 && cgameGlob->time >= s_leonHitStart )
+        {
+            action = s_leonHitBack ? RT_ACTION_HIT_BACK : RT_ACTION_HIT_FRONT;
+            actionTime = (float)(cgameGlob->time - s_leonHitStart) * 0.001f;
         }
         else if ( cgameGlob->time - s_knifeStart < 2000 )
         {
