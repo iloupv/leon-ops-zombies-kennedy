@@ -2476,6 +2476,13 @@ void __cdecl PM_BeginWeaponReload(pmove_t *pm)
     playerState_s *ps; // [esp+14h] [ebp-4h]
 
     ps = pm->ps;
+    // mod (the Leon mod): no reload starts through his kick (maps\leon\_kick.gsc sets leon_kicking) - with an empty
+    // clip BO1's own reload began again every frame of it (PM_TankControls drops the one under way)
+    {
+        const dvar_s *kicking = Dvar_FindVar("leon_kicking");
+        if ( kicking && kicking->type == DVAR_TYPE_STRING && kicking->current.string && atoi(kicking->current.string) )
+            return;
+    }
     weaponState = BG_GetWeaponState(ps, ps->bRunLeftGun);
     weaponTime = BG_GetWeaponTime(ps, ps->bRunLeftGun);
     weaponShotCount = BG_GetWeaponShotCount(ps, ps->bRunLeftGun);
