@@ -3817,7 +3817,8 @@ void __cdecl CG_DObjCalcBone(const cpose_t *pose, DObj *obj, int boneIndex)
 
         DObjGetHierarchyBits(obj, boneIndex, partBits);
         CG_DoControllers(pose, obj, partBits);
-        R_RuntimeXModel_PoseDObj(obj, CG_GetLocalClientGlobals(pose->localClientNum)->time); // mod: runtime model animation
+        R_RuntimeXModel_PoseDObj(obj, pose->origin, pose->angles,
+            CG_GetLocalClientGlobals(pose->localClientNum)->time); // mod: runtime model animation
         DObjCalcSkel(obj, partBits);
         DObjUnlock(obj);
     }

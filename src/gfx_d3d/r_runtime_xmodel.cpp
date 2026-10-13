@@ -17,10 +17,12 @@
 // pixels, largest first; surface: u32 texture, u32 vertex count, u32 triangle count, vertex count x {f32 pos[3]
 // (inches, Z up), f32 normal[3], f32 uv[2]}, triangle count x 3 u16 indices, zero pad to 4.
 //
-// Version 2 adds a skeleton and skinned vertices, and optionally, after the surfaces, baked animations: 'ANIM',
+// Version 2 adds a skeleton and skinned vertices, and optionally, after the surfaces, baked animations: 'ANM2',
 // u32 count, per animation char name[32], u32 frame count, f32 frames per second, u32 bone count (the model's),
-// frame count x bone count x {f32 local rotation quaternion[4], f32 translation offset from the rest pose[3]}.
-// The first one loops on every DObj of the model (R_RuntimeXModel_PoseDObj), in place of an XAnim tree.
+// f32 move speed (inches per second at its own rate, 0: in place), frame count x bone count x {f32 local rotation
+// quaternion[4], f32 translation offset from the rest pose[3]}. In place of an XAnim tree, every DObj of the
+// model plays the locomotion cycle that fits how its entity moves (R_RuntimeXModel_PoseDObj): "idle", "walk",
+// "run" or "back", at the rate matching its speed, crossfaded.
 
 #include "r_runtime_xmodel.h"
 #include "r_material.h"
@@ -48,6 +50,7 @@
 #include <malloc.h>
 #include <string.h>
 #include <math.h>
+#include <intrin.h>
 #include <vector>
 #include <string>
 
@@ -64,12 +67,31 @@ static std::vector<void *> s_allocs; // this level's runtime model memory
 struct RtAnim
 {
     const XModel *model; // the DB pool copy DObjs point at
+    char name[32];
     int frameCount;
     float fps;
     int boneCount;
+    float moveSpeed;     // inches per second at the cycle's own rate
     const float *frames; // frameCount x boneCount x {quat[4], trans offset[3]}
 };
 static std::vector<RtAnim> s_anims; // this level's
+
+// Per entity locomotion state (by DObj entnum): the measured ground speed and the playing / fading-out cycles.
+struct RtAnimState
+{
+    const DObj *obj; // the DObj the state belongs to (a new one restarts it)
+    int lastTime;
+    float lastOrigin[3];
+    float speed;       // smoothed ground speed, inches per second
+    float forwardSpeed; // its component along the facing
+    int cur, prev;     // s_anims indices (-1: none)
+    float curPhase, prevPhase; // frames
+    float prevRate;
+    float blend;       // 0: prev only .. 1: cur only
+};
+static const int RT_MAX_ANIM_ENTS = 2048;
+static RtAnimState s_animStates[RT_MAX_ANIM_ENTS];
+static volatile long s_animStateLock; // the renderer's worker threads pose DObjs too
 
 static void *RtAlloc(int size)
 {
@@ -82,6 +104,7 @@ static void *RtAlloc(int size)
 static void RtFreeAll()
 {
     s_anims.clear();
+    memset(s_animStates, 0, sizeof(s_animStates));
     for ( void *p : s_allocs )
         _aligned_free(p);
     s_allocs.clear();
@@ -584,19 +607,23 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
         model.materialHandles[s] = tex < materials.size() && materials[tex] ? materials[tex] : (Material *)templ;
     }
     std::vector<RtAnim> anims;
-    if ( r.ok && version >= 2 && r.end - r.p >= 8 && !memcmp(r.p, "ANIM", 4) )
+    if ( r.ok && version >= 2 && r.end - r.p >= 8 && !memcmp(r.p, "ANM2", 4) )
     {
         r.take(4);
         const unsigned int animCount = r.u32();
         for ( unsigned int a = 0; a < animCount && r.ok; ++a )
         {
-            r.take(32);
             RtAnim anim = {};
+            if ( const void *n = r.take(32) )
+                memcpy(anim.name, n, sizeof(anim.name) - 1);
             anim.frameCount = (int)r.u32();
             const void *fps = r.take(4);
             anim.fps = fps ? *(const float *)fps : 0.0f;
             anim.boneCount = (int)r.u32();
-            if ( anim.frameCount <= 0 || anim.frameCount > 100000 || anim.boneCount != (int)boneCount || !(anim.fps > 0.0f) )
+            const void *speed = r.take(4);
+            anim.moveSpeed = speed ? *(const float *)speed : 0.0f;
+            if ( anim.frameCount <= 0 || anim.frameCount > 100000 || anim.boneCount != (int)boneCount || !(anim.fps > 0.0f)
+                 || !(anim.moveSpeed >= 0.0f) )
             {
                 r.ok = false;
                 break;
@@ -702,56 +729,185 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
         RB_Resource_Flush();
 }
 
-static const RtAnim *RtFindAnim(const XModel *model)
+// the model's animation `name` (0: its first), an s_anims index or -1
+static int RtFindAnim(const XModel *model, const char *name)
 {
-    for ( const RtAnim &a : s_anims )
+    for ( int i = 0; i < (int)s_anims.size(); ++i )
     {
-        if ( a.model == model )
-            return &a;
+        if ( s_anims[i].model == model && (!name || !strcmp(s_anims[i].name, name)) )
+            return i;
     }
-    return 0;
+    return -1;
 }
 
 // R_AddDObjToScene: a one-model DObj without an XAnim tree normally draws as a scene model in the model's base
 // pose; one with a baked animation takes the posed (scene DObj) path, which calls R_RuntimeXModel_PoseDObj.
 bool __cdecl R_RuntimeXModel_IsAnimated(const XModel *model)
 {
-    return !s_anims.empty() && RtFindAnim(model);
+    return !s_anims.empty() && RtFindAnim(model, 0) >= 0;
 }
 
-// Called by CG_DObjCalcPose / CG_DObjCalcBone before DObjCalcSkel. A DObj whose model has a baked animation gets
-// every bone's local pose from it (the first animation, looping, neighbouring frames blended), marked as animated so
-// DObjCalcAnim leaves the bones alone; DObjCalcSkel then builds the skeleton as for an XAnim pose (the rotation
-// absolute, the translation added to the model's rest offset).
-void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, int timeMs)
+static float RtWrapPhase(float phase, int frameCount)
+{
+    phase = fmodf(phase, (float)frameCount);
+    return phase < 0.0f ? phase + (float)frameCount : phase;
+}
+
+// bone b of a cycle at `phase` (frames), the neighbouring frames blended
+static void RtSampleBone(const RtAnim &anim, float phase, int b, float *quat, float *trans)
+{
+    int f0 = (int)phase;
+    if ( f0 >= anim.frameCount )
+        f0 = anim.frameCount - 1;
+    const int f1 = (f0 + 1) % anim.frameCount;
+    const float frac = phase - (float)f0;
+    const float *a = &anim.frames[7 * (f0 * anim.boneCount + b)];
+    const float *c = &anim.frames[7 * (f1 * anim.boneCount + b)];
+    const float sign = a[0] * c[0] + a[1] * c[1] + a[2] * c[2] + a[3] * c[3] < 0.0f ? -1.0f : 1.0f;
+    for ( int k = 0; k < 4; ++k )
+        quat[k] = a[k] + (sign * c[k] - a[k]) * frac;
+    for ( int k = 0; k < 3; ++k )
+        trans[k] = a[4 + k] + (c[4 + k] - a[4 + k]) * frac;
+}
+
+// playback rate of a cycle at a ground speed: a moving cycle's feet keep pace with the entity
+static float RtCycleRate(const RtAnim &anim, float speed)
+{
+    if ( anim.moveSpeed <= 0.0f )
+        return 1.0f;
+    const float rate = speed / anim.moveSpeed;
+    return rate < 0.5f ? 0.5f : (rate > 2.0f ? 2.0f : rate);
+}
+
+// The cycle for the entity's motion: idle when (nearly) still, back when moving against its facing, run past the
+// geometric mean of the walk and run speeds, else walk; hysteresis keeps it from flickering at the thresholds.
+static int RtChooseCycle(const XModel *model, const RtAnimState &st)
+{
+    const int idle = RtFindAnim(model, "idle"), walk = RtFindAnim(model, "walk"), run = RtFindAnim(model, "run");
+    const int back = RtFindAnim(model, "back");
+    const int still = idle >= 0 ? idle : RtFindAnim(model, 0);
+    const bool moving = st.cur >= 0 && st.cur != still;
+    if ( st.speed < (moving ? 6.0f : 12.0f) || (walk < 0 && run < 0) )
+        return still;
+    if ( back >= 0 && st.forwardSpeed < -0.4f * st.speed )
+        return back;
+    if ( walk < 0 )
+        return run;
+    if ( run < 0 )
+        return walk;
+    const float runCut = sqrtf(s_anims[walk].moveSpeed * s_anims[run].moveSpeed) * (st.cur == run ? 0.9f : 1.1f);
+    return st.speed > runCut ? run : walk;
+}
+
+// Advances the entity's locomotion state to timeMs (once per game time; the pose functions run several times a
+// frame) and returns a copy.
+static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const float *origin, const float *angles,
+                                     int timeMs)
+{
+    while ( _InterlockedCompareExchange(&s_animStateLock, 1, 0) )
+        _mm_pause();
+    RtAnimState &st = s_animStates[obj->entnum % RT_MAX_ANIM_ENTS];
+    if ( st.obj != obj || st.cur < 0 || st.cur >= (int)s_anims.size() || s_anims[st.cur].model != model )
+    {
+        memset(&st, 0, sizeof(st));
+        st.obj = obj;
+        st.lastTime = timeMs;
+        for ( int k = 0; k < 3; ++k )
+            st.lastOrigin[k] = origin[k];
+        const int idle = RtFindAnim(model, "idle");
+        st.cur = idle >= 0 ? idle : RtFindAnim(model, 0);
+        st.prev = -1;
+        st.blend = 1.0f;
+    }
+    else if ( timeMs != st.lastTime )
+    {
+        const float dt = (float)(timeMs - st.lastTime) * 0.001f;
+        if ( dt > 0.0f && dt <= 0.5f )
+        {
+            const float dx = origin[0] - st.lastOrigin[0], dy = origin[1] - st.lastOrigin[1];
+            float speed = sqrtf(dx * dx + dy * dy) / dt;
+            const float yaw = angles[1] * 0.017453292f;
+            float forward = (dx * cosf(yaw) + dy * sinf(yaw)) / dt;
+            if ( speed > 2000.0f ) // a teleport
+                speed = forward = 0.0f;
+            const float k = dt * 10.0f < 1.0f ? dt * 10.0f : 1.0f;
+            st.speed += (speed - st.speed) * k;
+            st.forwardSpeed += (forward - st.forwardSpeed) * k;
+
+            const int target = RtChooseCycle(model, st);
+            if ( target != st.cur && target >= 0 )
+            {
+                const RtAnim &from = s_anims[st.cur], &to = s_anims[target];
+                st.prev = st.cur;
+                st.prevPhase = st.curPhase;
+                st.prevRate = RtCycleRate(from, st.speed);
+                // walk <-> run keep the stride's phase (the feet stay in step); others start at the top
+                const bool stride = from.moveSpeed > 0.0f && to.moveSpeed > 0.0f;
+                st.curPhase = stride ? st.curPhase / (float)from.frameCount * (float)to.frameCount : 0.0f;
+                st.cur = target;
+                st.blend = 0.0f;
+            }
+            const RtAnim &cur = s_anims[st.cur];
+            st.curPhase = RtWrapPhase(st.curPhase + dt * cur.fps * RtCycleRate(cur, st.speed), cur.frameCount);
+            if ( st.prev >= 0 )
+            {
+                const RtAnim &prev = s_anims[st.prev];
+                st.prevPhase = RtWrapPhase(st.prevPhase + dt * prev.fps * st.prevRate, prev.frameCount);
+            }
+            st.blend += dt / 0.2f; // the crossfade time
+            if ( st.blend >= 1.0f )
+            {
+                st.blend = 1.0f;
+                st.prev = -1;
+            }
+        }
+        st.lastTime = timeMs;
+        for ( int k = 0; k < 3; ++k )
+            st.lastOrigin[k] = origin[k];
+    }
+    const RtAnimState copy = st;
+    _InterlockedExchange(&s_animStateLock, 0);
+    return copy;
+}
+
+// Called by CG_DObjCalcPose / CG_DObjCalcBone before DObjCalcSkel, with the entity's pose origin and angles. A DObj
+// whose model has baked animations gets every bone's local pose from its locomotion cycle (crossfaded from the
+// previous one), marked as animated so DObjCalcAnim leaves the bones alone; DObjCalcSkel then builds the skeleton as
+// for an XAnim pose (the rotation absolute, the translation added to the model's rest offset).
+void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const float *angles, int timeMs)
 {
     if ( s_anims.empty() || !obj->numModels || !obj->skel.mat )
         return;
     const XModel *model = obj->localModels[0];
-    const RtAnim *anim = RtFindAnim(model);
-    if ( !anim )
+    if ( RtFindAnim(model, 0) < 0 )
         return;
-    const float t = fmodf((float)(timeMs % 3600000) * 0.001f * anim->fps, (float)anim->frameCount);
-    const int f0 = (int)t < anim->frameCount ? (int)t : anim->frameCount - 1;
-    const int f1 = (f0 + 1) % anim->frameCount;
-    const float frac = t - (float)f0;
-    int numBones = anim->boneCount < model->numBones ? anim->boneCount : model->numBones;
+    const RtAnimState st = RtUpdateAnimState(obj, model, origin, angles, timeMs);
+    if ( st.cur < 0 )
+        return;
+    const RtAnim &cur = s_anims[st.cur];
+    const RtAnim *prev = st.prev >= 0 && st.blend < 1.0f ? &s_anims[st.prev] : 0;
+    int numBones = cur.boneCount < model->numBones ? cur.boneCount : model->numBones;
     if ( numBones > obj->numBones )
         numBones = obj->numBones;
     for ( int b = 0; b < numBones; ++b )
     {
         if ( obj->skel.partBits.anim[b >> 5] & (0x80000000 >> (b & 31)) )
             continue; // posed already this frame (an earlier CG_DObjCalcBone / CG_DObjCalcPose)
-        const float *a = &anim->frames[7 * (f0 * anim->boneCount + b)];
-        const float *c = &anim->frames[7 * (f1 * anim->boneCount + b)];
-        const float sign = a[0] * c[0] + a[1] * c[1] + a[2] * c[2] + a[3] * c[3] < 0.0f ? -1.0f : 1.0f;
         DObjAnimMat *mat = &obj->skel.mat[b];
-        float lenSq = 0.0f;
-        for ( int k = 0; k < 4; ++k )
+        RtSampleBone(cur, st.curPhase, b, mat->quat, mat->trans);
+        if ( prev )
         {
-            mat->quat[k] = a[k] + (sign * c[k] - a[k]) * frac;
-            lenSq += mat->quat[k] * mat->quat[k];
+            float quat[4], trans[3];
+            RtSampleBone(*prev, st.prevPhase, b, quat, trans);
+            const float sign = quat[0] * mat->quat[0] + quat[1] * mat->quat[1] + quat[2] * mat->quat[2]
+                + quat[3] * mat->quat[3] < 0.0f ? -1.0f : 1.0f;
+            for ( int k = 0; k < 4; ++k )
+                mat->quat[k] = sign * quat[k] + (mat->quat[k] - sign * quat[k]) * st.blend;
+            for ( int k = 0; k < 3; ++k )
+                mat->trans[k] = trans[k] + (mat->trans[k] - trans[k]) * st.blend;
         }
+        const float lenSq = mat->quat[0] * mat->quat[0] + mat->quat[1] * mat->quat[1] + mat->quat[2] * mat->quat[2]
+            + mat->quat[3] * mat->quat[3];
         if ( lenSq > 0.0f )
         {
             const float inv = 1.0f / sqrtf(lenSq);
@@ -764,8 +920,6 @@ void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, int timeMs)
             mat->quat[3] = 1.0f;
         }
         mat->transWeight = 2.0f;
-        for ( int k = 0; k < 3; ++k )
-            mat->trans[k] = a[4 + k] + (c[4 + k] - a[4 + k]) * frac;
         obj->skel.partBits.anim[b >> 5] |= 0x80000000 >> (b & 31);
     }
 }
