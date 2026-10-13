@@ -1326,9 +1326,9 @@ void __cdecl CG_RegisterDvars()
                                                     "cg_thirdPersonActionTest",
                                                     0,
                                                     0,
-                                                    2,
+                                                    3,
                                                     0x80u,
-                                                    "Test: a runtime model's weapon action for the local player (1: a shot every second, 2: a 1.6 s reload over and over)");
+                                                    "Test: a runtime model's weapon action for the local player (1: a shot every second, 2: a 1.6 s reload over and over, 3: the knife slash held)");
     cg_chatTime = _Dvar_RegisterInt(
                                     "cg_chatTime",
                                     12000,
@@ -3677,7 +3677,10 @@ unsigned __int16 __cdecl CG_AttachWeapon(DObjModel_s *dobjModels, unsigned __int
                     __debugbreak();
                 }
                 dobjModels[numModels].model = weapDefa->worldModel[ci->meleeWeaponModel];
-                dobjModels[numModels].boneName = runtimeBody ? scr_const.tag_inhand : scr_const.tag_weapon_left; // the right palm
+                // a runtime body's knife tag (the right fist), else its palm (tag_inhand) or BO1's knife hand
+                const unsigned int knifeTag = runtimeBody ? SL_FindString("tag_knife", SCRIPTINSTANCE_SERVER) : 0;
+                dobjModels[numModels].boneName = knifeTag ? knifeTag
+                                                          : (runtimeBody ? scr_const.tag_inhand : scr_const.tag_weapon_left);
                 dobjModels[numModels++].ignoreCollision = 0;
             }
         }
