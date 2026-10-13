@@ -12,4 +12,5 @@ void __cdecl CG_mg42_DoControllers(const cpose_t *pose, const DObj *obj, int *pa
 void __cdecl CG_DoBaseOriginController(const cpose_t *pose, const DObj *obj, int *setPartBits);
 void __cdecl MatrixTransformVectorQuatTrans(const float *in, const DObjAnimMat *mat, float *out);
 void __cdecl QuatMultiplyEquals(const float *in, float *inout);
+void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj);
 DObjAnimMat *__cdecl CG_DObjCalcPose(const cpose_t *remote_pose, DObj *obj, int *partBits);

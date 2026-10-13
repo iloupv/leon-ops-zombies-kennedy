@@ -821,6 +821,22 @@ void __cdecl QuatMultiplyEquals(const float *in, float *inout)
     inout[3] = temp_12;
 }
 
+// mod: poses a runtime model's DObj (R_RuntimeXModel_PoseDObj) before DObjCalcSkel, with the entity's origin and
+// angles; for the local player also the aim: the weapon's ADS fraction and the view pitch.
+void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
+{
+    const cg_s *cgameGlob = CG_GetLocalClientGlobals(pose->localClientNum);
+    const bool isPlayer = pose->eType == 1;
+    float aimFrac = 0.0f, aimPitch = 0.0f;
+    if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
+    {
+        aimFrac = cg_thirdPersonAimTest->current.value > 0.0f ? cg_thirdPersonAimTest->current.value
+                                                              : cgameGlob->predictedPlayerState.fWeaponPosFrac;
+        aimPitch = cgameGlob->refdefViewAngles[0];
+    }
+    R_RuntimeXModel_PoseDObj(obj, pose->origin, pose->angles, cgameGlob->time, isPlayer, aimFrac, aimPitch);
+}
+
 DObjAnimMat *__cdecl CG_DObjCalcPose(const cpose_t *remote_pose, DObj *obj, int *partBits)
 {
     DObjAnimMat *boneMatrix; // [esp+0h] [ebp-8h] BYREF
@@ -839,8 +855,7 @@ DObjAnimMat *__cdecl CG_DObjCalcPose(const cpose_t *remote_pose, DObj *obj, int 
         pose = remote_pose;
         DObjCompleteHierarchyBits(obj, partBits);
         CG_DoControllers(pose, obj, partBits);
-        R_RuntimeXModel_PoseDObj(obj, pose->origin, pose->angles,
-            CG_GetLocalClientGlobals(pose->localClientNum)->time, pose->eType == 1); // mod: runtime model animation
+        CG_RuntimeXModel_Pose(pose, obj); // mod: runtime model animation
         DObjCalcSkel(obj, partBits);
     }
     DObjUnlock(obj);

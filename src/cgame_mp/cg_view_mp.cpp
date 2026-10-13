@@ -2740,6 +2740,15 @@ void    CG_OffsetThirdPersonView(int localClientNum)
 }
 #endif
 
+// mod: the over-the-shoulder camera is the view (cg_thirdPersonShoulder set, third person, alive): the crosshair
+// stays (CG_DrawCrosshair), aiming included
+bool __cdecl CG_ShoulderCameraActive(const cg_s *cgameGlob)
+{
+    return cg_thirdPersonShoulder && cg_thirdPersonShoulder->current.value != 0.0f
+        && cgameGlob->renderingThirdPerson == TP_FOR_MODEL && cgameGlob->predictedPlayerState.pm_type < 9
+        && !(cgameGlob->predictedPlayerState.eFlags & 0x4300);
+}
+
 void CG_OffsetThirdPersonView(int localClientNum)
 {
     cg_s *cgameGlob;
@@ -2811,12 +2820,18 @@ void CG_OffsetThirdPersonView(int localClientNum)
         for (int k = 0; k < 3; ++k)
             aim[k] = eye[k] + fwd[k] * 8192.0f * trace.fraction;
 
+        // aiming pulls the camera in toward the shoulder, as RE4's aim camera does
+        const float ads = cg_thirdPersonAimTest->current.value > 0.0f ? cg_thirdPersonAimTest->current.value
+                                                                       : cgameGlob->predictedPlayerState.fWeaponPosFrac;
+        const float side = cg_thirdPersonShoulder->current.value * (1.0f - 0.25f * ads);
+        const float lift = cg_thirdPersonShoulderUp->current.value * (1.0f - 0.4f * ads);
+        const float range = cg_thirdPersonRange->current.value * (1.0f - 0.45f * ads);
         for (int k = 0; k < 3; ++k)
-            shoulder[k] = eye[k] + right[k] * cg_thirdPersonShoulder->current.value;
-        shoulder[2] += cg_thirdPersonShoulderUp->current.value;
+            shoulder[k] = eye[k] + right[k] * side;
+        shoulder[2] += lift;
         ThirdPersonViewTrace(cgameGlob, eye, shoulder, 0x800811, shoulder, false, true);
         for (int k = 0; k < 3; ++k)
-            back[k] = shoulder[k] - fwd[k] * cg_thirdPersonRange->current.value;
+            back[k] = shoulder[k] - fwd[k] * range;
         ThirdPersonViewTrace(cgameGlob, shoulder, back, 0x800811, cgameGlob->refdef.vieworg, false, true);
 
         for (int k = 0; k < 3; ++k)

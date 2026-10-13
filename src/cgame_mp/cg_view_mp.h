@@ -96,6 +96,7 @@ void __cdecl CG_DevSaveCamera(float *angles, float *origin);
 void    CG_OffsetChaseCamView(int localClientNum, CameraMode camMode);
 // local variable allocation has failed, the output may be wrong!
 void    CG_OffsetThirdPersonView(int localClientNum);
+bool __cdecl CG_ShoulderCameraActive(const cg_s *cgameGlob); // mod
 void __cdecl CG_CalcVrect(int localClientNum);
 void __cdecl CG_SmoothCameraZ(cg_s *cgameGlob);
 void __cdecl CG_OffsetFirstPersonView(cg_s *cgameGlob);
