@@ -96,6 +96,7 @@ struct RtAnimState
     float curPhase, prevPhase; // frames
     float prevRate;
     float blend;       // 0: prev only .. 1: cur only
+    float slowTime;    // seconds the motion has been (nearly) still
 };
 static const int RT_MAX_ANIM_ENTS = 2048;
 static RtAnimState s_animStates[RT_MAX_ANIM_ENTS];
@@ -985,6 +986,28 @@ static int RtFindAnim(const XModel *model, const char *name)
     return -1;
 }
 
+// A motion of a set (the converter's weapon sets: "<set>:<name>", e.g. "shotgun:aim"), or the default set's
+// (unprefixed: the handgun's) when the set has none or no set is given.
+static int RtFindSetAnim(const XModel *model, const char *set, const char *name)
+{
+    if ( set && *set )
+    {
+        char full[64];
+        Com_sprintf(full, sizeof(full), "%s:%s", set, name);
+        const int index = RtFindAnim(model, full);
+        if ( index >= 0 )
+            return index;
+    }
+    return RtFindAnim(model, name);
+}
+
+// a motion's name without its set
+static const char *RtAnimBaseName(const RtAnim &anim)
+{
+    const char *colon = strchr(anim.name, ':');
+    return colon ? colon + 1 : anim.name;
+}
+
 // R_AddDObjToScene: a one-model DObj without an XAnim tree normally draws as a scene model in the model's base
 // pose; one with a baked animation takes the posed (scene DObj) path, which calls R_RuntimeXModel_PoseDObj.
 bool __cdecl R_RuntimeXModel_IsAnimated(const XModel *model)
@@ -1052,31 +1075,33 @@ static float RtCycleRate(const RtAnim &anim, float speed)
 
 // The cycle for the entity's motion: idle when (nearly) still, back when moving against its facing, run past the
 // geometric mean of the walk and run speeds, else walk; hysteresis keeps it from flickering at the thresholds.
-static int RtChooseCycle(const XModel *model, const RtAnimState &st, bool turnToMotion)
+static int RtChooseCycle(const XModel *model, const RtAnimState &st, bool turnToMotion, const char *set)
 {
-    const int idle = RtFindAnim(model, "idle"), walk = RtFindAnim(model, "walk"), run = RtFindAnim(model, "run");
-    const int back = RtFindAnim(model, "back");
+    const int idle = RtFindSetAnim(model, set, "idle"), walk = RtFindSetAnim(model, set, "walk");
+    const int run = RtFindSetAnim(model, set, "run"), back = RtFindSetAnim(model, set, "back");
     const int still = idle >= 0 ? idle : RtFindAnim(model, 0);
-    const bool moving = st.cur >= 0 && st.cur != still;
+    const bool moving = st.cur >= 0 && strcmp(RtAnimBaseName(s_anims[st.cur]), "idle");
     if ( st.speed < (moving ? 6.0f : 12.0f) || (walk < 0 && run < 0) )
         return still;
     // under tank controls (no sideways motion) anything against the facing is the back step, with a wide margin: a
     // turn while stepping back leaves the measured motion trailing the facing, and must not flip it to a walk
     const float backIn = turnToMotion ? 115.0f : 90.0f, backOut = turnToMotion ? 100.0f : 45.0f;
-    if ( back >= 0 && fabsf(st.moveRel) > (st.cur == back ? backOut : backIn) )
+    const bool backNow = st.cur >= 0 && !strcmp(RtAnimBaseName(s_anims[st.cur]), "back");
+    if ( back >= 0 && fabsf(st.moveRel) > (backNow ? backOut : backIn) )
         return back;
     if ( walk < 0 )
         return run;
     if ( run < 0 )
         return walk;
-    const float runCut = sqrtf(s_anims[walk].moveSpeed * s_anims[run].moveSpeed) * (st.cur == run ? 0.9f : 1.1f);
+    const bool runNow = st.cur >= 0 && !strcmp(RtAnimBaseName(s_anims[st.cur]), "run");
+    const float runCut = sqrtf(s_anims[walk].moveSpeed * s_anims[run].moveSpeed) * (runNow ? 0.9f : 1.1f);
     return st.speed > runCut ? run : walk;
 }
 
 // Advances the entity's locomotion state to timeMs (once per game time; the pose functions run several times a
 // frame) and returns a copy.
 static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const float *origin, const float *angles,
-                                     int timeMs, bool turnToMotion)
+                                     int timeMs, bool turnToMotion, const char *set)
 {
     while ( _InterlockedCompareExchange(&s_animStateLock, 1, 0) )
         _mm_pause();
@@ -1088,7 +1113,7 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
         st.lastTime = timeMs;
         for ( int k = 0; k < 3; ++k )
             st.lastOrigin[k] = origin[k];
-        const int idle = RtFindAnim(model, "idle");
+        const int idle = RtFindSetAnim(model, set, "idle");
         st.cur = idle >= 0 ? idle : RtFindAnim(model, 0);
         st.prev = -1;
         st.blend = 1.0f;
@@ -1108,7 +1133,13 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
             if ( st.speed > 1.0f )
                 st.moveRel = AngleNormalize180(atan2f(st.vel[1], st.vel[0]) * 57.29578f - angles[1]);
 
-            const int target = RtChooseCycle(model, st, turnToMotion);
+            int target = RtChooseCycle(model, st, turnToMotion, set);
+            // a reversal (back step <-> walk) passes through standing still for a moment: the cycle goes to the
+            // idle only once he has stood for 0.15 s, so it goes straight from one step to the other, in stride
+            st.slowTime = st.speed < 6.0f ? st.slowTime + dt : 0.0f;
+            if ( target >= 0 && st.cur >= 0 && target != st.cur && !strcmp(RtAnimBaseName(s_anims[target]), "idle")
+                 && strcmp(RtAnimBaseName(s_anims[st.cur]), "idle") && st.slowTime < 0.15f )
+                target = st.cur;
             if ( target != st.cur && target >= 0 )
             {
                 const RtAnim &from = s_anims[st.cur], &to = s_anims[target];
@@ -1127,7 +1158,7 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
             float bodyTarget = 0.0f;
             if ( turnToMotion && s_anims[st.cur].moveSpeed > 0.0f )
             {
-                const bool backStep = !strcmp(s_anims[st.cur].name, "back");
+                const bool backStep = !strcmp(RtAnimBaseName(s_anims[st.cur]), "back");
                 bodyTarget = backStep ? AngleNormalize180(st.moveRel - 180.0f) : st.moveRel;
                 const float limit = backStep ? 70.0f : 100.0f;
                 bodyTarget = bodyTarget > limit ? limit : (bodyTarget < -limit ? -limit : bodyTarget);
@@ -1162,21 +1193,22 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
 // for an XAnim pose (the rotation absolute, the translation added to the model's rest offset).
 float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const float *angles, int timeMs,
                                       bool isPlayer, float aimFrac, float aimPitch, RtAction action, float actionTime,
-                                      float actionDuration, const float *aimCorrection, bool turnToMotion)
+                                      float actionDuration, const float *aimCorrection, bool turnToMotion,
+                                      const char *animSet)
 {
     if ( s_anims.empty() || !obj->numModels || !obj->skel.mat )
         return 0.0f;
     const XModel *model = obj->localModels[0];
     if ( RtFindAnim(model, 0) < 0 )
         return 0.0f;
-    const RtAnimState st = RtUpdateAnimState(obj, model, origin, angles, timeMs, turnToMotion);
+    const RtAnimState st = RtUpdateAnimState(obj, model, origin, angles, timeMs, turnToMotion, animSet);
     if ( st.cur < 0 )
         return 0.0f;
     const RtAnim &cur = s_anims[st.cur];
     const RtAnim *prev = st.prev >= 0 && st.blend < 1.0f ? &s_anims[st.prev] : 0;
     // aiming (a player's ADS): the upper body takes the aim pose, level blended toward up or down by the view pitch
     // (RE4 blends its three by the aim pitch, cMot3), in by the ADS fraction
-    const int aimLevel = aimFrac > 0.0f ? RtFindAnim(model, "aim") : -1;
+    const int aimLevel = aimFrac > 0.0f ? RtFindSetAnim(model, animSet, "aim") : -1;
     int aimPitched = -1;
     float aimPitchBlend = 0.0f, aimPhase = 0.0f;
     if ( aimLevel >= 0 )
@@ -1186,7 +1218,7 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             aimPitchBlend = 1.0f;
         if ( aimPitchBlend < -1.0f )
             aimPitchBlend = -1.0f;
-        aimPitched = RtFindAnim(model, aimPitchBlend >= 0.0f ? "aim_up" : "aim_down");
+        aimPitched = RtFindSetAnim(model, animSet, aimPitchBlend >= 0.0f ? "aim_up" : "aim_down");
         aimPitchBlend = fabsf(aimPitchBlend);
         const RtAnim &level = s_anims[aimLevel];
         aimPhase = RtWrapPhase((float)(timeMs % 3600000) * 0.001f * level.fps, level.frameCount);
@@ -1199,7 +1231,7 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     float actionPhase = 0.0f, actionWeight = 0.0f, actionPitchBlend = 0.0f;
     if ( action == RT_ACTION_FIRE )
     {
-        actionAnim = RtFindAnim(model, "fire");
+        actionAnim = RtFindSetAnim(model, animSet, "fire");
         if ( actionAnim >= 0 )
         {
             const RtAnim &fire = s_anims[actionAnim];
@@ -1212,7 +1244,7 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
                 actionWeight = left < 4.0f ? left / 4.0f : 1.0f; // the last frames blend back into the aim
                 float r = -aimPitch / 60.0f;
                 r = r > 1.0f ? 1.0f : (r < -1.0f ? -1.0f : r);
-                actionPitched = RtFindAnim(model, r >= 0.0f ? "fire_up" : "fire_down");
+                actionPitched = RtFindSetAnim(model, animSet, r >= 0.0f ? "fire_up" : "fire_down");
                 actionPitchBlend = fabsf(r);
             }
         }
@@ -1221,7 +1253,7 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     {
         // the quick turn: the whole body, at its own rate (the view turns along its root yaw: CL_LeonQuickTurn); the
         // last 0.15 s blend back into the locomotion
-        actionAnim = RtFindAnim(model, "turn180");
+        actionAnim = RtFindSetAnim(model, animSet, "turn180");
         if ( actionAnim >= 0 )
         {
             const RtAnim &turn = s_anims[actionAnim];
@@ -1235,7 +1267,7 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     }
     else if ( action == RT_ACTION_RELOAD && actionDuration > 0.0f )
     {
-        actionAnim = RtFindAnim(model, "reload");
+        actionAnim = RtFindSetAnim(model, animSet, "reload");
         if ( actionAnim >= 0 )
         {
             const RtAnim &reload = s_anims[actionAnim];

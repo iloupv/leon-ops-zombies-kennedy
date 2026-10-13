@@ -1674,7 +1674,8 @@ void __cdecl Pmove_1(pmove_t *pm)
 // forward / back move along the facing only (no strafing) and left / right turn the player (pl_R1_Walk / pl_R1_Back:
 // SPEED_WALK_TURN, 0.0418879 rad a 30 Hz frame; pl_R1_Run 10 % faster); he walks, and runs only while the run key
 // (BO1's sprint key) is held moving forward, at the speeds of RE4's own cycles (the root motion of the handgun set:
-// walk 68, run 167, back step 77 inches a second); aiming (joyKamae) stops him; he fires only aimed in. Back + run
+// walk 68, run 167, back step 77 inches a second); aimed in he walks (RE4's joyKamae stops him: the mod lets him
+// walk) and fires only then; no jump, crouch or prone (dropped from the commands: CL_LeonQuickTurn). Back + run
 // turns him around (pl_R1_Turn180) on the client: CL_LeonQuickTurn. The mouse still turns him too. Runs in Pmove on the server and in the client's prediction alike:
 // the turns go through delta_angles, as script view changes do.
 static void PM_TankControls(pmove_t *pm, float frametime)
@@ -1693,7 +1694,7 @@ static void PM_TankControls(pmove_t *pm, float frametime)
         ps->delta_angles[1] = AngleNormalize180(ps->delta_angles[1] - rate * frametime * ((float)cmd->rightmove / 127.0f));
         cmd->rightmove = 0;
     }
-    if ( aiming || !cmd->forwardmove )
+    if ( !cmd->forwardmove ) // aimed in he still walks (the Leon mod's choice: RE4 stops him), never runs
     {
         cmd->forwardmove = 0;
         return;
