@@ -858,6 +858,11 @@ void __cdecl CG_DrawPlayerActionSlot(
     float w; // [esp+13Ch] [ebp-8h] BYREF
     bool new_weapon_has_no_ammo; // [esp+143h] [ebp-1h]
 
+    // BO1FIX: cgMedia's member names are shifted against the retail layout (cg_local_mp.h: each one's XREFs). Retail
+    // reads the dpad highlight from the slot CG_RegisterGraphics fills with hud_dpad_outer_frame_highlight_side
+    // (named ammoCounterRocket here) and the count circle from hud_dpad_eqip_count_backing's (ammoCounterRifleBullet);
+    // hudDpadLeftHighlight holds the night vision overlay (missing in zombies: a checkerboard behind Moon's helmet) and
+    // hudDpadCircle is never set.
     highlightSize = 94.0f;
     topHighlightSize = 96.0f;
     leftHighlightOffset = 2.0f;
@@ -932,7 +937,7 @@ void __cdecl CG_DrawPlayerActionSlot(
                             rect->vertAlign,
                             colorMod,
                             180.0,
-                            cgMedia.hudDpadLeftHighlight);
+                            cgMedia.ammoCounterRocket); // BO1FIX: see CG_DrawPlayerActionSlot
                     }
                 }
                 else
@@ -950,7 +955,7 @@ void __cdecl CG_DrawPlayerActionSlot(
                         rect->vertAlign,
                         colorMod,
                         90.0,
-                        cgMedia.hudDpadLeftHighlight);
+                        cgMedia.ammoCounterRocket); // BO1FIX: see CG_DrawPlayerActionSlot
                 }
                 if (!I_strcmp(weapVariantDef->szInternalName, "minigun_drop_mp")
                     || !I_strcmp(weapVariantDef->szInternalName, "supplydrop_mp")
@@ -1000,7 +1005,7 @@ void __cdecl CG_DrawPlayerActionSlot(
                         1.0,
                         1.0,
                         black,
-                        cgMedia.hudDpadCircle);
+                        cgMedia.ammoCounterRifleBullet); // BO1FIX: see CG_DrawPlayerActionSlot
                     DpadTextPos(localClientNum, rect, slotIdx, weapVariantDef, &x, &y);
                     Com_sprintf(str, 0x40u, "%3i", ammo);
                     colorMod[3] = ammoAlpha;
@@ -1046,7 +1051,7 @@ void __cdecl CG_DrawPlayerActionSlot(
                     rect->vertAlign,
                     colorMod,
                     0.0,
-                    cgMedia.hudDpadLeftHighlight);
+                    cgMedia.ammoCounterRocket); // BO1FIX: see CG_DrawPlayerActionSlot
             }
             CL_DrawStretchPic(
                 &scrPlaceView[localClientNum],
@@ -1077,7 +1082,7 @@ void __cdecl CG_DrawPlayerActionSlot(
                 1.0,
                 1.0,
                 black,
-                cgMedia.hudDpadCircle);
+                cgMedia.ammoCounterRifleBullet); // BO1FIX: see CG_DrawPlayerActionSlot
             ammo = BG_WeaponAmmo(ps, weapIdx);
             if (!ammo)
             {

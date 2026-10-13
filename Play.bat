@@ -3,5 +3,9 @@ rem Black Ops 1 Zombies: the original game. Opens at its own main menu: Zombies,
 rem (Mods: tools\mod-launcher.hta, see README.md.)
 set "GAME=%~dp0build\Release"
 if not exist "%GAME%\BO1Zombies.exe" (echo Game not found in %GAME% & pause & exit /b 1)
+rem The window (borderless over the screen) only on the first run: after it, the game's own display settings, saved
+rem in players\config.cfg
+set "WINDOW="
+if not exist "%GAME%\players\config.cfg" set "WINDOW=+set r_fullscreen 0 +set r_borderless 1 +set vid_xpos 0 +set vid_ypos 0"
 cd /d "%GAME%"
-start "" "%GAME%\BO1Zombies.exe" +set bo1_zombies 1 +set fs_b "%GAME%" +set fs_h "%GAME%" +set logfile 2 +set net_ip 127.0.0.1 +set r_fullscreen 0 +set r_borderless 1 +set vid_xpos 0 +set vid_ypos 0
+start "" "%GAME%\BO1Zombies.exe" +set bo1_zombies 1 +set fs_b "%GAME%" +set fs_h "%GAME%" +set logfile 2 +set net_ip 127.0.0.1 %WINDOW%
