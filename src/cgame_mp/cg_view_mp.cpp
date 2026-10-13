@@ -23,6 +23,8 @@
 #include <gfx_d3d/r_adszscale.h>
 #include <qcommon/dobj_management.h>
 #include <clientscript/scr_const.h>
+#include <cgame/cg_laser.h>
+#include <gfx_d3d/r_runtime_xmodel.h>
 #include "cg_ents_mp.h"
 #include <game/statindex.h>
 #include <cgame/cg_drawtools.h>
@@ -2749,6 +2751,82 @@ bool __cdecl CG_ShoulderCameraActive(const cg_s *cgameGlob)
         && !(cgameGlob->predictedPlayerState.eFlags & 0x4300);
 }
 
+// mod: the local player's aim (ADS) fraction (cg_thirdPersonAimTest forces one for headless tests)
+float __cdecl CG_ShoulderAimFrac(const cg_s *cgameGlob)
+{
+    return cg_thirdPersonAimTest->current.value > 0.0f ? cg_thirdPersonAimTest->current.value
+                                                       : cgameGlob->predictedPlayerState.fWeaponPosFrac;
+}
+
+// where the player's view line (from the eye of the drawn player) hits
+static void CG_ShoulderAimPoint(cg_s *cgameGlob, float *eye, float *fwd, float *aim)
+{
+    float right[3], up[3];
+    Vec3Copy(cgameGlob->predictedPlayerEntity.pose.origin, eye);
+    eye[2] += cgameGlob->predictedPlayerState.viewHeightCurrent;
+    AngleVectors(cgameGlob->refdefViewAngles, fwd, right, up);
+    trace_t trace;
+    col_context_t context;
+    memset(&context, 0, sizeof(context));
+    const float zero[3] = { 0.0f, 0.0f, 0.0f };
+    float farPoint[3];
+    for (int k = 0; k < 3; ++k)
+        farPoint[k] = eye[k] + fwd[k] * 8192.0f;
+    CG_TraceCapsule(&trace, eye, zero, zero, farPoint, cgameGlob->predictedPlayerState.clientNum, 0x2806831, &context);
+    for (int k = 0; k < 3; ++k)
+        aim[k] = eye[k] + fwd[k] * 8192.0f * trace.fraction;
+}
+
+// mod: Resident Evil 4's laser sight: while the local player aims over the shoulder, a laser from the muzzle of the
+// weapon in his hand (its tag_flash) to the point the view line hits - where the crosshair is and the shots land -
+// through the engine's laser (CG_Laser_Add_Core: the beam, its end flare and light)
+void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
+{
+    cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+    if (!CG_ShoulderCameraActive(cgameGlob) || cent->nextState.number != cgameGlob->predictedPlayerState.clientNum
+        || CG_ShoulderAimFrac(cgameGlob) < 0.5f)
+        return;
+    orientation_t orient;
+    if (!CG_DObjGetWorldTagPos(&cent->pose, obj, scr_const.tag_flash, orient.origin))
+        return;
+    float eye[3], fwd[3], aim[3];
+    CG_ShoulderAimPoint(cgameGlob, eye, fwd, aim);
+    float dir[3] = { aim[0] - orient.origin[0], aim[1] - orient.origin[1], aim[2] - orient.origin[2] };
+    if (Vec3Normalize(dir) < 1.0f)
+        Vec3Copy(fwd, dir);
+    float angles[3];
+    vectoangles(dir, angles);
+    AnglesToAxis(angles, orient.axis);
+    // the beam: the laser models made with the runtime models (r_runtime_xmodel.cpp), segments end to end from the
+    // muzzle to where the line hits, and the dot there (the engine's FX beam / sprite laser draws nothing here)
+    const XModel *beam = R_RuntimeXModel_Laser(false), *dot = R_RuntimeXModel_Laser(true);
+    if (!beam || !dot)
+        return;
+    trace_t trace;
+    col_context_t context;
+    memset(&context, 0, sizeof(context));
+    const float zero[3] = { 0.0f, 0.0f, 0.0f };
+    float end[3];
+    for (int k = 0; k < 3; ++k)
+        end[k] = orient.origin[k] + orient.axis[0][k] * 2048.0f;
+    CG_TraceCapsule(&trace, orient.origin, zero, zero, end, cent->nextState.number, 0x280E833, &context);
+    const float length = 2048.0f * trace.fraction - 0.5f;
+    static unsigned __int16 lighting[130];
+    GfxScaledPlacement placement;
+    AxisToQuat(orient.axis, placement.base.quat);
+    placement.scale = 1.0f;
+    int segment = 0;
+    for (float d = 0.0f; d < length && segment < 128; d += 16.0f, ++segment)
+    {
+        for (int k = 0; k < 3; ++k)
+            placement.base.origin[k] = orient.origin[k] + orient.axis[0][k] * d;
+        R_FilterXModelIntoScene(beam, &placement, 0, &lighting[segment], 0.0f);
+    }
+    for (int k = 0; k < 3; ++k)
+        placement.base.origin[k] = orient.origin[k] + orient.axis[0][k] * length;
+    R_FilterXModelIntoScene(dot, &placement, 0, &lighting[129], 0.0f);
+}
+
 void CG_OffsetThirdPersonView(int localClientNum)
 {
     cg_s *cgameGlob;
@@ -2821,8 +2899,7 @@ void CG_OffsetThirdPersonView(int localClientNum)
             aim[k] = eye[k] + fwd[k] * 8192.0f * trace.fraction;
 
         // aiming pulls the camera in toward the shoulder, as RE4's aim camera does
-        const float ads = cg_thirdPersonAimTest->current.value > 0.0f ? cg_thirdPersonAimTest->current.value
-                                                                       : cgameGlob->predictedPlayerState.fWeaponPosFrac;
+        const float ads = CG_ShoulderAimFrac(cgameGlob);
         const float side = cg_thirdPersonShoulder->current.value * (1.0f - 0.25f * ads);
         const float lift = cg_thirdPersonShoulderUp->current.value * (1.0f - 0.4f * ads);
         const float range = cg_thirdPersonRange->current.value * (1.0f - 0.45f * ads);
@@ -5272,7 +5349,7 @@ void __cdecl CG_UpdateAdsDof(int localClientNum, GfxDepthOfField *dof)
         __debugbreak();
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     ps = &cgameGlob->predictedPlayerState;
-    if ( ShouldDoDefaultAdsDof(localClientNum) )
+    if ( ShouldDoDefaultAdsDof(localClientNum) || CG_ShoulderCameraActive(cgameGlob) ) // mod: no ADS blur on Leon
     {
         dof->nearStart = 0.0f;
         dof->nearEnd = 0.0f;

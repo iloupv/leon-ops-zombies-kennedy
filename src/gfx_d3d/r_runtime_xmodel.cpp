@@ -79,6 +79,7 @@ struct RtAnim
     const unsigned char *upperBody; // per bone: 1 from j_spinelower up (the aim poses take these), 0 below
 };
 static std::vector<RtAnim> s_anims; // this level's
+static const XModel *s_laserModels[2]; // this level's laser sight beam segment and dot (R_RuntimeXModel_Laser)
 
 // Per entity locomotion state (by DObj entnum): the measured ground speed and the playing / fading-out cycles.
 struct RtAnimState
@@ -111,6 +112,7 @@ static void RtFreeAll()
 {
     s_anims.clear();
     memset(s_animStates, 0, sizeof(s_animStates));
+    s_laserModels[0] = s_laserModels[1] = 0;
     for ( void *p : s_allocs )
         _aligned_free(p);
     s_allocs.clear();
@@ -523,16 +525,11 @@ static void RtBuildSkinnedSurface(RtReader &r, XSurface *surf, int numBones, con
     surf->vertList = 0;
 }
 
-static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, const Material *atestTempl, bool gpu)
+// builds a model from .rlm data (a file's, or one made in memory); returns the DB's copy
+static const XModel *RtBuildModel(const char *name, const void *data, int size, int zoneIndex, const Material *templ,
+                                  const Material *atestTempl, bool gpu)
 {
-    void *file = 0;
-    int size = FS_ReadFile(va("rtmodels/%s.rlm", name), &file);
-    if ( size <= 0 || !file )
-    {
-        Com_PrintWarning(0, "runtime model '%s': rtmodels/%s.rlm not found\n", name, name);
-        return;
-    }
-    RtReader r{ (const unsigned __int8 *)file, (const unsigned __int8 *)file, (const unsigned __int8 *)file + size };
+    RtReader r{ (const unsigned __int8 *)data, (const unsigned __int8 *)data, (const unsigned __int8 *)data + size };
     const void *magic = r.take(4);
     unsigned int version = r.u32(), texCount = r.u32(), surfCount = r.u32();
     unsigned int boneCount = version >= 2 ? r.u32() : 1;
@@ -540,8 +537,7 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
          || boneCount >= 160 )
     {
         Com_PrintWarning(0, "runtime model '%s': not a version 1 or 2 .rlm file\n", name);
-        FS_FreeFile(file);
-        return;
+        return 0;
     }
 
     std::vector<Material *> materials;
@@ -580,8 +576,7 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
     if ( !r.ok || !numRoot )
     {
         Com_PrintWarning(0, "runtime model '%s': bad skeleton\n", name);
-        FS_FreeFile(file);
-        return;
+        return 0;
     }
     // bind pose: the vertices' rest pose, every bone unrotated at its accumulated offset
     std::vector<float> world(boneCount * 3, 0.0f);
@@ -696,11 +691,10 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
             }
         }
     }
-    FS_FreeFile(file);
     if ( !r.ok )
     {
         Com_PrintWarning(0, "runtime model '%s': truncated or invalid .rlm file\n", name);
-        return;
+        return 0;
     }
 
     model.lodInfo[0].dist = 0.0f; // never switched out
@@ -751,6 +745,133 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
     }
     Com_Printf(0, "runtime model '%s': %u surfaces, %d vertices, %d triangles, %u textures, %u bones, %u animations"
         " (level zone %d)\n", name, surfCount, baseVert, baseTri, texCount, boneCount, (unsigned int)anims.size(), zoneIndex);
+    return linked;
+}
+
+static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, const Material *atestTempl, bool gpu)
+{
+    void *file = 0;
+    int size = FS_ReadFile(va("rtmodels/%s.rlm", name), &file);
+    if ( size <= 0 || !file )
+    {
+        Com_PrintWarning(0, "runtime model '%s': rtmodels/%s.rlm not found\n", name, name);
+        return;
+    }
+    RtBuildModel(name, file, size, zoneIndex, templ, atestTempl, gpu);
+    FS_FreeFile(file);
+}
+
+// ---- the laser sight's models (the over-the-shoulder aim, cg_view_mp.cpp) ---------------------------------------
+// Made here, not converted: a red beam segment (16 units along +X, two crossed thin quads, both faces) and a dot
+// (three crossed quads), on an unlit effect material, so the laser glows in the dark as RE4's does.
+static const char *const s_effectTechsets[] = { "mc_effect", "mc_effect_zfeather", "mc_unlit_alphatest" };
+
+static void RtPut(std::vector<unsigned char> &out, const void *p, size_t n)
+{
+    out.insert(out.end(), (const unsigned char *)p, (const unsigned char *)p + n);
+}
+
+static void RtPutU32(std::vector<unsigned char> &out, unsigned int v)
+{
+    RtPut(out, &v, 4);
+}
+
+// a version 1 .rlm with one red texture and one surface of quads (4 corners each, drawn both ways)
+static std::vector<unsigned char> RtMakeQuadModel(const float (*corners)[3], int quadCount)
+{
+    std::vector<unsigned char> out;
+    RtPut(out, "RLM1", 4);
+    RtPutU32(out, 1);
+    RtPutU32(out, 1);
+    RtPutU32(out, 1);
+    char texName[32] = "laser_red";
+    RtPut(out, texName, 32);
+    const unsigned short size = 4;
+    RtPut(out, &size, 2);
+    RtPut(out, &size, 2);
+    const unsigned char mips = 3, masked = 0;
+    RtPut(out, &mips, 1);
+    RtPut(out, &masked, 1);
+    const unsigned short pad = 0;
+    RtPut(out, &pad, 2);
+    for ( int m = 0, w = 4; m < 3; ++m, w /= 2 )
+    {
+        for ( int i = 0; i < w * w; ++i )
+        {
+            const unsigned char bgra[4] = { 40, 40, 255, 255 };
+            RtPut(out, bgra, 4);
+        }
+    }
+    RtPutU32(out, 0);
+    RtPutU32(out, (unsigned int)quadCount * 4);
+    RtPutU32(out, (unsigned int)quadCount * 4);
+    for ( int q = 0; q < quadCount; ++q )
+    {
+        const float *c = corners[4 * q];
+        float e1[3], e2[3], n[3];
+        for ( int k = 0; k < 3; ++k )
+        {
+            e1[k] = corners[4 * q + 1][k] - c[k];
+            e2[k] = corners[4 * q + 3][k] - c[k];
+        }
+        n[0] = e1[1] * e2[2] - e1[2] * e2[1];
+        n[1] = e1[2] * e2[0] - e1[0] * e2[2];
+        n[2] = e1[0] * e2[1] - e1[1] * e2[0];
+        const float len = sqrtf(n[0] * n[0] + n[1] * n[1] + n[2] * n[2]);
+        for ( int k = 0; k < 3; ++k )
+            n[k] = len > 0.0f ? n[k] / len : 0.0f;
+        const float uv[4][2] = { { 0, 0 }, { 1, 0 }, { 1, 1 }, { 0, 1 } };
+        for ( int v = 0; v < 4; ++v )
+        {
+            RtPut(out, corners[4 * q + v], 12);
+            RtPut(out, n, 12);
+            RtPut(out, uv[v], 8);
+        }
+    }
+    for ( int q = 0; q < quadCount; ++q )
+    {
+        const unsigned short b = (unsigned short)(4 * q);
+        const unsigned short tris[12] = { b, (unsigned short)(b + 1), (unsigned short)(b + 2),
+                                          b, (unsigned short)(b + 2), (unsigned short)(b + 3),
+                                          b, (unsigned short)(b + 2), (unsigned short)(b + 1),
+                                          b, (unsigned short)(b + 3), (unsigned short)(b + 2) };
+        RtPut(out, tris, sizeof(tris));
+    }
+    while ( out.size() % 4 )
+        out.push_back(0);
+    return out;
+}
+
+static void RtBuildLaserModels(int zoneIndex, bool gpu)
+{
+    s_laserModels[0] = s_laserModels[1] = 0;
+    const Material *effect = RtFindTemplateMaterial(s_effectTechsets, ARRAYSIZE(s_effectTechsets));
+    if ( !effect )
+    {
+        Com_PrintWarning(0, "runtime models: no unlit effect material; no laser sight\n");
+        return;
+    }
+    const float w = 0.12f, L = 16.0f, d = 0.9f;
+    const float beam[4][4][3] = {
+        { { 0, -w, 0 }, { L, -w, 0 }, { L, w, 0 }, { 0, w, 0 } },
+        { { 0, 0, -w }, { L, 0, -w }, { L, 0, w }, { 0, 0, w } },
+        { { 0, -w * 0.5f, -w * 0.5f }, { L, -w * 0.5f, -w * 0.5f }, { L, w * 0.5f, w * 0.5f }, { 0, w * 0.5f, w * 0.5f } },
+        { { 0, -w * 0.5f, w * 0.5f }, { L, -w * 0.5f, w * 0.5f }, { L, w * 0.5f, -w * 0.5f }, { 0, w * 0.5f, -w * 0.5f } } };
+    const float dot[3][4][3] = {
+        { { -d, -d, 0 }, { d, -d, 0 }, { d, d, 0 }, { -d, d, 0 } },
+        { { -d, 0, -d }, { d, 0, -d }, { d, 0, d }, { -d, 0, d } },
+        { { 0, -d, -d }, { 0, d, -d }, { 0, d, d }, { 0, -d, d } } };
+    std::vector<unsigned char> data = RtMakeQuadModel(&beam[0][0], 4);
+    s_laserModels[0] = RtBuildModel("leon_laser", data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
+    data = RtMakeQuadModel(&dot[0][0], 3);
+    s_laserModels[1] = RtBuildModel("leon_laser_dot", data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
+    Com_Printf(0, "runtime models: laser sight on '%s' (%s)\n", effect->info.name, effect->techniqueSet->name);
+}
+
+// the laser sight's beam segment (16 units along +X) or dot, or 0 (no runtime models, or no effect material)
+const XModel *__cdecl R_RuntimeXModel_Laser(bool dot)
+{
+    return s_laserModels[dot ? 1 : 0];
 }
 
 // Called by CL_InitCGame once the level's fastfiles are queued, before CG_Init registers the models.
@@ -797,6 +918,7 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
     I_strncpyz(names, bo1_rtmodels->current.string, sizeof(names));
     for ( char *tok = strtok(names, " ,"); tok; tok = strtok(0, " ,") )
         RtLoadModel(tok, zoneIndex, templ, atestTempl, gpu);
+    RtBuildLaserModels(zoneIndex, gpu);
     if ( gpu )
         RB_Resource_Flush();
 }

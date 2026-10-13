@@ -352,6 +352,7 @@ extern const dvar_s *player_enduranceSpeedScale;
 extern const dvar_s *player_sprintForwardMinimum;
 extern const dvar_s *player_sprintSpeedScale;
 extern const dvar_s *player_sprintUnlimited;
+extern const dvar_s *player_tankControls;
 extern const dvar_s *player_sprintTime;
 extern const dvar_s *player_sprintMinTime;
 extern const dvar_s *player_sprintRechargePause;
