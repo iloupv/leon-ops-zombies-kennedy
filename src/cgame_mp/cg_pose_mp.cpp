@@ -1142,6 +1142,43 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             CG_ShoulderAimCorrectionDecay(0.9f);
         CG_ShoulderAimCorrection(aimCorrection);
     }
+    // the head's look (RE4's cPlNeck::move): toward the nearest live enemy within 5 m (197"), +-45 degrees of his
+    // facing, 6 degrees a 30 Hz frame (180 a second) there and back; not while aiming or in a whole-body motion
+    if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
+    {
+        static float s_look;
+        static int s_lookTime = -1;
+        float want = 0.0f;
+        const bool free = aimFrac < 0.1f && action != RT_ACTION_TURN && action != RT_ACTION_KICK
+                          && action != RT_ACTION_DEATH && action != RT_ACTION_HIT_FRONT && action != RT_ACTION_HIT_BACK;
+        if ( free && cgameGlob->snap )
+        {
+            float best = 197.0f * 197.0f;
+            for ( int i = 0; i < cgameGlob->snap->numEntities; ++i )
+            {
+                const centity_s *other = CG_GetEntity(pose->localClientNum, cgameGlob->snap->entities[i].number);
+                if ( other->nextState.eType != ET_ACTOR )
+                    continue; // (a dead one is an ET_ACTOR_CORPSE)
+                const float dx = other->pose.origin[0] - origin[0], dy = other->pose.origin[1] - origin[1];
+                const float d2 = dx * dx + dy * dy;
+                if ( d2 >= best || fabsf(other->pose.origin[2] - origin[2]) > 120.0f )
+                    continue;
+                best = d2;
+                want = AngleNormalize180(atan2f(dy, dx) * 57.29578f - angles[1]);
+            }
+            want = want > 45.0f ? 45.0f : (want < -45.0f ? -45.0f : want);
+        }
+        const dvar_s *lookTest = Dvar_FindVar("leon_looktest"); // tests: a fixed look (degrees, + to his left)
+        if ( lookTest && lookTest->type == DVAR_TYPE_STRING && lookTest->current.string && lookTest->current.string[0] )
+            want = (float)atof(lookTest->current.string);
+        const float dt = s_lookTime >= 0 && cgameGlob->time > s_lookTime && cgameGlob->time - s_lookTime < 250
+                             ? (float)(cgameGlob->time - s_lookTime) * 0.001f : 0.0f;
+        s_lookTime = cgameGlob->time;
+        const float step = 180.0f * dt;
+        s_look = want > s_look ? (want - s_look > step ? s_look + step : want)
+                               : (s_look - want > step ? s_look - step : want);
+        R_RuntimeXModel_SetLookYaw(s_look);
+    }
     const float recoil = R_RuntimeXModel_PoseDObj(obj, origin, angles, cgameGlob->time, isPlayer, aimFrac, aimPitch,
                                                   action, actionTime, actionDuration, aimCorrection,
                                                   !(isPlayer && player_tankControls && player_tankControls->current.enabled),

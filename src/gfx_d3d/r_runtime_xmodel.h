@@ -33,6 +33,8 @@ enum RtAction
 bool __cdecl R_RuntimeXModel_RootYaw(const char *name, float time, float *yaw, float *duration);
 // whether a motion of that exact name ("<set>:<name>" for a set's own) was loaded
 bool __cdecl R_RuntimeXModel_HasAnim(const char *name);
+// the head's look for the next R_RuntimeXModel_PoseDObj (a player's): degrees about up, + to his left
+void __cdecl R_RuntimeXModel_SetLookYaw(float degrees);
 // mod: a dvar set non-zero (bool, int, or a string set from the command line or a script); false when it does not exist
 bool __cdecl R_RuntimeXModel_DvarOn(const char *name);
 // returns the shot's (recoil's) weight on the pose this frame, 0..1 (0: no shot playing)

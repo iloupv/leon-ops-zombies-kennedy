@@ -78,7 +78,12 @@ struct RtAnim
     const float *frames; // frameCount x boneCount x {quat[4], trans offset[3]}
     const unsigned char *upperBody; // per bone: 1 from j_spinelower up (the aim poses take these), 0 below
     int spineBone;       // j_spinelower (the aim correction turns it), -1: none
+    int neckBone;        // j_neck (the head's look turns it), -1: none
+    int neckChain[8];    // its parents below the root, root side first (their local rotations: its parent's frame)
+    int neckChainCount;
 };
+// the local player's head look (R_RuntimeXModel_SetLookYaw): degrees about up, for the next PoseDObj only
+static float s_lookYaw;
 static std::vector<RtAnim> s_anims; // this level's
 static const XModel *s_laserModels[2]; // this level's laser sight beam segment and dot (R_RuntimeXModel_Laser)
 
@@ -776,17 +781,30 @@ static const XModel *RtBuildModel(const char *name, const void *data, int size, 
         for ( int a = (int)b; a >= 0 && !upperBody[b]; a = parent[a] )
             upperBody[b] = boneName[a] == "j_spinelower";
     }
-    int spineBone = -1;
+    int spineBone = -1, neckBone = -1;
     for ( unsigned int b = 0; b < boneCount; ++b )
     {
         if ( boneName[b] == "j_spinelower" )
             spineBone = (int)b;
+        if ( boneName[b] == "j_neck" )
+            neckBone = (int)b;
     }
     for ( RtAnim &anim : anims )
     {
         anim.model = linked;
         anim.upperBody = upperBody;
         anim.spineBone = spineBone;
+        anim.neckBone = neckBone;
+        anim.neckChainCount = 0;
+        if ( neckBone > 0 )
+        {
+            int chain[8], count = 0;
+            for ( int a = parent[neckBone]; a > 0 && count < 8; a = parent[a] )
+                chain[count++] = a;
+            for ( int k = 0; k < count; ++k )
+                anim.neckChain[k] = chain[count - 1 - k];
+            anim.neckChainCount = count;
+        }
         s_anims.push_back(anim);
     }
     Com_Printf(0, "runtime model '%s': %u surfaces, %d vertices, %d triangles, %u textures, %u bones, %u animations"
@@ -952,6 +970,11 @@ bool __cdecl R_RuntimeXModel_DvarOn(const char *name)
     if ( dvar->type == DVAR_TYPE_STRING )
         return dvar->current.string && atoi(dvar->current.string) != 0;
     return dvar->current.integer != 0;
+}
+
+void __cdecl R_RuntimeXModel_SetLookYaw(float degrees)
+{
+    s_lookYaw = degrees;
 }
 
 bool __cdecl R_RuntimeXModel_HasAnim(const char *name)
@@ -1262,6 +1285,8 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
                                       float actionDuration, const float *aimCorrection, bool turnToMotion,
                                       const char *animSet)
 {
+    const float lookYaw = s_lookYaw; // for this call only
+    s_lookYaw = 0.0f;
     if ( s_anims.empty() || !obj->numModels || !obj->skel.mat )
         return 0.0f;
     const XModel *model = obj->localModels[0];
@@ -1501,6 +1526,29 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             RtQuatMul(qy, qp, qc);
             float out[4];
             RtQuatMul(qc, mat->quat, out);
+            for ( int k = 0; k < 4; ++k )
+                mat->quat[k] = out[k];
+        }
+        if ( b == cur.neckBone && isPlayer && lookYaw != 0.0f )
+        {
+            // the head's look (RE4's cPlNeck): the neck turned about the model's up axis - in its parent's frame
+            // P (the chain's local rotations below the root): local' = P^-1 qz P local
+            float p[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+            for ( int k = 0; k < cur.neckChainCount; ++k )
+            {
+                float t[4];
+                RtQuatMul(p, obj->skel.mat[cur.neckChain[k]].quat, t);
+                const float len = sqrtf(t[0] * t[0] + t[1] * t[1] + t[2] * t[2] + t[3] * t[3]);
+                for ( int c = 0; c < 4; ++c )
+                    p[c] = len > 0.0f ? t[c] / len : t[c];
+            }
+            const float half = lookYaw * 0.5f * 0.017453292f;
+            const float qz[4] = { 0.0f, 0.0f, sinf(half), cosf(half) };
+            const float pInv[4] = { -p[0], -p[1], -p[2], p[3] };
+            float t1[4], t2[4], out[4];
+            RtQuatMul(pInv, qz, t1);
+            RtQuatMul(t1, p, t2);
+            RtQuatMul(t2, mat->quat, out);
             for ( int k = 0; k < 4; ++k )
                 mat->quat[k] = out[k];
         }
