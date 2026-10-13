@@ -215,6 +215,10 @@ leon_kick()
 leon_kicked( player, forward )
 {
 	// (no endon "death": the kill below sends it, and the ragdoll comes after)
+	// dismembered: a limb torn off (BO1's own zombie gibs)
+	gibs = array( "right_arm", "left_arm", "right_leg", "left_leg", "no_legs" );
+	self.a.gib_ref = gibs[ randomInt( gibs.size ) ];
+	self thread animscripts\zombie_death::do_gib();
 	self DoDamage( self.health + 666, player.origin, player );
 	if ( self.health <= 0 || !isAlive( self ) )
 	{
