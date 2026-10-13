@@ -18,6 +18,7 @@
 #include "cg_predict_mp.h"
 #include <gfx_d3d/r_dpvs.h>
 #include <client_mp/cl_scrn_mp.h>
+#include <client_mp/cl_input_mp.h>
 #include <bgame/bg_weapons_view.h>
 #include <demo/demo_playback.h>
 #include <gfx_d3d/r_adszscale.h>
@@ -3030,7 +3031,9 @@ void CG_OffsetThirdPersonView(int localClientNum)
             s_shoulderCameraYaw = AngleNormalize360(viewYaw - deadZone);
         else if (trail < -deadZone)
             s_shoulderCameraYaw = AngleNormalize360(viewYaw + deadZone);
-        const float cameraAngles[3] = { cgameGlob->refdefViewAngles[0], s_shoulderCameraYaw, 0.0f };
+        // through RE4's quick turn the camera trails the view, so his turn shows (CL_LeonQuickTurnCameraLag)
+        const float cameraAngles[3] = { cgameGlob->refdefViewAngles[0],
+                                        AngleNormalize360(s_shoulderCameraYaw - CL_LeonQuickTurnCameraLag()), 0.0f };
         AngleVectors(cameraAngles, fwd, right, up);
         const float side = cg_thirdPersonShoulder->current.value * (1.0f - 0.1f * ads);
         const float lift = cg_thirdPersonShoulderUp->current.value * (1.0f - 0.15f * ads);

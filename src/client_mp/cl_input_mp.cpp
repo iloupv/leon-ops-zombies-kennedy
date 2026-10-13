@@ -586,14 +586,29 @@ static void CL_HeadlessKeys(int localClientNum, usercmd_s *cmd)
     }
 }
 
-// mod (the Leon mod, player_tankControls): RE4's quick turn (pl_R1_Turn180), back + run (BO1's sprint key) pressed
-// together while not aiming. The view turns along the turn motion's own root yaw (half a turn in its first 14 frames)
+// mod (the Leon mod, player_tankControls): RE4's quick turn (pl_R1_Turn180), on back pressed twice within 0.3 s while
+// not aiming (the player's choice; RE4's own is back + run). The view turns along the turn motion's own root yaw (half a turn in its first 14 frames)
 // and he stands until frame 14, the turn done (RE4 holds him to frame 19 and plays on to 22: it felt slow), the motion
 // ending at frame 16 (R_RuntimeXModel_PoseDObj blends it out over 14..16); cgame plays the motion on the body meanwhile
 // (CL_LeonQuickTurnTime). On the client's input, as a mouse turn, so the server and the prediction just follow it.
 static int cl_quickTurnStart = -1;
-static float cl_quickTurnYaw;
-static bool cl_quickTurnKeys;
+static float cl_quickTurnYaw, cl_quickTurnTurned;
+static bool cl_quickTurnBackHeld;
+static int cl_quickTurnBackTap = -100000;
+
+// the angle the shoulder camera trails the view by through the turn: the view (and his body) turn along the motion,
+// the camera eases after them from 0.08 s and catches up at 0.5 s, so the turn shows on him instead of the camera
+// swinging round with his back to it
+float __cdecl CL_LeonQuickTurnCameraLag()
+{
+    const float t = CL_LeonQuickTurnTime();
+    if ( t < 0.0f )
+        return 0.0f;
+    float u = (t - 0.08f) / 0.42f;
+    u = u < 0.0f ? 0.0f : (u > 1.0f ? 1.0f : u);
+    const float eased = u * u * (3.0f - 2.0f * u);
+    return cl_quickTurnTurned - 180.0f * (cl_quickTurnTurned < 0.0f ? -1.0f : 1.0f) * eased;
+}
 
 float __cdecl CL_LeonQuickTurnTime()
 {
@@ -604,9 +619,16 @@ float __cdecl CL_LeonQuickTurnTime()
 
 static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
 {
-    const bool keys = cmd->button_bits.testBit(1u) && cmd->forwardmove < 0 && !cmd->button_bits.testBit(0xBu);
-    const bool pressed = keys && !cl_quickTurnKeys;
-    cl_quickTurnKeys = keys;
+    // back pressed twice (its second press within 0.3 s of the first)
+    const bool back = cmd->forwardmove < 0 && !cmd->button_bits.testBit(0xBu);
+    bool pressed = false;
+    if ( back && !cl_quickTurnBackHeld )
+    {
+        const int now = (int)Sys_Milliseconds();
+        pressed = now - cl_quickTurnBackTap < 300;
+        cl_quickTurnBackTap = pressed ? -100000 : now;
+    }
+    cl_quickTurnBackHeld = back;
     float yaw, length;
     if ( !player_tankControls || !player_tankControls->current.enabled )
     {
@@ -625,6 +647,7 @@ static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
             return;
         cl_quickTurnStart = (int)Sys_Milliseconds();
         cl_quickTurnYaw = yaw;
+        cl_quickTurnTurned = 0.0f;
     }
     const float t = CL_LeonQuickTurnTime();
     if ( !R_RuntimeXModel_RootYaw("turn180", t, &yaw, &length) || t >= (length < 16.0f / 30.0f ? length : 16.0f / 30.0f) )
@@ -635,6 +658,7 @@ static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
     clientActive_t *cl = CL_GetLocalClientGlobals(localClientNum);
     const float turn = AngleNormalize180(yaw - cl_quickTurnYaw);
     cl_quickTurnYaw = yaw;
+    cl_quickTurnTurned += turn;
     cl->viewangles[1] = AngleNormalize360(cl->viewangles[1] + turn);
     cmd->angles[1] = (unsigned __int16)(int)((cl->viewangles[1] + cl->cgameKickAngles[1]) * 182.04445f);
     if ( t < 14.0f / 30.0f ) // he stands (no move, aim or shot) until the turn is done (frame 14)

@@ -928,8 +928,9 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         viewYaw[0] = 0.0f;
         // aimed in, his body stays with the shoulder camera, which trails the aim inside its dead zone: the aim
         // correction turns his torso and arms the rest of the way (CG_ShoulderCameraYaw)
-        viewYaw[1] = CG_ShoulderCameraActive(cgameGlob) ? CG_ShoulderCameraYaw(cgameGlob)
-                                                        : cgameGlob->refdefViewAngles[1];
+        // (through the quick turn: the view's, which the camera trails - his turn shows)
+        viewYaw[1] = CG_ShoulderCameraActive(cgameGlob) && CL_LeonQuickTurnTime() < 0.0f ? CG_ShoulderCameraYaw(cgameGlob)
+                                                                                        : cgameGlob->refdefViewAngles[1];
         viewYaw[2] = 0.0f;
         angles = viewYaw;
         aimFrac = cg_thirdPersonAimTest->current.value > 0.0f ? cg_thirdPersonAimTest->current.value

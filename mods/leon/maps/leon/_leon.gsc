@@ -62,6 +62,8 @@ leon_spawn_test()
 		player giveWeapon( getDvar( "leon_give" ) ); // tests: a weapon in hand (e.g. python_zm)
 		player switchToWeapon( getDvar( "leon_give" ) );
 	}
+	if ( getDvar( "leon_wallbuy" ) == "1" )
+		player thread leon_goto_wallbuy(); // tests: in front of a wall weapon (its use hint)
 	if ( getDvar( "leon_emptyclip" ) == "1" )
 		player thread leon_empty_clip(); // tests: a reload to make (a headless client fires only aimed in)
 	if ( getDvar( "leon_hurttest" ) != "" )
@@ -139,6 +141,24 @@ leon_power_on( delay )
 		}
 	}
 	logPrint( "leon: no power switch found\n" );
+}
+
+// Puts the player 60 units in front of the level's first wall weapon, facing it (tests: its use hint).
+leon_goto_wallbuy()
+{
+	wait 1;
+	trigs = getEntArray( "weapon_upgrade", "targetname" );
+	if ( trigs.size == 0 )
+	{
+		logPrint( "leon: no wall weapon\n" );
+		return;
+	}
+	trig = getClosest( self.origin, trigs );
+	dir = vectorNormalize( ( self.origin[0] - trig.origin[0], self.origin[1] - trig.origin[1], 0 ) );
+	spot = groundpos( trig.origin + dir * 40 + ( 0, 0, 20 ) );
+	self setOrigin( spot );
+	self setPlayerAngles( vectorToAngles( trig.origin - ( spot + ( 0, 0, 60 ) ) ) );
+	logPrint( "leon: at wall weapon " + trig.zombie_weapon_upgrade + " " + trig.origin + "\n" );
 }
 
 // One round left in the clip every 3 s (tests: a reload is always there to make).

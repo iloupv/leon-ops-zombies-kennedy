@@ -1,3 +1,4 @@
+#include <cgame_mp/cg_view_mp.h>
 #include <cgame/cg_sp_hud.h>
 #include "cg_newDraw_mp.h"
 #include <client_mp/cl_main_mp.h>
@@ -5213,7 +5214,9 @@ void    CG_DrawCursorhint(
 
 void __cdecl CG_UpdateCursorHints(cg_s *cgameGlob)
 {
-    if ( cgameGlob->renderingThirdPerson != TP_FOR_MODEL )
+    // mod: and over the shoulder (the Leon mod's camera, always third person): the use hints - a wall weapon's price,
+    // the box, a perk machine - showed only in first person
+    if ( cgameGlob->renderingThirdPerson != TP_FOR_MODEL || CG_ShoulderCameraActive(cgameGlob) )
     {
         if ( cgameGlob->predictedPlayerState.cursorHint )
         {
