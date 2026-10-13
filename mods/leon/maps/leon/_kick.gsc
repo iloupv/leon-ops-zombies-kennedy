@@ -4,7 +4,8 @@
 #using_animtree( "generic_human" );
 
 // LEON MOD - RE4's stagger and kick. A zombie shot in the head or the legs staggers (BO1's own "shot" flinch, as a
-// Ganado reels from a head or knee shot); while one is staggered in reach in front of Leon, the engine shows RE4's
+// Ganado reels from a head or knee shot) when the hit took at least 15% of its full health, and not again for 4 s
+// after it recovers; while one is staggered in reach in front of Leon, the engine shows RE4's
 // action prompt (leon_kick_ready: this script and the client share the process's dvars) and the use key (F) kicks:
 // RE4's kick on him (the client's pose, from leon_kick_stamp), and every zombie its sweep catches dies at once and is
 // sent flying (a launched ragdoll).
@@ -75,7 +76,14 @@ leon_stagger_watch()
 		self waittill( "damage", amount, attacker, dir, point, mod, modelName, tagName, partName );
 		if ( !isDefined( attacker ) || !isPlayer( attacker ) || self.health <= 0 )
 			continue;
-		if ( isDefined( self.leon_stagger_end ) && getTime() < self.leon_stagger_end )
+		// not while staggering, nor for 4 s after it
+		if ( isDefined( self.leon_stagger_end ) && getTime() < self.leon_stagger_end + 4000 )
+			continue;
+		// only a hit that took a real share of him (15% of his full health): weak hits do not stun-lock
+		full = self.health + amount;
+		if ( isDefined( self.maxhealth ) && self.maxhealth > full )
+			full = self.maxhealth;
+		if ( amount < full * 0.15 )
 			continue;
 		if ( !isDefined( mod ) || ( mod != "MOD_PISTOL_BULLET" && mod != "MOD_RIFLE_BULLET" ) )
 			continue;
