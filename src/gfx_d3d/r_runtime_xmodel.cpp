@@ -832,11 +832,11 @@ static void RtLaserTexel(bool radial, float u, float v, unsigned char *bgra)
     float glow = 1.0f - d;
     glow = radial ? glow * glow * glow : glow * glow; // the bloom falls off fast
     const float a = core > glow ? core : glow;
-    const float hot = radial ? 200.0f : 60.0f; // the dot's core white-hot; the beam's stays red (thinned far out)
+    const float hot = radial ? 200.0f : 20.0f; // the dot's core white-hot; the beam's stays red (thinned far out)
     bgra[0] = (unsigned char)(40.0f + hot * core); // B
     bgra[1] = (unsigned char)(40.0f + hot * core); // G
     bgra[2] = 255;                                    // R
-    bgra[3] = (unsigned char)(255.0f * a * (radial ? 1.0f : 0.45f)); // the beam faint, the dot bright
+    bgra[3] = (unsigned char)(255.0f * a * (radial ? 1.0f : 0.25f)); // the beam dull, the dot bright
 }
 
 // a version 1 .rlm with one glow texture (radial: the dot's, else the beam's) and one surface of quads (4 corners
