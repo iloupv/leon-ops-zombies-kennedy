@@ -903,9 +903,10 @@ double __cdecl CG_GetViewFov(int localClientNum)
             if ( zoomFrac > 0.0 )
                 viewFov = viewFov - (float)((float)(viewFov - weaponFov) * zoomFrac);
         }
-        // mod (the Leon mod): over the shoulder the aim zooms half as far, eased with the camera's pull-in
+        // mod (the Leon mod): over the shoulder the aim zooms 70 % as far, eased with the camera's pull-in (half
+        // was too little a zoom)
         if ( CG_ShoulderCameraActive(cgameGlob) )
-            viewFov = modBaseFov - (modBaseFov - weaponFov) * 0.5f * CG_ShoulderCameraAds(cgameGlob);
+            viewFov = modBaseFov - (modBaseFov - weaponFov) * 0.7f * CG_ShoulderCameraAds(cgameGlob);
         lastTime = thisTime;
     }
     if ( (cgameGlob->predictedPlayerState.otherFlags & 2) == 0
