@@ -201,6 +201,45 @@ static Material *RtCreateMaterial(const Material *templ, GfxImage *colorMap, con
     return RtLink(ASSET_TYPE_MATERIAL, (XAssetHeader)&material, zoneIndex).material;
 }
 
+// The vertex list's collision tree (impact marks: XSurfaceVisitTrianglesInAabb). The engine's builder
+// (XModelReadSurface_BuildCollisionTree) does not return on these surfaces, so build the smallest valid tree:
+// one root node over the whole surface whose children are leaves (childCount | 0x8000), one triangle per leaf.
+// Queries then test every triangle, which is fine for the few marks a character takes.
+static XSurfaceCollisionTree *RtBuildCollisionTree(const XSurface *surf)
+{
+    float lo[3] = { 1e9f, 1e9f, 1e9f }, hi[3] = { -1e9f, -1e9f, -1e9f };
+    for ( unsigned int v = 0; v < surf->vertCount; ++v )
+    {
+        for ( int k = 0; k < 3; ++k )
+        {
+            const float x = surf->verts0[v].xyz[k];
+            lo[k] = x < lo[k] ? x : lo[k];
+            hi[k] = x > hi[k] ? x : hi[k];
+        }
+    }
+    XSurfaceCollisionTree *tree = (XSurfaceCollisionTree *)RtAlloc(sizeof(XSurfaceCollisionTree));
+    for ( int k = 0; k < 3; ++k )
+    {
+        tree->trans[k] = -lo[k];
+        tree->scale[k] = hi[k] > lo[k] ? 65535.0f / (hi[k] - lo[k]) : 1.0f;
+    }
+    const unsigned int leafCount = surf->triCount < 0x7FFF ? surf->triCount : 0x7FFF;
+    tree->nodeCount = 1;
+    tree->nodes = (XSurfaceCollisionNode *)RtAlloc(sizeof(XSurfaceCollisionNode));
+    for ( int k = 0; k < 3; ++k )
+    {
+        tree->nodes[0].aabb.mins[k] = 0;
+        tree->nodes[0].aabb.maxs[k] = 0xFFFF;
+    }
+    tree->nodes[0].childBeginIndex = 0;
+    tree->nodes[0].childCount = (unsigned __int16)(0x8000 | leafCount);
+    tree->leafCount = leafCount;
+    tree->leafs = (XSurfaceCollisionLeaf *)RtAlloc(sizeof(XSurfaceCollisionLeaf) * (leafCount ? leafCount : 1));
+    for ( unsigned int t = 0; t < leafCount; ++t )
+        tree->leafs[t].triangleBeginIndex = (unsigned __int16)t;
+    return tree;
+}
+
 static void RtBuildSurface(RtReader &r, XSurface *surf, float *mins, float *maxs)
 {
     unsigned int vertCount = r.u32(), triCount = r.u32();
@@ -263,8 +302,7 @@ static void RtBuildSurface(RtReader &r, XSurface *surf, float *mins, float *maxs
     surf->vertList->vertCount = (unsigned __int16)vertCount;
     surf->vertList->triOffset = 0;
     surf->vertList->triCount = (unsigned __int16)triCount;
-    Com_Printf(0, "runtime models: collision tree" "\n");
-    XModelReadSurface_BuildCollisionTree(surf, 0, RtAlloc);
+    surf->vertList->collisionTree = RtBuildCollisionTree(surf);
     Com_Printf(0, "runtime models: surface done" "\n");
     surf->partBits[0] = (int)0x80000000; // bone 0
 }
