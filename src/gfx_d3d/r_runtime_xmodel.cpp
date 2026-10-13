@@ -294,7 +294,7 @@ static Material *RtCreateMaterial(const Material *templ, GfxImage *colorMap, con
             table[i].u.image = colorMap;
         else if ( table[i].semantic == 5 ) // normal map: flat
             table[i].u.image = rgp.identityNormalMapImage;
-        else if ( table[i].semantic == 8 ) // specular: none
+        else if ( table[i].semantic == 8 ) // specular: none (it also gates the probe's reflection)
             table[i].u.image = rgp.blackImage;
     }
     material.textureTable = table;
@@ -967,7 +967,12 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
     if ( built )
         return;
 
-    const Material *templ = RtFindTemplateMaterial(s_opaqueTechsets, ARRAYSIZE(s_opaqueTechsets));
+    // a character's cloth material first (the zombies' gear: the characters' own lit shader, matte where a prop's is
+    // shiny), else a plain lit prop's
+    static const char *const s_clothTechsets[] = { "mc_l_sm_r0c0n0s0_clothcharr_hero", "mc_l_sm_r0c0n0s0_clothcharr" };
+    const Material *templ = RtFindTemplateMaterial(s_clothTechsets, ARRAYSIZE(s_clothTechsets));
+    if ( !templ )
+        templ = RtFindTemplateMaterial(s_opaqueTechsets, ARRAYSIZE(s_opaqueTechsets));
     if ( !templ )
         templ = RtTemplateMaterial(); // a weapon's: lit, but with its reflection and colour detail
     if ( !templ )
