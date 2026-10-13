@@ -2770,8 +2770,8 @@ void __cdecl CG_ShoulderAimCorrectionDecay(float frac)
 // mod: the shot's (recoil's) weight on the local player's pose this frame (CG_RuntimeXModel_Pose), 0..1
 static float s_shoulderRecoil;
 
-// mod: the aim (ADS) fraction the shoulder camera follows (its pull-in, the aim's zoom: CG_GetViewFov, Leon's arms):
-// the weapon's own, a pistol's eased a touch (~70 ms: its quick raise jerked them); once per frame
+// mod: the aim (ADS) fraction the shoulder camera follows (its pull-in, the aim's zoom: CG_GetViewFov): the weapon's
+// own, a pistol's eased a touch (~40 ms: its quick raise jerked the camera); once per frame
 static float s_camAds;
 static int s_camAdsTime = -100000;
 
@@ -2787,7 +2787,7 @@ float __cdecl CG_ShoulderCameraAds(const cg_s *cgameGlob)
         s_camAds = adsRaw;
     else
     {
-        const float k = 1.0f - expf(-(float)gap * 0.015f);
+        const float k = 1.0f - expf(-(float)gap * 0.025f);
         s_camAds += (adsRaw - s_camAds) * k;
     }
     return s_camAds;
@@ -2865,7 +2865,7 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
         vectoangles(want, wantAngles);
         vectoangles(orient.axis[0], barrelAngles);
         const float dt = (float)cgameGlob->frametime * 0.001f;
-        const float k = dt * 12.0f < 1.0f ? dt * 12.0f : 1.0f;
+        const float k = dt * 20.0f < 1.0f ? dt * 20.0f : 1.0f; // tight: a swing leaves the barrel little behind
         for (int i = 0; i < 2; ++i)
         {
             // the barrel's error closes in; through a shot's motion its kick is not aim error, so the upper body
@@ -2888,29 +2888,22 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
         return;
     if (!automatic && s_shoulderRecoil > 0.0f && (!wantValid || Vec3Dot(want, orient.axis[0]) < 0.99905f))
         return;
+    // raised: on once the barrel has settled onto the aim (within 4 degrees), then kept through swings until the aim
+    // drops (it lit while the pistol was still coming up)
+    static bool s_laserSettled;
+    static int s_laserSettledTime = -100000;
+    if (cgameGlob->time - s_laserSettledTime > 100 || cgameGlob->time < s_laserSettledTime)
+        s_laserSettled = false; // not drawn last frame: the aim dropped (or a reload, a shot...)
+    s_laserSettledTime = cgameGlob->time;
+    if (!s_laserSettled)
+    {
+        if (!wantValid || Vec3Dot(want, orient.axis[0]) < 0.99756f)
+            return;
+        s_laserSettled = true;
+    }
     // none on a launcher (the aim correction above still points it)
     if (BG_GetWeaponDef(cgameGlob->predictedPlayerState.weapon)->weapClass == WEAPCLASS_ROCKETLAUNCHER)
         return;
-    // steadied: the barrel's direction followed within ~50 ms (the aim pose's sway and the correction's small jitter
-    // shook a long beam); from the muzzle as ever
-    static float s_laserDir[3];
-    static int s_laserTime = -100000;
-    const int laserGap = cgameGlob->time - s_laserTime;
-    if (laserGap < 0 || laserGap > 200)
-        Vec3Copy(orient.axis[0], s_laserDir);
-    else
-    {
-        const float k = laserGap * 0.02f < 1.0f ? laserGap * 0.02f : 1.0f;
-        for (int k3 = 0; k3 < 3; ++k3)
-            s_laserDir[k3] += (orient.axis[0][k3] - s_laserDir[k3]) * k;
-        Vec3Normalize(s_laserDir);
-    }
-    s_laserTime = cgameGlob->time;
-    {
-        float laserAngles[3];
-        vectoangles(s_laserDir, laserAngles);
-        AnglesToAxis(laserAngles, orient.axis);
-    }
     // the beam: the laser models made with the runtime models (r_runtime_xmodel.cpp), segments end to end from the
     // muzzle to where the line hits, and the dot there (the engine's FX beam / sprite laser draws nothing here)
     const XModel *beam = R_RuntimeXModel_Laser(false), *dot = R_RuntimeXModel_Laser(true);
