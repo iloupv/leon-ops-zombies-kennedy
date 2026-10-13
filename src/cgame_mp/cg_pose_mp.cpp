@@ -928,9 +928,10 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         viewYaw[0] = 0.0f;
         // aimed in, his body stays with the shoulder camera, which trails the aim inside its dead zone: the aim
         // correction turns his torso and arms the rest of the way (CG_ShoulderCameraYaw)
-        // (through the quick turn: the view's, which the camera trails - his turn shows)
-        viewYaw[1] = CG_ShoulderCameraActive(cgameGlob) && CL_LeonQuickTurnTime() < 0.0f ? CG_ShoulderCameraYaw(cgameGlob)
-                                                                                        : cgameGlob->refdefViewAngles[1];
+        // (through the quick turn: the player's own view yaw, turning on RE4's curve, which the camera trails - his turn
+        // leads and shows; refdefViewAngles is the camera's, trailing)
+        viewYaw[1] = CL_LeonQuickTurnTime() >= 0.0f ? cgameGlob->predictedPlayerState.viewangles[1]
+                     : (CG_ShoulderCameraActive(cgameGlob) ? CG_ShoulderCameraYaw(cgameGlob) : cgameGlob->refdefViewAngles[1]);
         viewYaw[2] = 0.0f;
         angles = viewYaw;
         aimFrac = cg_thirdPersonAimTest->current.value > 0.0f ? cg_thirdPersonAimTest->current.value
@@ -1157,8 +1158,8 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             for ( int i = 0; i < cgameGlob->snap->numEntities; ++i )
             {
                 const centity_s *other = CG_GetEntity(pose->localClientNum, cgameGlob->snap->entities[i].number);
-                if ( other->nextState.eType != ET_ACTOR )
-                    continue; // (a dead one is an ET_ACTOR_CORPSE)
+                if ( other->nextState.eType != ET_ACTOR || (other->nextState.lerp.eFlags & 0x40000) )
+                    continue; // alive only: EF_DEAD from its death on (an ET_ACTOR through its death motion, then a corpse)
                 const float dx = other->pose.origin[0] - origin[0], dy = other->pose.origin[1] - origin[1];
                 const float d2 = dx * dx + dy * dy;
                 if ( d2 >= best || fabsf(other->pose.origin[2] - origin[2]) > 120.0f )

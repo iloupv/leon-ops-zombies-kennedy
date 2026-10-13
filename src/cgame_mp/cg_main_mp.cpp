@@ -3603,7 +3603,12 @@ unsigned __int16 __cdecl CG_AttachWeapon(DObjModel_s *dobjModels, unsigned __int
     {
         weapDef = BG_GetWeaponDef(ci->iDObjWeapon);
         weaponModel = ci->weaponModel;
-        if ( weapDef->worldModel[weaponModel] && !weapDef->bHideThirdPerson && !(runtimeBody && ci->usingKnife) )
+        // (nor, on a runtime body, Moon's helmet equipment while it is put on / taken off: its helmet goes on his head)
+        const WeaponVariantDef *heldVariant = BG_GetWeaponVariantDef(ci->iDObjWeapon);
+        const bool helmetEquipment = runtimeBody && heldVariant && heldVariant->szInternalName
+                                     && strstr(heldVariant->szInternalName, "gasmask");
+        if ( weapDef->worldModel[weaponModel] && !weapDef->bHideThirdPerson && !(runtimeBody && ci->usingKnife)
+             && !helmetEquipment )
         {
             if ( numModels >= 0x20u
                 && !Assert_MyHandler(
