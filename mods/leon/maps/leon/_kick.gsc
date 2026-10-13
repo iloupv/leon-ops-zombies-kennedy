@@ -121,10 +121,21 @@ leon_stagger()
 		reel = %ai_zombie_shot_arm_right;
 	length = getAnimLength( reel );
 	self.leon_stagger_end = getTime() + int( length * 1000 ) + 400;
-	// from the ground under him: on stairs and ramps his origin rides above the steps, and the reel held it there
-	// (animScripted takes only "normal" or "deathplant")
-	self animscripted( "leon_stagger", groundPos( self.origin + ( 0, 0, 8 ) ), self.angles, reel, "normal", %body, 1 );
+	// through his own animscript (animScripted moved him by the reel's root with no collision but the ground: through
+	// stairs, out of the playable area): the AI's "gravity" mode steps him with physics
+	self.leon_reel = reel;
+	self animcustom( ::leon_stagger_anim );
 	wait length;
+}
+
+leon_stagger_anim()
+{
+	self endon( "death" );
+	self AnimMode( "gravity" );
+	self OrientMode( "face current" );
+	self ClearAnim( %body, 0.2 );
+	self SetFlaggedAnimKnobAllRestart( "leon_stagger", self.leon_reel, %body, 1, 0.2, 1 );
+	self waittillmatch( "leon_stagger", "end" );
 }
 
 leon_staggered()
