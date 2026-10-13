@@ -2742,8 +2742,8 @@ void    CG_OffsetThirdPersonView(int localClientNum)
 }
 #endif
 
-// mod: the over-the-shoulder camera is the view (cg_thirdPersonShoulder set, third person, alive): the crosshair
-// stays (CG_DrawCrosshair), aiming included
+// mod: the over-the-shoulder camera is the view (cg_thirdPersonShoulder set, third person, alive): no ADS blur, the
+// laser sight while aiming (third person draws no crosshair: the laser is the aim, as in RE4)
 bool __cdecl CG_ShoulderCameraActive(const cg_s *cgameGlob)
 {
     return cg_thirdPersonShoulder && cg_thirdPersonShoulder->current.value != 0.0f
@@ -2778,8 +2778,7 @@ static void CG_ShoulderAimPoint(cg_s *cgameGlob, float *eye, float *fwd, float *
 }
 
 // mod: Resident Evil 4's laser sight: while the local player aims over the shoulder, a laser from the muzzle of the
-// weapon in his hand (its tag_flash) to the point the view line hits - where the crosshair is and the shots land -
-// through the engine's laser (CG_Laser_Add_Core: the beam, its end flare and light)
+// weapon in his hand (its tag_flash) to the point the view line hits - where the shots land
 void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
 {
     cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
