@@ -2869,12 +2869,19 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
         vectoangles(orient.axis[0], barrelAngles);
         const float dt = (float)cgameGlob->frametime * 0.001f;
         const float k = dt * 20.0f < 1.0f ? dt * 20.0f : 1.0f; // tight: a swing leaves the barrel little behind
+        // the body's own turn this frame (the shoulder camera's yaw, which turns him past the dead zone)
+        static float s_lastBodyYaw;
+        const float bodyTurn = AngleNormalize180(s_shoulderCameraYaw - s_lastBodyYaw);
+        s_lastBodyYaw = s_shoulderCameraYaw;
         for (int i = 0; i < 2; ++i)
         {
-            // the barrel's error closes in; through a shot's motion its kick is not aim error, so the upper body
-            // only follows the aim's own moves (the mouse) instead
+            // the barrel's error closes in; through a shot's motion (a shotgun's pump: 1.3 s) its kick is not aim
+            // error, so the upper body only follows the aim's own moves instead - the yaw's part the body did not
+            // turn with (past the dead zone the camera and the body turn with the mouse), the pitch's none (the aim
+            // poses follow the view pitch): counted twice, it came back after the shot as a jump of the dot
             float corr = s_shoulderRecoil > 0.0f
-                ? s_shoulderAimCorrection[i] + AngleNormalize180(wantAngles[i] - s_lastWantAngles[i])
+                ? s_shoulderAimCorrection[i]
+                      + (i == 1 ? AngleNormalize180(AngleNormalize180(wantAngles[i] - s_lastWantAngles[i]) - bodyTurn) : 0.0f)
                 : s_shoulderAimCorrection[i] + AngleNormalize180(wantAngles[i] - barrelAngles[i]) * k;
             s_shoulderAimCorrection[i] = corr > 45.0f ? 45.0f : (corr < -45.0f ? -45.0f : corr);
             s_lastWantAngles[i] = wantAngles[i];
