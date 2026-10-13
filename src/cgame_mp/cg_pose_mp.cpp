@@ -828,13 +828,76 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     const cg_s *cgameGlob = CG_GetLocalClientGlobals(pose->localClientNum);
     const bool isPlayer = pose->eType == 1;
     float aimFrac = 0.0f, aimPitch = 0.0f;
+    const float *origin = pose->origin, *angles = pose->angles;
+    float viewYaw[3];
     if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
     {
+        // the local player: posed from the predicted origin and the view's yaw, as the camera is - the entity's
+        // interpolated angles trail a fast turn, and the gun (and its laser) swung against the view
+        origin = cgameGlob->predictedPlayerEntity.pose.origin;
+        viewYaw[0] = 0.0f;
+        viewYaw[1] = cgameGlob->refdefViewAngles[1];
+        viewYaw[2] = 0.0f;
+        angles = viewYaw;
         aimFrac = cg_thirdPersonAimTest->current.value > 0.0f ? cg_thirdPersonAimTest->current.value
                                                               : cgameGlob->predictedPlayerState.fWeaponPosFrac;
         aimPitch = cgameGlob->refdefViewAngles[0];
     }
-    R_RuntimeXModel_PoseDObj(obj, pose->origin, pose->angles, cgameGlob->time, isPlayer, aimFrac, aimPitch);
+    // the local player's weapon actions (from the predicted weapon state, once per frame): a shot when a firing
+    // state starts or its fire time restarts (automatic fire), a reload while a reload state lasts (its length: the
+    // weapon time when it starts)
+    RtAction action = RT_ACTION_NONE;
+    float actionTime = 0.0f, actionDuration = 0.0f;
+    if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
+    {
+        static int s_frame = -1, s_lastState, s_lastWeaponTime, s_fireStart = -100000, s_reloadStart = -100000;
+        static int s_reloadLength = 1;
+        const playerState_s *ps = &cgameGlob->predictedPlayerState;
+        const int state = ps->weaponstate;
+        const bool firing = state == WEAPON_FIRING || state == WEAPON_FIRING_LEFT || state == WEAPON_FIRING_BOTH
+                            || state == WEAPON_CONT_FIRE_LOOP;
+        const bool reloading = state >= WEAPON_RELOADING_RIGHT && state <= WEAPON_RELOAD_QUICK_EMPTY;
+        const bool wasReloading = s_lastState >= WEAPON_RELOADING_RIGHT && s_lastState <= WEAPON_RELOAD_QUICK_EMPTY;
+        if ( s_frame != cgameGlob->time )
+        {
+            if ( cgameGlob->time < s_frame )
+                s_fireStart = s_reloadStart = -100000; // a new level / restart
+            s_frame = cgameGlob->time;
+            if ( firing && (state != s_lastState || ps->weaponTime > s_lastWeaponTime + 1) )
+                s_fireStart = cgameGlob->time;
+            if ( reloading && !wasReloading )
+            {
+                s_reloadStart = cgameGlob->time;
+                s_reloadLength = ps->weaponTime > 300 ? ps->weaponTime : 300;
+            }
+            s_lastState = state;
+            s_lastWeaponTime = ps->weaponTime;
+        }
+        if ( reloading && s_reloadStart > -100000 )
+        {
+            action = RT_ACTION_RELOAD;
+            actionTime = (float)(cgameGlob->time - s_reloadStart) * 0.001f;
+            actionDuration = (float)s_reloadLength * 0.001f;
+        }
+        else if ( cgameGlob->time - s_fireStart < 1000 )
+        {
+            action = RT_ACTION_FIRE;
+            actionTime = (float)(cgameGlob->time - s_fireStart) * 0.001f;
+        }
+        if ( cg_thirdPersonActionTest->current.integer == 1 )
+        {
+            action = RT_ACTION_FIRE;
+            actionTime = (float)(cgameGlob->time % 1000) * 0.001f;
+        }
+        else if ( cg_thirdPersonActionTest->current.integer == 2 )
+        {
+            action = RT_ACTION_RELOAD;
+            actionTime = (float)(cgameGlob->time % 1600) * 0.001f;
+            actionDuration = 1.6f;
+        }
+    }
+    R_RuntimeXModel_PoseDObj(obj, origin, angles, cgameGlob->time, isPlayer, aimFrac, aimPitch, action, actionTime,
+                             actionDuration);
 }
 
 DObjAnimMat *__cdecl CG_DObjCalcPose(const cpose_t *remote_pose, DObj *obj, int *partBits)

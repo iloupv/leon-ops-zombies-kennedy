@@ -2783,8 +2783,12 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
 {
     cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     if (!CG_ShoulderCameraActive(cgameGlob) || cent->nextState.number != cgameGlob->predictedPlayerState.clientNum
-        || CG_ShoulderAimFrac(cgameGlob) < 0.5f)
+        || CG_ShoulderAimFrac(cgameGlob) < 0.98f) // on once the aim is raised (firing too: PM_TankControls)
         return;
+    const int weaponState = cgameGlob->predictedPlayerState.weaponstate;
+    if ((weaponState >= WEAPON_RELOADING_RIGHT && weaponState <= WEAPON_RELOAD_QUICK_EMPTY)
+        || cg_thirdPersonActionTest->current.integer == 2)
+        return; // off while reloading, as in RE4
     orientation_t orient;
     if (!CG_DObjGetWorldTagPos(&cent->pose, obj, scr_const.tag_flash, orient.origin))
         return;
@@ -2874,46 +2878,63 @@ void CG_OffsetThirdPersonView(int localClientNum)
     }
 
     // mod: an over-the-shoulder camera (Resident Evil 4's) while cg_thirdPersonShoulder is set: from the view origin
-    // out to the side (and up), then back cg_thirdPersonRange along the full view direction, each leg traced so the
-    // camera stays out of walls; it looks at where the view line hits, so the crosshair is where the shots land.
+    // out to the side (and up), then back cg_thirdPersonRange along the full view direction, each leg traced (and
+    // smoothed) so the camera stays out of walls.
     if (cg_thirdPersonShoulder && cg_thirdPersonShoulder->current.value != 0.0f
         && cgameGlob->predictedPlayerState.pm_type < 9
         && !(cgameGlob->predictedPlayerState.otherFlags & 2)
         && !(cgameGlob->predictedPlayerState.eFlags & 0x300)
         && !Demo_IsThirdPersonCamera())
     {
-        float fwd[3], right[3], up[3], aim[3], shoulder[3], back[3], dir[3], angles[3];
+        float fwd[3], right[3], up[3], shoulder[3], back[3], dir[3], angles[3];
         AngleVectors(cgameGlob->refdefViewAngles, fwd, right, up);
-
-        trace_t trace;
-        col_context_t context;
-        memset(&context, 0, sizeof(context));
-        const float zero[3] = { 0.0f, 0.0f, 0.0f };
-        float farPoint[3];
-        for (int k = 0; k < 3; ++k)
-            farPoint[k] = eye[k] + fwd[k] * 8192.0f;
-        CG_TraceCapsule(&trace, eye, zero, zero, farPoint, cgameGlob->predictedPlayerState.clientNum, 0x2806831,
-            &context);
-        for (int k = 0; k < 3; ++k)
-            aim[k] = eye[k] + fwd[k] * 8192.0f * trace.fraction;
 
         // aiming pulls the camera in toward the shoulder, as RE4's aim camera does
         const float ads = CG_ShoulderAimFrac(cgameGlob);
         const float side = cg_thirdPersonShoulder->current.value * (1.0f - 0.25f * ads);
         const float lift = cg_thirdPersonShoulderUp->current.value * (1.0f - 0.4f * ads);
         const float range = cg_thirdPersonRange->current.value * (1.0f - 0.45f * ads);
+        // The two legs are traced, and their allowed lengths smoothed: a wall or prop behind (or beside) pulls the
+        // camera in fast, open space lets it ease back out, so turning past corners does not make it jump
+        static float s_side = -1.0f, s_back = -1.0f;
+        static int s_lastTime;
+        const float dt = cgameGlob->time > s_lastTime && cgameGlob->time - s_lastTime < 250
+            ? (float)(cgameGlob->time - s_lastTime) * 0.001f : 0.0f;
+        s_lastTime = cgameGlob->time;
+        float traced[3];
         for (int k = 0; k < 3; ++k)
             shoulder[k] = eye[k] + right[k] * side;
-        shoulder[2] += lift;
-        ThirdPersonViewTrace(cgameGlob, eye, shoulder, 0x800811, shoulder, false, true);
+        shoulder[2] = eye[2] + lift;
+        ThirdPersonViewTrace(cgameGlob, eye, shoulder, 0x800811, traced, false, true);
+        float sideLen = sqrtf((traced[0] - eye[0]) * (traced[0] - eye[0]) + (traced[1] - eye[1]) * (traced[1] - eye[1])
+                              + (traced[2] - eye[2]) * (traced[2] - eye[2]));
+        const float sideFull = sqrtf(side * side + lift * lift);
+        if (s_side < 0.0f || dt == 0.0f)
+            s_side = sideLen;
+        else
+            s_side += (sideLen - s_side) * (sideLen < s_side ? (dt * 20.0f < 1.0f ? dt * 20.0f : 1.0f)
+                                                             : (dt * 3.0f < 1.0f ? dt * 3.0f : 1.0f));
+        const float sideFrac = sideFull > 0.0f ? s_side / sideFull : 1.0f;
+        for (int k = 0; k < 3; ++k)
+            shoulder[k] = eye[k] + (shoulder[k] - eye[k]) * sideFrac;
         for (int k = 0; k < 3; ++k)
             back[k] = shoulder[k] - fwd[k] * range;
-        ThirdPersonViewTrace(cgameGlob, shoulder, back, 0x800811, cgameGlob->refdef.vieworg, false, true);
-
+        ThirdPersonViewTrace(cgameGlob, shoulder, back, 0x800811, traced, false, true);
+        const float backLen = sqrtf((traced[0] - shoulder[0]) * (traced[0] - shoulder[0])
+                                    + (traced[1] - shoulder[1]) * (traced[1] - shoulder[1])
+                                    + (traced[2] - shoulder[2]) * (traced[2] - shoulder[2]));
+        if (s_back < 0.0f || dt == 0.0f)
+            s_back = backLen;
+        else
+            s_back += (backLen - s_back) * (backLen < s_back ? (dt * 20.0f < 1.0f ? dt * 20.0f : 1.0f)
+                                                             : (dt * 3.0f < 1.0f ? dt * 3.0f : 1.0f));
         for (int k = 0; k < 3; ++k)
-            dir[k] = aim[k] - cgameGlob->refdef.vieworg[k];
-        if (dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2] < 48.0f * 48.0f)
-            Vec3Copy(fwd, dir); // aiming at something under the camera's nose: just the view direction
+            cgameGlob->refdef.vieworg[k] = shoulder[k] - fwd[k] * s_back;
+
+        // it looks at a fixed point far ahead on the view line (not at what the line hits: sweeping past near and far
+        // things swung it by the shoulder offset's parallax); the laser shows where the shots land
+        for (int k = 0; k < 3; ++k)
+            dir[k] = eye[k] + fwd[k] * 1000.0f - cgameGlob->refdef.vieworg[k];
         vectoangles(dir, angles);
         AnglesToAxis(angles, cgameGlob->refdef.viewaxis);
         return;

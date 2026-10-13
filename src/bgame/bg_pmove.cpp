@@ -1682,7 +1682,7 @@ static void PM_TankControls(pmove_t *pm, float frametime)
     playerState_s *ps = pm->ps;
     usercmd_s *cmd = &pm->cmd;
     const bool aiming = cmd->button_bits.testBit(0xBu) || ps->fWeaponPosFrac > 0.0f;
-    if ( !cmd->button_bits.testBit(0xBu) || ps->fWeaponPosFrac < 0.75f )
+    if ( !cmd->button_bits.testBit(0xBu) || ps->fWeaponPosFrac < 0.98f ) // aimed in: the laser on (CG_ShoulderLaser)
         cmd->button_bits.resetBit(0); // RE4 fires only aimed in (the laser on)
     const bool runKey = cmd->button_bits.testBit(1u);
     cmd->button_bits.resetBit(1u); // no BO1 sprint (stamina, lowered weapon): RE4's run instead

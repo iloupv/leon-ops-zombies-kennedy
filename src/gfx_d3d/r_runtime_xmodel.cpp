@@ -1096,7 +1096,8 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
 // previous one), marked as animated so DObjCalcAnim leaves the bones alone; DObjCalcSkel then builds the skeleton as
 // for an XAnim pose (the rotation absolute, the translation added to the model's rest offset).
 void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const float *angles, int timeMs,
-                                      bool isPlayer, float aimFrac, float aimPitch)
+                                      bool isPlayer, float aimFrac, float aimPitch, RtAction action, float actionTime,
+                                      float actionDuration)
 {
     if ( s_anims.empty() || !obj->numModels || !obj->skel.mat )
         return;
@@ -1126,6 +1127,43 @@ void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const floa
         aimPhase = RtWrapPhase((float)(timeMs % 3600000) * 0.001f * level.fps, level.frameCount);
         if ( aimFrac > 1.0f )
             aimFrac = 1.0f;
+    }
+    // the action: a shot plays RE4's fire motion (level blended toward up / down by the pitch, as the aim) from the
+    // shot at its own rate; a reload RE4's reload stretched over BO1's; both fade in and out on the upper body
+    int actionAnim = -1, actionPitched = -1;
+    float actionPhase = 0.0f, actionWeight = 0.0f, actionPitchBlend = 0.0f;
+    if ( action == RT_ACTION_FIRE )
+    {
+        actionAnim = RtFindAnim(model, "fire");
+        if ( actionAnim >= 0 )
+        {
+            const RtAnim &fire = s_anims[actionAnim];
+            actionPhase = actionTime * fire.fps;
+            if ( actionPhase >= (float)(fire.frameCount - 1) )
+                actionAnim = -1;
+            else
+            {
+                const float left = (float)(fire.frameCount - 1) - actionPhase;
+                actionWeight = left < 4.0f ? left / 4.0f : 1.0f; // the last frames blend back into the aim
+                float r = -aimPitch / 60.0f;
+                r = r > 1.0f ? 1.0f : (r < -1.0f ? -1.0f : r);
+                actionPitched = RtFindAnim(model, r >= 0.0f ? "fire_up" : "fire_down");
+                actionPitchBlend = fabsf(r);
+            }
+        }
+    }
+    else if ( action == RT_ACTION_RELOAD && actionDuration > 0.0f )
+    {
+        actionAnim = RtFindAnim(model, "reload");
+        if ( actionAnim >= 0 )
+        {
+            const RtAnim &reload = s_anims[actionAnim];
+            float t = actionTime / actionDuration;
+            t = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
+            actionPhase = t * (float)(reload.frameCount - 1);
+            const float fade = 0.15f / actionDuration; // 0.15 s in and out
+            actionWeight = t < fade ? t / fade : (1.0f - t < fade ? (1.0f - t) / fade : 1.0f);
+        }
     }
     int numBones = cur.boneCount < model->numBones ? cur.boneCount : model->numBones;
     if ( numBones > obj->numBones )
@@ -1182,6 +1220,18 @@ void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const floa
                 RtBlendPose(quat, trans, pq, pt, aimPitchBlend);
             }
             RtBlendPose(mat->quat, mat->trans, quat, trans, aimFrac);
+        }
+        if ( actionAnim >= 0 && actionWeight > 0.0f && cur.upperBody && cur.upperBody[b] )
+        {
+            float quat[4], trans[3];
+            RtSampleBone(s_anims[actionAnim], actionPhase, b, quat, trans);
+            if ( actionPitched >= 0 && actionPitchBlend > 0.0f )
+            {
+                float pq[4], pt[3];
+                RtSampleBone(s_anims[actionPitched], actionPhase, b, pq, pt);
+                RtBlendPose(quat, trans, pq, pt, actionPitchBlend);
+            }
+            RtBlendPose(mat->quat, mat->trans, quat, trans, actionWeight);
         }
         const float lenSq = mat->quat[0] * mat->quat[0] + mat->quat[1] * mat->quat[1] + mat->quat[2] * mat->quat[2]
             + mat->quat[3] * mat->quat[3];

@@ -7,5 +7,14 @@ void __cdecl R_RuntimeXModel_RegisterDvars();
 void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName);
 bool __cdecl R_RuntimeXModel_IsAnimated(const struct XModel *model);
 const struct XModel *__cdecl R_RuntimeXModel_Laser(bool dot);
+// an upper-body action over the locomotion / aim (the local player's weapon): a shot, timed from it, or a reload,
+// stretched over its duration
+enum RtAction
+{
+    RT_ACTION_NONE,
+    RT_ACTION_FIRE,
+    RT_ACTION_RELOAD,
+};
 void __cdecl R_RuntimeXModel_PoseDObj(struct DObj *obj, const float *origin, const float *angles, int timeMs,
-                                      bool isPlayer, float aimFrac, float aimPitch);
+                                      bool isPlayer, float aimFrac, float aimPitch, RtAction action = RT_ACTION_NONE,
+                                      float actionTime = 0.0f, float actionDuration = 0.0f);
