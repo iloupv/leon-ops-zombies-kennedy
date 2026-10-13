@@ -855,6 +855,25 @@ static const char *CG_RuntimeXModel_AnimSet(unsigned int weapon)
 static int s_leonHitStart = -100000;
 static bool s_leonHitBack;
 
+// mod: the local player going down (BO1's last stand) or dying, from his player state every frame (also while the
+// game's end camera looks elsewhere): RE4's death on him and his scream (the runtime sound "leon_death": SE 0xD), once
+static int s_leonDownStart = -100000;
+static bool s_leonDown;
+
+void __cdecl CG_RuntimeXModel_PlayerState(int localClientNum, const playerState_s *ps)
+{
+    const cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+    // 5: frozen at the game's end (solo, no Quick Revive: the death ends the game); 6 / 7: last stand; 9 on: dead
+    const bool down = ps->pm_type >= 5 && ps->pm_type != 8;
+    if ( down && !s_leonDown )
+    {
+        s_leonDownStart = cgameGlob->time;
+        const bool voiced = SND_Runtime_PlayLocal(localClientNum, "leon_death");
+        Com_Printf(0, "leon: down (pm_type %d)%s\n", ps->pm_type, voiced ? ", death scream" : "");
+    }
+    s_leonDown = down;
+}
+
 void __cdecl CG_RuntimeXModel_PlayerHit(int localClientNum, int yawByte, int pitchByte)
 {
     const cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
@@ -904,8 +923,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
     {
         static int s_frame = -1, s_lastState, s_lastWeaponTime, s_fireStart = -100000, s_reloadStart = -100000;
-        static int s_knifeStart = -100000, s_throwStart = -100000, s_downStart = -100000;
-        static bool s_down;
+        static int s_knifeStart = -100000, s_throwStart = -100000;
         static int s_reloadLength = 1;
         const playerState_s *ps = &cgameGlob->predictedPlayerState;
         const int state = ps->weaponstate;
@@ -919,19 +937,10 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             {
                 s_fireStart = s_reloadStart = s_knifeStart = s_throwStart = -100000; // a new level / restart
                 s_leonHitStart = -100000;
-                s_down = false;
             }
             s_frame = cgameGlob->time;
             if ( firing && (state != s_lastState || ps->weaponTime > s_lastWeaponTime + 1) )
                 s_fireStart = cgameGlob->time;
-            // down (BO1's last stand, pm_type 6 / 7) or dead: RE4's death and his scream (SE 0xD), once
-            const bool down = ps->pm_type == 6 || ps->pm_type == 7 || ps->pm_type >= 9;
-            if ( down && !s_down )
-            {
-                s_downStart = cgameGlob->time;
-                SND_Runtime_PlayLocal(pose->localClientNum, "leon_death");
-            }
-            s_down = down;
             // a melee (Space under tank controls: CL_LeonQuickTurn) slashes the knife; a grenade's throw (its
             // release: BO1's offhand start) throws
             if ( (state == WEAPON_MELEE_INIT || state == WEAPON_MELEE_FIRE) && s_lastState != WEAPON_MELEE_INIT
@@ -949,10 +958,10 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             s_lastWeaponTime = ps->weaponTime;
         }
         const float turnTime = CL_LeonQuickTurnTime();
-        if ( s_down )
+        if ( s_leonDown )
         {
             action = RT_ACTION_DEATH;
-            actionTime = (float)(cgameGlob->time - s_downStart) * 0.001f;
+            actionTime = (float)(cgameGlob->time - s_leonDownStart) * 0.001f;
         }
         else if ( turnTime >= 0.0f )
         {
