@@ -2764,6 +2764,12 @@ void CG_OffsetThirdPersonView(int localClientNum)
         return;
     }
 
+    // mod: the shoulder camera's pivot, the player's eye: the drawn player's origin (the predicted one in play) + the
+    // view height; steadier than the head bone
+    float eye[3];
+    Vec3Copy(cgameGlob->predictedPlayerEntity.pose.origin, eye);
+    eye[2] += cgameGlob->predictedPlayerState.viewHeightCurrent;
+
     if (!(cgameGlob->predictedPlayerState.eFlags & 0x300))
     {
         DObj *obj = Com_GetClientDObj(cgameGlob->predictedPlayerState.clientNum, localClientNum);
@@ -2779,6 +2785,47 @@ void CG_OffsetThirdPersonView(int localClientNum)
         }
 
         Vec3Copy(corpseCent, cgameGlob->refdef.vieworg);
+    }
+
+    // mod: an over-the-shoulder camera (Resident Evil 4's) while cg_thirdPersonShoulder is set: from the view origin
+    // out to the side (and up), then back cg_thirdPersonRange along the full view direction, each leg traced so the
+    // camera stays out of walls; it looks at where the view line hits, so the crosshair is where the shots land.
+    if (cg_thirdPersonShoulder && cg_thirdPersonShoulder->current.value != 0.0f
+        && cgameGlob->predictedPlayerState.pm_type < 9
+        && !(cgameGlob->predictedPlayerState.otherFlags & 2)
+        && !(cgameGlob->predictedPlayerState.eFlags & 0x300)
+        && !Demo_IsThirdPersonCamera())
+    {
+        float fwd[3], right[3], up[3], aim[3], shoulder[3], back[3], dir[3], angles[3];
+        AngleVectors(cgameGlob->refdefViewAngles, fwd, right, up);
+
+        trace_t trace;
+        col_context_t context;
+        memset(&context, 0, sizeof(context));
+        const float zero[3] = { 0.0f, 0.0f, 0.0f };
+        float farPoint[3];
+        for (int k = 0; k < 3; ++k)
+            farPoint[k] = eye[k] + fwd[k] * 8192.0f;
+        CG_TraceCapsule(&trace, eye, zero, zero, farPoint, cgameGlob->predictedPlayerState.clientNum, 0x2806831,
+            &context);
+        for (int k = 0; k < 3; ++k)
+            aim[k] = eye[k] + fwd[k] * 8192.0f * trace.fraction;
+
+        for (int k = 0; k < 3; ++k)
+            shoulder[k] = eye[k] + right[k] * cg_thirdPersonShoulder->current.value;
+        shoulder[2] += cg_thirdPersonShoulderUp->current.value;
+        ThirdPersonViewTrace(cgameGlob, eye, shoulder, 0x800811, shoulder, false, true);
+        for (int k = 0; k < 3; ++k)
+            back[k] = shoulder[k] - fwd[k] * cg_thirdPersonRange->current.value;
+        ThirdPersonViewTrace(cgameGlob, shoulder, back, 0x800811, cgameGlob->refdef.vieworg, false, true);
+
+        for (int k = 0; k < 3; ++k)
+            dir[k] = aim[k] - cgameGlob->refdef.vieworg[k];
+        if (dir[0] * dir[0] + dir[1] * dir[1] + dir[2] * dir[2] < 48.0f * 48.0f)
+            Vec3Copy(fwd, dir); // aiming at something under the camera's nose: just the view direction
+        vectoangles(dir, angles);
+        AnglesToAxis(angles, cgameGlob->refdef.viewaxis);
+        return;
     }
 
     if (cgameGlob->predictedPlayerState.pm_type >= 9 &&

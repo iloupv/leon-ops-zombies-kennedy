@@ -299,6 +299,8 @@ const dvar_s *cg_thirdPersonAngle;
 const dvar_s *cg_thirdPersonFocusDist;
 const dvar_s *cg_thirdPerson;
 const dvar_s *cg_thirdPersonMode;
+const dvar_s *cg_thirdPersonShoulder; // mod: the over-the-shoulder camera (cg_view_mp.cpp)
+const dvar_s *cg_thirdPersonShoulderUp;
 const dvar_s *cg_chatTime;
 const dvar_s *cg_chatHeight;
 const dvar_s *cg_predictItems;
@@ -1296,6 +1298,20 @@ void __cdecl CG_RegisterDvars()
                                                  1,
                                                  1u,
                                                  "How the camera behaves in third person");
+    cg_thirdPersonShoulder = _Dvar_RegisterFloat( // mod
+                                                    "cg_thirdPersonShoulder",
+                                                    0.0,
+                                                    -64.0,
+                                                    64.0,
+                                                    1u,
+                                                    "Third person: the camera's offset to the right of the view (0: the stock camera behind the head)");
+    cg_thirdPersonShoulderUp = _Dvar_RegisterFloat( // mod
+                                                    "cg_thirdPersonShoulderUp",
+                                                    0.0,
+                                                    -64.0,
+                                                    64.0,
+                                                    1u,
+                                                    "Third person: the over-the-shoulder camera's offset above the view");
     cg_chatTime = _Dvar_RegisterInt(
                                     "cg_chatTime",
                                     12000,

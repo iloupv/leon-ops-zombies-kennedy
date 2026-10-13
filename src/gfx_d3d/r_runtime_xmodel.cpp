@@ -47,6 +47,8 @@
 #include <universal/dvar.h>
 #include <universal/q_shared.h>
 #include <universal/com_math.h>
+#include <universal/com_math_anglevectors.h>
+#include <cgame_mp/cg_pose_mp.h>
 #include <win32/win_shared.h>
 #include <malloc.h>
 #include <string.h>
@@ -964,17 +966,25 @@ void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const floa
     for ( int b = 0; b < numBones; ++b )
     {
         DObjAnimMat *mat = &obj->skel.mat[b];
-        // the root: the body's turn toward the motion. A player's replaces CoD's leg yaw (BG_Player_DoControllers sets
-        // tag_origin for CoD's own leg animations); another entity keeps a controller's root (the base origin
-        // controller places script models by it). Not once the skeleton is built from it.
-        const bool rootSet = (obj->skel.partBits.anim[0] & 0x80000000) != 0;
-        if ( b == 0 && !(obj->skel.partBits.skel[0] & 0x80000000) && (isPlayer || !rootSet) )
+        // The root: the skeleton is in world space, CG_DoBaseOriginController (in CG_DoControllers, before this) puts
+        // the entity's origin and angles on it, composed with a controller's root. A player's is rebuilt the same way
+        // with the body's turn toward the motion in place of CoD's leg yaw (BG_Player_DoControllers' tag_origin, for
+        // CoD's leg animations); another entity's stays as set. Not once the skeleton is built from it.
+        if ( b == 0 && !(obj->skel.partBits.skel[0] & 0x80000000)
+             && (isPlayer || !(obj->skel.partBits.anim[0] & 0x80000000)) )
         {
             const float half = st.bodyYaw * 0.5f * 0.017453292f;
-            mat->quat[0] = mat->quat[1] = 0.0f;
-            mat->quat[2] = sinf(half);
-            mat->quat[3] = cosf(half);
-            mat->trans[0] = mat->trans[1] = mat->trans[2] = 0.0f;
+            float quat[4] = { 0.0f, 0.0f, sinf(half), cosf(half) };
+            if ( isPlayer )
+            {
+                float baseQuat[4];
+                AnglesToQuat(angles, baseQuat);
+                QuatMultiplyEquals(baseQuat, quat); // as CG_DoBaseOriginController composes a controller's root
+            }
+            for ( int k = 0; k < 4; ++k )
+                mat->quat[k] = quat[k];
+            for ( int k = 0; k < 3; ++k )
+                mat->trans[k] = isPlayer ? origin[k] : 0.0f;
             mat->transWeight = 2.0f;
             obj->skel.partBits.anim[0] |= 0x80000000;
             continue;
