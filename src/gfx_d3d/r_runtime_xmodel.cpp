@@ -442,3 +442,41 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
         RB_Resource_Flush();
     Com_Printf(0, "runtime models: done\n");
 }
+
+// BO1DEBUG (temporary): once, a while into the level, what the renderer holds for each runtime model
+void __cdecl R_RuntimeXModel_DebugFrame()
+{
+    static int s_firstActive;
+    static bool s_dumped;
+    if ( s_dumped || !bo1_rtmodels || !bo1_rtmodels->current.string[0] )
+        return;
+    if ( !s_firstActive )
+        s_firstActive = Sys_Milliseconds();
+    if ( Sys_Milliseconds() - s_firstActive < 5000 )
+        return;
+    s_dumped = true;
+    XAssetEntryPoolEntry *e = DB_FindXAssetEntry(ASSET_TYPE_XMODEL, "leon");
+    if ( !e )
+    {
+        Com_Printf(0, "rtdebug: no entry\n");
+        return;
+    }
+    XModel *m = e->entry.asset.header.model;
+    Com_Printf(0, "rtdebug: entry zone %d model %p name %s numsurfs %d numBones %d bad %d radius %g mins %g %g %g maxs %g %g %g\n",
+        e->entry.zoneIndex, m, m->name, m->numsurfs, m->numBones, (int)m->bad, m->radius, m->mins[0], m->mins[1], m->mins[2],
+        m->maxs[0], m->maxs[1], m->maxs[2]);
+    for ( int s = 0; s < m->numsurfs; ++s )
+    {
+        XSurface *surf = &m->surfs[s];
+        Material *mat = m->materialHandles[s];
+        Com_Printf(0, "rtdebug: surf %d verts %d tris %d flags %x vb0 %p ib %p vertList %p material %s sorted %d tech %p\n", s,
+            surf->vertCount, surf->triCount, surf->flags, surf->vb0, surf->indexBuffer, surf->vertList,
+            mat ? mat->info.name : "-", mat ? (int)mat->info.drawSurf.fields.materialSortedIndex : -1, mat ? mat->techniqueSet : 0);
+        if ( s == 0 )
+        {
+            const GfxPackedVertex *v = surf->verts0;
+            Com_Printf(0, "rtdebug: v0 %g %g %g v1 %g %g %g idx %d %d %d\n", v[0].xyz[0], v[0].xyz[1], v[0].xyz[2], v[1].xyz[0],
+                v[1].xyz[1], v[1].xyz[2], surf->triIndices[0], surf->triIndices[1], surf->triIndices[2]);
+        }
+    }
+}
