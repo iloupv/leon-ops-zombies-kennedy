@@ -17,6 +17,7 @@ main_start()
 	precacheModel( "leon" );
 	precacheModel( "t5_weapon_m14_world" ); // the npc test's weapon (common_zombie: on every map)
 	level thread leon_spawn_test();
+	level thread maps\leon\_kick::init(); // RE4's stagger and kick
 }
 
 main_end()
@@ -31,8 +32,11 @@ leon_spawn_test()
 		wait 0.5;
 		players = getEntArray( "player", "classname" );
 	}
-	wait 3;
 	player = players[0];
+	// as soon as the game has given him his character (it sets the model at the spawn), not a few seconds later
+	while ( !isDefined( player.model ) || player.model == "" )
+		wait 0.05;
+	wait 0.1;
 	yaw = player.angles[1];
 	forward = anglesToForward( ( 0, yaw, 0 ) );
 	right = anglesToRight( ( 0, yaw, 0 ) );
@@ -42,6 +46,7 @@ leon_spawn_test()
 	{
 		player detachAll();
 		player setModel( "leon" );
+		player thread leon_keep_model();
 	}
 	logPrint( "leon: player model " + player.model + "\n" );
 	if ( getDvar( "leon_thirdperson" ) == "1" )
@@ -111,6 +116,21 @@ leon_damage_log_events()
 	{
 		self waittill( "damage", amount, attacker, dir, point, mod );
 		logPrint( "leon: damage " + amount + " mod " + mod + " health " + self.health + "\n" );
+	}
+}
+
+// Leon again whenever the game gives him back a character model (a respawn, a revive).
+leon_keep_model()
+{
+	self endon( "disconnect" );
+	for ( ;; )
+	{
+		wait 0.25;
+		if ( isDefined( self.model ) && self.model != "leon" && self.model != "" )
+		{
+			self detachAll();
+			self setModel( "leon" );
+		}
 	}
 }
 

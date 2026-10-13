@@ -4163,6 +4163,10 @@ void __cdecl CG_UpdateThirdPerson(int localClientNum, bool forExtraCam)
 
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     cgameGlob->renderingThirdPerson = (thirdPersonType)(cg_thirdPerson->current.integer || cgameGlob->nextSnap->ps.pm_type >= 9);
+    // mod: the Leon mod plays in third person from the first frame (cg_thirdPerson is a cheat dvar its script sets only
+    // once the level runs: a moment of first person before)
+    if ( !cgameGlob->renderingThirdPerson && R_RuntimeXModel_DvarOn("leon_thirdperson") )
+        cgameGlob->renderingThirdPerson = TP_FOR_MODEL;
     // mod: over the shoulder (the Leon mod), a scoped weapon aims through BO1's own first-person sight
     if ( cgameGlob->renderingThirdPerson && cgameGlob->nextSnap->ps.pm_type < 9 && cg_thirdPersonShoulder
          && cg_thirdPersonShoulder->current.value != 0.0f && cgameGlob->predictedPlayerState.weapon

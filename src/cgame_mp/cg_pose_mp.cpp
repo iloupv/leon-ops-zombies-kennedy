@@ -935,6 +935,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     {
         static int s_frame = -1, s_lastState, s_lastWeaponTime, s_fireStart = -100000, s_reloadStart = -100000;
         static int s_knifeStart = -100000, s_throwStart = -100000;
+        static int s_kickStart = -100000, s_kickStamp; // the script's kick (leon_kick_stamp: its time at the kick)
         static int s_reloadLength = 1;
         const playerState_s *ps = &cgameGlob->predictedPlayerState;
         const int state = ps->weaponstate;
@@ -957,6 +958,15 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             if ( (state == WEAPON_MELEE_INIT || state == WEAPON_MELEE_FIRE) && s_lastState != WEAPON_MELEE_INIT
                  && s_lastState != WEAPON_MELEE_FIRE )
                 s_knifeStart = cgameGlob->time;
+            const dvar_s *kickStamp = Dvar_FindVar("leon_kick_stamp");
+            const int stamp = kickStamp && kickStamp->type == DVAR_TYPE_STRING && kickStamp->current.string
+                ? atoi(kickStamp->current.string) : 0;
+            if ( stamp != s_kickStamp )
+            {
+                if ( stamp )
+                    s_kickStart = cgameGlob->time;
+                s_kickStamp = stamp;
+            }
             if ( (state == WEAPON_OFFHAND_START || state == WEAPON_OFFHAND) && s_lastState != WEAPON_OFFHAND_START
                  && s_lastState != WEAPON_OFFHAND )
                 s_throwStart = cgameGlob->time;
@@ -983,6 +993,19 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         {
             action = s_leonHitBack ? RT_ACTION_HIT_BACK : RT_ACTION_HIT_FRONT;
             actionTime = (float)(cgameGlob->time - s_leonHitStart) * 0.001f;
+        }
+        else if ( cgameGlob->time - s_kickStart < 2000 && cgameGlob->time >= s_kickStart )
+        {
+            action = RT_ACTION_KICK;
+            actionTime = (float)(cgameGlob->time - s_kickStart) * 0.001f;
+            // its swing (RE4 plays SE 0x11 and 0x10 as Leon's turn toward the Ganado ends, frame 9: 0.3 s)
+            static int s_kickVoiced = -100000;
+            if ( s_kickVoiced != s_kickStart && cgameGlob->time - s_kickStart >= 300 )
+            {
+                s_kickVoiced = s_kickStart;
+                SND_Runtime_PlayLocal(pose->localClientNum, "leon_kicka");
+                SND_Runtime_PlayLocal(pose->localClientNum, "leon_kickb");
+            }
         }
         else if ( cgameGlob->time - s_knifeStart < 2000 )
         {
