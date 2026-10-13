@@ -678,13 +678,15 @@ static void CL_LeonOrbit(int localClientNum, usercmd_s *cmd)
 // clamped to its range (5.73 degrees; RE4 clamps the yaw by the pitch's range too); moving the aim re-centres it
 // (mflag bit 0). The values are the handgun's (objFn57::init setAbility, as most of RE4's weapons). It moves the view
 // itself, so the laser, the shots and his arms follow it; the camera takes it back out (CL_LeonAimSway).
-static float cl_swayPrev[2], cl_swayCur[2], cl_swayApplied[2], cl_swayLast[2];
-static int cl_swayTick = -1;
+// cl_swayCamera: the sway the camera still takes out after a re-centre, eased away (~0.25 s) - dropped at once, the
+// camera jumped by the whole offset each time, and a slow mouse re-centres on every frame it moves
+static float cl_swayPrev[2], cl_swayCur[2], cl_swayApplied[2], cl_swayLast[2], cl_swayCamera[2];
+static int cl_swayTick = -1, cl_swayTime = -1;
 
 void __cdecl CL_LeonAimSway(float *pitch, float *yaw)
 {
-    *pitch = cl_swayApplied[0];
-    *yaw = cl_swayApplied[1];
+    *pitch = cl_swayApplied[0] + cl_swayCamera[0];
+    *yaw = cl_swayApplied[1] + cl_swayCamera[1];
 }
 
 static void CL_LeonSway(int localClientNum, usercmd_s *cmd)
@@ -695,9 +697,18 @@ static void CL_LeonSway(int localClientNum, usercmd_s *cmd)
                        && CG_ShoulderAimFrac(CG_GetLocalClientGlobals(localClientNum)) >= 0.98f;
     const bool moved = fabsf(AngleNormalize180(cl->viewangles[0] - cl_swayLast[0])) > 0.001f
                        || fabsf(AngleNormalize180(cl->viewangles[1] - cl_swayLast[1])) > 0.001f;
+    const float dt = cl_swayTime >= 0 && now > cl_swayTime && now - cl_swayTime < 250 ? (float)(now - cl_swayTime) * 0.001f
+                                                                                      : 0.0f;
+    cl_swayTime = now;
+    const float keep = expf(-dt * 12.0f);
+    for ( int k = 0; k < 2; ++k )
+        cl_swayCamera[k] = fabsf(cl_swayCamera[k] * keep) < 0.001f ? 0.0f : cl_swayCamera[k] * keep;
     if ( !aimed || moved || cl_swayTick < 0 || now - cl_swayTick > 250 )
     {
-        // not aimed in, or the player moved the aim: its centre is where it points now (the offset taken in)
+        // not aimed in, or the player moved the aim: its centre is where it points now (the offset taken in; the
+        // camera lets go of it gently)
+        cl_swayCamera[0] += cl_swayApplied[0];
+        cl_swayCamera[1] += cl_swayApplied[1];
         cl_swayPrev[0] = cl_swayPrev[1] = cl_swayCur[0] = cl_swayCur[1] = 0.0f;
         cl_swayApplied[0] = cl_swayApplied[1] = 0.0f;
         cl_swayTick = now;
