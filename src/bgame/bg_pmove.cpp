@@ -1685,6 +1685,18 @@ static void PM_TankControls(pmove_t *pm, float frametime)
     const bool aiming = cmd->button_bits.testBit(0xBu) || ps->fWeaponPosFrac > 0.0f;
     if ( !cmd->button_bits.testBit(0xBu) || ps->fWeaponPosFrac < 0.98f ) // aimed in: the laser on (CG_ShoulderLaser)
         cmd->button_bits.resetBit(0); // RE4 fires only aimed in (the laser on)
+    // no reload (bits 4: reload, 5: use / reload) while the mod's kick (maps\leon\_kick.gsc) is offered or plays: F (use)
+    // kicks, and a use / reload bind would reload instead
+    static const char *const s_kickDvars[] = { "leon_kick_ready", "leon_kicking" };
+    for ( const char *kickDvar : s_kickDvars )
+    {
+        const dvar_s *kick = Dvar_FindVar(kickDvar);
+        if ( kick && kick->type == DVAR_TYPE_STRING && kick->current.string && atoi(kick->current.string) )
+        {
+            cmd->button_bits.resetBit(4u);
+            cmd->button_bits.resetBit(5u);
+        }
+    }
     const bool runKey = cmd->button_bits.testBit(1u);
     cmd->button_bits.resetBit(1u); // no BO1 sprint (stamina, lowered weapon): RE4's run instead
     const bool running = runKey && cmd->forwardmove > 0 && !aiming;

@@ -18,6 +18,7 @@ init()
 		return;
 	setDvar( "leon_kick_ready", "0" );
 	setDvar( "leon_kick_stamp", "0" );
+	setDvar( "leon_kicking", "0" );
 	level thread leon_zombie_watch();
 	players = getEntArray( "player", "classname" );
 	while ( players.size == 0 )
@@ -120,7 +121,9 @@ leon_stagger()
 		reel = %ai_zombie_shot_arm_right;
 	length = getAnimLength( reel );
 	self.leon_stagger_end = getTime() + int( length * 1000 ) + 400;
-	self animscripted( "leon_stagger", self.origin, self.angles, reel, "normal", %body, 1 );
+	// from the ground under him: on stairs and ramps his origin rides above the steps, and the reel held it there
+	// (animScripted takes only "normal" or "deathplant")
+	self animscripted( "leon_stagger", groundPos( self.origin + ( 0, 0, 8 ) ), self.angles, reel, "normal", %body, 1 );
 	wait length;
 }
 
@@ -130,14 +133,14 @@ leon_staggered()
 }
 
 // The nearest staggered zombie in reach in front of the player, or undefined: RE4's prompt (em10.cpp
-// em10ActEvtSetKick: 1.5 m, 60 degrees of his facing, 0.7 m of height), its reach widened to 85" (centre to centre
-// the zombies close in nearer than Ganados: at RE4's 59" it showed only face to face).
+// em10ActEvtSetKick: 1.5 m, 60 degrees of his facing, 0.7 m of height), widened: 110" of reach (centre to centre the
+// zombies close in nearer than Ganados: at RE4's 59" it showed only face to face) and 48" of height (stairs, ramps).
 leon_kick_target()
 {
 	forward = anglesToForward( ( 0, self.angles[1], 0 ) );
 	zombies = getAiArray( "axis" );
 	best = undefined;
-	bestDist = 85;
+	bestDist = 110;
 	for ( i = 0; i < zombies.size; i++ )
 	{
 		z = zombies[i];
@@ -145,7 +148,7 @@ leon_kick_target()
 			continue;
 		offset = z.origin - self.origin;
 		d = length( ( offset[0], offset[1], 0 ) );
-		if ( d > bestDist || abs( offset[2] ) > 27 )
+		if ( d > bestDist || abs( offset[2] ) > 48 )
 			continue;
 		if ( d > 1 && vectorDot( forward, vectorNormalize( ( offset[0], offset[1], 0 ) ) ) < 0.5 )
 			continue;
@@ -174,24 +177,25 @@ leon_kick_watch()
 }
 
 // The kick: RE4's (em10.cpp plem10Kick) lands at its frame 16 (0.53 s) on every enemy within 1.2 m (47") of a point
-// 0.3 m (12") in front of him, here 62" around a point 24" ahead (reaching the prompt's 85"); each dies and flies. Its
-// hit sound (SE 0xF) plays once if it hits.
+// 0.3 m (12") in front of him, here 82" around a point 30" ahead (reaching the prompt's 110"), 60" of height (stairs);
+// each dies and flies. Its hit sound (SE 0xF) plays once if it hits.
 leon_kick()
 {
 	self endon( "disconnect" );
 	self.leon_kicking = true;
 	setDvar( "leon_kick_stamp", getTime() ); // the client starts Leon's kick on it
 	setDvar( "leon_kick_ready", "0" ); // no prompt through the kick
+	setDvar( "leon_kicking", "1" ); // no reload through it (PM_TankControls)
 	wait 0.53;
 	forward = anglesToForward( ( 0, self.angles[1], 0 ) );
-	center = self.origin + forward * 24;
+	center = self.origin + forward * 30;
 	zombies = getAiArray( "axis" );
 	hit = false;
 	for ( i = 0; i < zombies.size; i++ )
 	{
 		z = zombies[i];
 		offset = z.origin - center;
-		if ( length( ( offset[0], offset[1], 0 ) ) > 62 || abs( offset[2] ) > 48 )
+		if ( length( ( offset[0], offset[1], 0 ) ) > 82 || abs( offset[2] ) > 60 )
 			continue;
 		z thread leon_kicked( self, forward );
 		hit = true;
@@ -205,8 +209,9 @@ leon_kick()
 		near = getClosest( center, zombies );
 		logPrint( "leon: kick at " + getTime() + " missed, nearest " + distance( near.origin, center ) + " off " + ( near.origin - self.origin ) + " alive " + isAlive( near ) + "\n" );
 	}
-	wait 0.6;
+	wait 1.1; // to the motion's end (50 frames: 1.67 s)
 	setDvar( "leon_kick_ready", "0" );
+	setDvar( "leon_kicking", "0" );
 	while ( self useButtonPressed() )
 		wait 0.05;
 	self.leon_kicking = undefined;
