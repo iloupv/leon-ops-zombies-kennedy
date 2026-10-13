@@ -35,6 +35,19 @@ leon_spawn_test()
 	logPrint( "leon: player at " + player.origin + " yaw " + yaw + "\n" );
 	player enableInvulnerability(); // the test's camera stays put while the zombies come
 
+	// the player is Leon
+	player detachAll();
+	player setModel( "leon" );
+	logPrint( "leon: player model " + player.model + "\n" );
+	if ( getDvar( "leon_thirdperson" ) == "1" )
+	{
+		// the player test alone: third person (a cheat dvar, set once the devmap level runs), the player walked
+		// through the locomotion cycles
+		setDvar( "cg_thirdPerson", "1" );
+		player thread leon_player_moves( forward, right );
+		return;
+	}
+
 	// facing check: one walking a counterclockwise circle, always facing along it (nearest the camera he goes to
 	// the camera's right, farthest to its left)
 	leon = leon_spawn( player.origin + forward * 260, yaw - 90, "circle" );
@@ -80,6 +93,39 @@ leon_pace( dir, dist, speed, backward )
 		self moveTo( home, time );
 		wait time;
 		wait 1.5;
+	}
+}
+
+// Moves the player (a headless test has no input): each phase is announced on screen, so a screenshot
+// names the cycle it should show. Facing stays the spawn yaw: the strafe and the back steps are relative to it.
+leon_player_moves( forward, right )
+{
+	self endon( "disconnect" );
+	start = self.origin;
+	wait 2;
+	for ( ;; )
+	{
+		self leon_player_phase( "run forward", forward, 190, 1.5 );
+		self leon_player_phase( "stand", forward, 0, 1.5 );
+		self leon_player_phase( "back", forward * -1, 90, 2.5 );
+		self leon_player_phase( "strafe right", right, 150, 1.5 );
+		self leon_player_phase( "strafe left", right * -1, 150, 1.5 );
+		self leon_player_phase( "walk forward", forward, 60, 2 );
+		self leon_player_phase( "stand", forward, 0, 1.5 );
+		self setOrigin( start );
+	}
+}
+
+leon_player_phase( name, dir, speed, time )
+{
+	iPrintLnBold( "leon test: " + name );
+	logPrint( "leon: player " + name + " at " + getTime() + "\n" );
+	// in steps: a headless client sends no input, so the server runs no player movement (setVelocity does nothing)
+	step = 0.05;
+	for ( t = 0; t < time; t += step )
+	{
+		self setOrigin( self.origin + dir * speed * step );
+		wait step;
 	}
 }
 
