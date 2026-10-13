@@ -1129,8 +1129,10 @@ void __cdecl CL_InitCGame(int localClientNum)
     {
         Com_InitDObj();
         if ( useFastFile->current.enabled )
+        {
             Com_LoadLevelFastFiles(mapname);
             R_RuntimeXModel_LoadForLevel(mapname); // mod: bo1_rtmodels (runtime models, before CG_Init registers them)
+        }
         else
             CL_SetExpectedHunkUsage(LocalClientGlobals->mapname);
     }
