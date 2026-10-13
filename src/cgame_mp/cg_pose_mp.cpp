@@ -9,6 +9,7 @@
 #include <xanim/dobj_skel.h>
 #include <xanim/xmodel.h>
 #include <xanim/xmodel_utils.h>
+#include <gfx_d3d/r_runtime_xmodel.h>
 
 float recoilVec[3] = { -1.0, 0.0, 0.0 };
 float ysScale = 1.0f;
@@ -838,6 +839,7 @@ DObjAnimMat *__cdecl CG_DObjCalcPose(const cpose_t *remote_pose, DObj *obj, int 
         pose = remote_pose;
         DObjCompleteHierarchyBits(obj, partBits);
         CG_DoControllers(pose, obj, partBits);
+        R_RuntimeXModel_PoseDObj(obj, CG_GetLocalClientGlobals(pose->localClientNum)->time); // mod: runtime model animation
         DObjCalcSkel(obj, partBits);
     }
     DObjUnlock(obj);
