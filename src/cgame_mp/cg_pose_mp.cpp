@@ -824,6 +824,30 @@ void __cdecl QuatMultiplyEquals(const float *in, float *inout)
     inout[3] = temp_12;
 }
 
+// mod: the converter's RE4 motion set for a BO1 weapon (leon_rlm.py WEAPON_SETS): shotguns RE4's shotgun, bolt-action
+// and scoped rifles its rifle, the other rifles, SMGs and MGs its Chicago Typewriter, launchers its rocket launcher; 0
+// (the default set, RE4's handgun) for pistols and the rest
+static const char *CG_RuntimeXModel_AnimSet(unsigned int weapon)
+{
+    const WeaponDef *def = weapon ? BG_GetWeaponDef(weapon) : 0;
+    if ( !def )
+        return 0;
+    switch ( def->weapClass )
+    {
+    case WEAPCLASS_SPREAD:
+        return "shotgun";
+    case WEAPCLASS_ROCKETLAUNCHER:
+        return "launcher";
+    case WEAPCLASS_RIFLE:
+        return def->bBoltAction || def->overlayReticle != WEAPOVERLAYRETICLE_NONE ? "rifle" : "smg";
+    case WEAPCLASS_MG:
+    case WEAPCLASS_SMG:
+        return "smg";
+    default:
+        return 0;
+    }
+}
+
 // mod: poses a runtime model's DObj (R_RuntimeXModel_PoseDObj) before DObjCalcSkel, with the entity's origin and
 // angles; for the local player also the aim: the weapon's ADS fraction and the view pitch.
 void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
@@ -839,7 +863,10 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         // interpolated angles trail a fast turn, and the gun (and its laser) swung against the view
         origin = cgameGlob->predictedPlayerEntity.pose.origin;
         viewYaw[0] = 0.0f;
-        viewYaw[1] = cgameGlob->refdefViewAngles[1];
+        // aimed in, his body stays with the shoulder camera, which trails the aim inside its dead zone: the aim
+        // correction turns his torso and arms the rest of the way (CG_ShoulderCameraYaw)
+        viewYaw[1] = CG_ShoulderCameraActive(cgameGlob) ? CG_ShoulderCameraYaw(cgameGlob)
+                                                        : cgameGlob->refdefViewAngles[1];
         viewYaw[2] = 0.0f;
         angles = viewYaw;
         aimFrac = cg_thirdPersonAimTest->current.value > 0.0f ? cg_thirdPersonAimTest->current.value
@@ -888,7 +915,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             actionTime = (float)(cgameGlob->time - s_reloadStart) * 0.001f;
             actionDuration = (float)s_reloadLength * 0.001f;
         }
-        else if ( cgameGlob->time - s_fireStart < 1000 )
+        else if ( cgameGlob->time - s_fireStart < 3000 ) // the motion ends itself (the shotgun's, with its pump: 1.3 s)
         {
             action = RT_ACTION_FIRE;
             actionTime = (float)(cgameGlob->time - s_fireStart) * 0.001f;
@@ -905,6 +932,15 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             actionDuration = 1.6f;
         }
     }
+    // the weapon whose motion set he moves with: the local player's predicted one, another player's from his entity
+    unsigned int animWeapon = 0;
+    if ( isPlayer )
+    {
+        if ( obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
+            animWeapon = cgameGlob->predictedPlayerState.weapon;
+        else if ( obj->entnum > 0 )
+            animWeapon = CG_GetEntity(pose->localClientNum, obj->entnum - 1)->nextState.weapon;
+    }
     // the aim correction (CG_ShoulderLaser): the upper body turned so the barrel points where the shots land; it
     // fades while not aimed in
     float aimCorrection[2] = { 0.0f, 0.0f };
@@ -916,7 +952,8 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     }
     const float recoil = R_RuntimeXModel_PoseDObj(obj, origin, angles, cgameGlob->time, isPlayer, aimFrac, aimPitch,
                                                   action, actionTime, actionDuration, aimCorrection,
-                                                  !(isPlayer && player_tankControls && player_tankControls->current.enabled));
+                                                  !(isPlayer && player_tankControls && player_tankControls->current.enabled),
+                                                  isPlayer ? CG_RuntimeXModel_AnimSet(animWeapon) : 0);
     if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
         CG_ShoulderRecoil(recoil);
 }

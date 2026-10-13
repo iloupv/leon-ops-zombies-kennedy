@@ -2770,6 +2770,18 @@ void __cdecl CG_ShoulderAimCorrectionDecay(float frac)
 // mod: the shot's (recoil's) weight on the local player's pose this frame (CG_RuntimeXModel_Pose), 0..1
 static float s_shoulderRecoil;
 
+// mod: the shoulder camera's yaw. Aimed in, the view (the aim: where the shots go) moves freely up to
+// SHOULDER_AIM_DEADZONE degrees either side of it - Leon's arms and torso turn to it (the aim correction, the body
+// staying with the camera) - and pushing past drags the camera (and his body) along; out of the aim it is the view's.
+static const float SHOULDER_AIM_DEADZONE = 20.0f;
+static float s_shoulderCameraYaw;
+static bool s_shoulderCameraYawSet;
+
+float __cdecl CG_ShoulderCameraYaw(const cg_s *cgameGlob)
+{
+    return s_shoulderCameraYawSet ? s_shoulderCameraYaw : cgameGlob->refdefViewAngles[1];
+}
+
 void __cdecl CG_ShoulderRecoil(float weight)
 {
     s_shoulderRecoil = weight;
@@ -2836,20 +2848,12 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
             s_shoulderAimCorrection[i] = corr > 45.0f ? 45.0f : (corr < -45.0f ? -45.0f : corr);
         }
     }
-    // through a shot's recoil the line holds where the shots land instead of kicking with the gun (RE4's fire state
-    // draws the laser without recalculating it: drawLaserSight(1, 1)), still from the muzzle; it blends back onto
-    // the barrel as the recoil fades out (the aim correction has kept the barrel on that line)
-    if (wantValid && s_shoulderRecoil > 0.0f)
-    {
-        const float r = s_shoulderRecoil < 1.0f ? s_shoulderRecoil : 1.0f;
-        float dir[3];
-        for (int k = 0; k < 3; ++k)
-            dir[k] = orient.axis[0][k] + (want[k] - orient.axis[0][k]) * r;
-        Vec3Normalize(dir);
-        float angles[3];
-        vectoangles(dir, angles);
-        AnglesToAxis(angles, orient.axis);
-    }
+    // off through a shot's motion (the recoil, the shotgun's pump), back once it is over
+    if (s_shoulderRecoil > 0.0f)
+        return;
+    // none on a launcher (the aim correction above still points it)
+    if (BG_GetWeaponDef(cgameGlob->predictedPlayerState.weapon)->weapClass == WEAPCLASS_ROCKETLAUNCHER)
+        return;
     // the beam: the laser models made with the runtime models (r_runtime_xmodel.cpp), segments end to end from the
     // muzzle to where the line hits, and the dot there (the engine's FX beam / sprite laser draws nothing here)
     const XModel *beam = R_RuntimeXModel_Laser(false), *dot = R_RuntimeXModel_Laser(true);
@@ -2960,10 +2964,22 @@ void CG_OffsetThirdPersonView(int localClientNum)
         && !Demo_IsThirdPersonCamera())
     {
         float fwd[3], right[3], up[3], shoulder[3], back[3], dir[3], angles[3];
-        AngleVectors(cgameGlob->refdefViewAngles, fwd, right, up);
 
         // aiming pulls the camera in toward the shoulder, as RE4's aim camera does
         const float ads = CG_ShoulderAimFrac(cgameGlob);
+        // the camera's yaw trails the aim inside the dead zone (in by the aim; out of it the camera is the view)
+        const float viewYaw = cgameGlob->refdefViewAngles[1];
+        if (!s_shoulderCameraYawSet)
+            s_shoulderCameraYaw = viewYaw;
+        s_shoulderCameraYawSet = true;
+        const float deadZone = SHOULDER_AIM_DEADZONE * ads;
+        const float trail = AngleNormalize180(viewYaw - s_shoulderCameraYaw);
+        if (trail > deadZone)
+            s_shoulderCameraYaw = AngleNormalize360(viewYaw - deadZone);
+        else if (trail < -deadZone)
+            s_shoulderCameraYaw = AngleNormalize360(viewYaw + deadZone);
+        const float cameraAngles[3] = { cgameGlob->refdefViewAngles[0], s_shoulderCameraYaw, 0.0f };
+        AngleVectors(cameraAngles, fwd, right, up);
         const float side = cg_thirdPersonShoulder->current.value * (1.0f - 0.25f * ads);
         const float lift = cg_thirdPersonShoulderUp->current.value * (1.0f - 0.4f * ads);
         const float range = cg_thirdPersonRange->current.value * (1.0f - 0.45f * ads);
@@ -4113,6 +4129,12 @@ void __cdecl CG_UpdateThirdPerson(int localClientNum, bool forExtraCam)
 
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     cgameGlob->renderingThirdPerson = (thirdPersonType)(cg_thirdPerson->current.integer || cgameGlob->nextSnap->ps.pm_type >= 9);
+    // mod: over the shoulder (the Leon mod), a scoped weapon aims through BO1's own first-person sight
+    if ( cgameGlob->renderingThirdPerson && cgameGlob->nextSnap->ps.pm_type < 9 && cg_thirdPersonShoulder
+         && cg_thirdPersonShoulder->current.value != 0.0f && cgameGlob->predictedPlayerState.weapon
+         && BG_GetWeaponDef(cgameGlob->predictedPlayerState.weapon)->overlayReticle != WEAPOVERLAYRETICLE_NONE
+         && cgameGlob->predictedPlayerState.fWeaponPosFrac > 0.9f )
+        cgameGlob->renderingThirdPerson = TP_OFF;
     if ( cgameGlob->nextSnap->ps.pm_type == 4 && (cgameGlob->nextSnap->ps.otherFlags & 2) == 0 )
         cgameGlob->renderingThirdPerson = TP_OFF;
     if ( (cgameGlob->nextSnap->ps.eFlags & 0x10000) != 0 )

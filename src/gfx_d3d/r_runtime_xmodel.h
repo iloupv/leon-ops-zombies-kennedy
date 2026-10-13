@@ -23,4 +23,5 @@ bool __cdecl R_RuntimeXModel_RootYaw(const char *name, float time, float *yaw, f
 float __cdecl R_RuntimeXModel_PoseDObj(struct DObj *obj, const float *origin, const float *angles, int timeMs,
                                       bool isPlayer, float aimFrac, float aimPitch, RtAction action = RT_ACTION_NONE,
                                       float actionTime = 0.0f, float actionDuration = 0.0f,
-                                      const float *aimCorrection = 0, bool turnToMotion = true);
+                                      const float *aimCorrection = 0, bool turnToMotion = true,
+                                      const char *animSet = 0);

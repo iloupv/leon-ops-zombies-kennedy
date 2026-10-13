@@ -612,6 +612,10 @@ static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
         cl_quickTurnStart = -1;
         return;
     }
+    // Leon stands: no prone (bit 8), crouch (9) or jump (10)
+    cmd->button_bits.resetBit(8u);
+    cmd->button_bits.resetBit(9u);
+    cmd->button_bits.resetBit(0xAu);
     if ( cl_quickTurnStart < 0 )
     {
         if ( !pressed || !R_RuntimeXModel_RootYaw("turn180", 0.0f, &yaw, &length) )
