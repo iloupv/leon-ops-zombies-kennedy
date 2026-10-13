@@ -922,10 +922,8 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                                                         : cgameGlob->refdefViewAngles[1];
         viewYaw[2] = 0.0f;
         angles = viewYaw;
-        // over the shoulder his arms come up with the camera's eased aim (a pistol's quick raise snapped them)
         aimFrac = cg_thirdPersonAimTest->current.value > 0.0f ? cg_thirdPersonAimTest->current.value
-                : CG_ShoulderCameraActive(cgameGlob) ? CG_ShoulderCameraAds(cgameGlob)
-                                                     : cgameGlob->predictedPlayerState.fWeaponPosFrac;
+                                                              : cgameGlob->predictedPlayerState.fWeaponPosFrac;
         aimPitch = cgameGlob->refdefViewAngles[0];
     }
     // the local player's weapon actions (from the predicted weapon state, once per frame): a shot when a firing
