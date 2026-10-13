@@ -292,6 +292,8 @@ extern const dvar_s *cg_bulletWidth;
 extern const dvar_s *cg_bulletLength;
 extern const dvar_s *cg_thirdPersonRange;
 extern const dvar_s *cg_thirdPersonAngle;
+extern const dvar_s *cg_thirdPersonShoulder;
+extern const dvar_s *cg_thirdPersonShoulderUp;
 extern const dvar_s *cg_thirdPersonFocusDist;
 extern const dvar_s *cg_thirdPerson;
 extern const dvar_s *cg_thirdPersonMode;
