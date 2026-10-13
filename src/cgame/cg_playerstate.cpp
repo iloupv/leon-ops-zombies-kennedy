@@ -112,6 +112,7 @@ void __cdecl CG_TransitionPlayerState(int localClientNum, playerState_s *ps, con
         CG_DamageFeedback(localClientNum, ps->damageYaw, ps->damagePitch, ps->damageCount);
         CG_RuntimeXModel_PlayerHit(localClientNum, ps->damageYaw, ps->damagePitch); // mod: Leon's hit and voice
     }
+    CG_RuntimeXModel_PlayerState(localClientNum, ps); // mod: Leon going down / dying
     CG_CheckPlayerstateEvents(localClientNum, ps, ops);
 }
 
