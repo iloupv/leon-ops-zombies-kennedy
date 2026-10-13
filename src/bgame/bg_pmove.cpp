@@ -1688,11 +1688,20 @@ static void PM_TankControls(pmove_t *pm, float frametime)
     const bool runKey = cmd->button_bits.testBit(1u);
     cmd->button_bits.resetBit(1u); // no BO1 sprint (stamina, lowered weapon): RE4's run instead
     const bool running = runKey && cmd->forwardmove > 0 && !aiming;
-    if ( cmd->rightmove )
+    const float full = ps->speed > 0 ? (float)ps->speed : 190.0f;
+    if ( cmd->rightmove && !aiming )
     {
         const float rate = 0.0418879f * 57.29578f * 30.0f * (running ? 1.1f : 1.0f); // degrees a second
         ps->delta_angles[1] = AngleNormalize180(ps->delta_angles[1] - rate * frametime * ((float)cmd->rightmove / 127.0f));
         cmd->rightmove = 0;
+    }
+    else if ( cmd->rightmove )
+    {
+        // aimed in, left / right strafe (the Leon mod's choice) at the walk's speed; the mouse turns him
+        float strafe = 127.0f * 68.0f / full;
+        if ( strafe > 127.0f )
+            strafe = 127.0f;
+        cmd->rightmove = (char)(cmd->rightmove < 0 ? -strafe : strafe);
     }
     if ( !cmd->forwardmove ) // aimed in he still walks (the Leon mod's choice: RE4 stops him), never runs
     {
@@ -1700,7 +1709,6 @@ static void PM_TankControls(pmove_t *pm, float frametime)
         return;
     }
     const float speed = cmd->forwardmove < 0 ? 77.0f : (running ? 167.0f : 68.0f);
-    const float full = ps->speed > 0 ? (float)ps->speed : 190.0f;
     float move = 127.0f * speed / full;
     if ( cmd->forwardmove < 0 && player_backSpeedScale->current.value > 0.1f )
         move /= player_backSpeedScale->current.value; // PM_CmdScale slows a backpedal by it: RE4's back step is 77
