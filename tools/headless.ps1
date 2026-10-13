@@ -86,6 +86,10 @@ param(
     [int]$ThreadDumpFrames = 14,
     # run from this run folder (see .DESCRIPTION); '' = build\Release
     [string]$RunDir = '',
+    # a Melty-style package folder (tools\meltyuild_leon_package.ps1) run as installed: its own exe, fs_b / fs_h
+    # left to the exe, BO1Z_GAME_DIR = -GameDir (a Black Ops install); the folder is not touched
+    [string]$PackageDir = '',
+    [string]$GameDir = '',
     # machine-wide cap on headless runs (slots 0..MaxSlots-1)
     [ValidateRange(1, 16)][int]$MaxSlots = 6,
     # when this run folder or every slot is busy, retry for up to this many seconds before refusing (exit 10)
@@ -104,6 +108,7 @@ if ($RunDir) {
     # build\Play is a player's own folder: never a headless run folder
     if ((Split-Path -Leaf $H) -ieq 'Play') { Write-Output "REFUSED: $H is a play folder, not a run folder"; exit 11 }
 }
+if ($PackageDir) { $H = [IO.Path]::GetFullPath($PackageDir).TrimEnd('') }
 $exe = Join-Path $H 'BO1Zombies.exe'
 # The filesystem opens console_mp.log under fs_game. Match the last command-line assignment,
 # including a quoted mod path; stock runs keep main. This also drives freshness checks and -SaveLog.
@@ -149,7 +154,7 @@ while ($true) {
 # a BO1Zombies from this folder started outside this script (or a leftover) would share the log
 $same = @(Get-Process -Name BO1Zombies -ErrorAction SilentlyContinue | Where-Object { $_.Path -and ($_.Path -ieq $exe) })
 if ($same.Count) { Write-Output ("REFUSED: {0} (pid {1}) is running" -f $exe, $same[0].Id); exit 10 }
-if ($H -ne $R) {
+if ($H -ne $R -and -not $PackageDir) {
     # make / refresh the run folder (the dir mutex is held: nothing runs from it)
     foreach ($d in 'main', 'players') { New-Item -ItemType Directory -Force (Join-Path $H $d) | Out-Null }
     foreach ($j in 'zone', 'mods', 'main\video') {
@@ -341,6 +346,11 @@ public static class BO1Headless
 }
 
 $argLine = "+set fs_b `"$R`" +set fs_h `"$H`" +set bo1_headless 1 +set net_ip 127.0.0.1 +set logfile 2"
+if ($PackageDir) {
+    if (-not $GameDir) { Write-Output 'REFUSED: -PackageDir needs -GameDir (the Black Ops folder)'; exit 11 }
+    $argLine = '+set bo1_headless 1 +set net_ip 127.0.0.1 +set logfile 2'
+    $env:BO1Z_GAME_DIR = $GameDir
+}
 if ($Zombies) { $argLine += ' +set bo1_zombies 1' }
 if ($AutoQuitMs -gt 0) { $argLine += " +set bo1_autoquit $AutoQuitMs" }
 if ($Client) {
