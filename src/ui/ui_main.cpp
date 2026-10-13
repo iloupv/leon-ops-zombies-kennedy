@@ -4099,34 +4099,48 @@ static void UI_SP_LevelsZombieAddSettings(UiContext *dc)
                 handler->eventScript = &s_quitScript;
     }
 
-    // the options' close runs bo1_menu_return: the menu they were opened from opens again
+    // leaving the options - their Escape, their Back button (it closes the 3D TV and itself) - runs bo1_menu_return:
+    // the menu they were opened from opens again. Not their close: their buttons close them to open a page
     menuDef_t *options = Menus_FindByName(dc, "options_new_pc");
-    static GenericEventScript s_returnScript;
-    static GenericEventHandler s_returnHandler;
+    static GenericEventScript s_returnOnEsc, s_returnOnBack;
     if ( options )
     {
-        memset(&s_returnScript, 0, sizeof(s_returnScript));
-        s_returnScript.action = "exec \"bo1_menu_return\" ;";
-        // after the onClose handler's own scripts (or as its handler, when it has none)
-        GenericEventHandler *onClose = 0;
-        for ( GenericEventHandler *handler = options->onEvent; handler && !onClose; handler = handler->next )
-            if ( handler->name && !I_stricmp(handler->name, "onClose") )
-                onClose = handler;
-        if ( onClose )
-        {
-            GenericEventScript **tail = &onClose->eventScript;
-            bool added = false;
+        // appended to a handler's scripts (once: a reload brings fresh scripts)
+        auto append = [](GenericEventHandler *handler, GenericEventScript *script) {
+            GenericEventScript **tail = &handler->eventScript;
             for ( ; *tail; tail = &(*tail)->next )
-                added |= *tail == &s_returnScript;
-            if ( !added )
-                *tail = &s_returnScript;
-        }
-        else if ( options->onEvent != &s_returnHandler )
+                if ( *tail == script )
+                    return;
+            memset(script, 0, sizeof(*script));
+            script->action = "exec \"bo1_menu_return\" ;";
+            *tail = script;
+        };
+        for ( GenericEventHandler *handler = options->onEvent; handler; handler = handler->next )
+            if ( handler->name && !I_stricmp(handler->name, "onESC") )
+            {
+                append(handler, &s_returnOnEsc);
+                break;
+            }
+        bool backDone = false;
+        for ( int i = 0; i < options->itemCount && !backDone; ++i )
         {
-            s_returnHandler.name = "onClose";
-            s_returnHandler.eventScript = &s_returnScript;
-            s_returnHandler.next = options->onEvent;
-            options->onEvent = &s_returnHandler;
+            itemDef_s *item = options->items[i];
+            for ( GenericEventHandler *handler = item ? item->onEvent : 0; handler && !backDone; handler = handler->next )
+            {
+                if ( !handler->name || I_stricmp(handler->name, "action") )
+                    continue;
+                bool closesTv = false, closesSelf = false;
+                for ( const GenericEventScript *script = handler->eventScript; script; script = script->next )
+                {
+                    closesTv |= script->action && I_stristr(script->action, "close blackout_3d_tv") != 0;
+                    closesSelf |= script->action && I_stristr(script->action, "close self") != 0;
+                }
+                if ( closesTv && closesSelf )
+                {
+                    append(handler, &s_returnOnBack);
+                    backDone = true;
+                }
+            }
         }
     }
 }

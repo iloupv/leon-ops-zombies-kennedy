@@ -1703,19 +1703,6 @@ void __cdecl CG_DrawActive(int localClientNum)
     cgameGlob->refdef.hideMatureContent = cg_blood->current.color[0] == 0;
     cgameGlob->refdef.splitscreen = 0;
     cgameGlob->refdef.playerTeleported = cgameGlob->playerTeleported;
-    // mod: the front end opened straight at a menu (bo1_frontend_menu: the Leon mod's map list) draws no world
-    // around its menus - they are drawn on its 3D monitor (a model, still drawn), the room is not used
-    {
-        static int s_hidWorld;
-        const dvar_s *frontEndMenu = Dvar_FindVar("bo1_frontend_menu");
-        const bool hide = Com_IsSPFrontEndRunning() && frontEndMenu && frontEndMenu->type == DVAR_TYPE_STRING
-                          && frontEndMenu->current.string && frontEndMenu->current.string[0];
-        if ( hide != (s_hidWorld != 0) )
-        {
-            Dvar_SetBoolByName("r_drawWorld", !hide);
-            s_hidWorld = hide;
-        }
-    }
     CL_RenderScene(&cgameGlob->refdef, cgameGlob->frametime);
 }
 
