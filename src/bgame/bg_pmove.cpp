@@ -1695,6 +1695,13 @@ static void PM_TankControls(pmove_t *pm, float frametime)
         {
             cmd->button_bits.resetBit(4u);
             cmd->button_bits.resetBit(5u);
+            if ( kickDvar == s_kickDvars[1] )
+            {
+                // through the kick itself: no aim (11), shot (0) or knife (2) either
+                cmd->button_bits.resetBit(0xBu);
+                cmd->button_bits.resetBit(0);
+                cmd->button_bits.resetBit(2u);
+            }
         }
     }
     const bool runKey = cmd->button_bits.testBit(1u);

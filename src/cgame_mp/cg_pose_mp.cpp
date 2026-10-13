@@ -922,8 +922,10 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                                                         : cgameGlob->refdefViewAngles[1];
         viewYaw[2] = 0.0f;
         angles = viewYaw;
+        // over the shoulder his arms come up with the camera's eased aim (a pistol's quick raise snapped them)
         aimFrac = cg_thirdPersonAimTest->current.value > 0.0f ? cg_thirdPersonAimTest->current.value
-                                                              : cgameGlob->predictedPlayerState.fWeaponPosFrac;
+                : CG_ShoulderCameraActive(cgameGlob) ? CG_ShoulderCameraAds(cgameGlob)
+                                                     : cgameGlob->predictedPlayerState.fWeaponPosFrac;
         aimPitch = cgameGlob->refdefViewAngles[0];
     }
     // the local player's weapon actions (from the predicted weapon state, once per frame): a shot when a firing
@@ -934,7 +936,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
     {
         static int s_frame = -1, s_lastState, s_lastWeaponTime, s_fireStart = -100000, s_reloadStart = -100000;
-        static int s_knifeStart = -100000, s_throwStart = -100000;
+        static int s_knifeStart = -100000, s_throwStart = -100000, s_readyStart = -100000;
         static int s_kickStart = -100000, s_kickStamp; // the script's kick (leon_kick_stamp: its time at the kick)
         static int s_reloadLength = 1;
         const playerState_s *ps = &cgameGlob->predictedPlayerState;
@@ -967,9 +969,18 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                     s_kickStart = cgameGlob->time;
                 s_kickStamp = stamp;
             }
-            if ( (state == WEAPON_OFFHAND_START || state == WEAPON_OFFHAND) && s_lastState != WEAPON_OFFHAND_START
-                 && s_lastState != WEAPON_OFFHAND )
+            // BO1's grenade: init / prepare / start / hold (cooking while the key is held), then the release
+            // (WEAPON_OFFHAND): RE4's ready pose (the arm cocked) up to it, its throw (from that pose) from it
+            if ( state == WEAPON_OFFHAND && s_lastState != WEAPON_OFFHAND )
                 s_throwStart = cgameGlob->time;
+            const bool readying = state == WEAPON_OFFHAND_INIT || state == WEAPON_OFFHAND_PREPARE
+                                  || state == WEAPON_OFFHAND_START || state == WEAPON_OFFHAND_HOLD;
+            const bool wasReadying = s_lastState == WEAPON_OFFHAND_INIT || s_lastState == WEAPON_OFFHAND_PREPARE
+                                     || s_lastState == WEAPON_OFFHAND_START || s_lastState == WEAPON_OFFHAND_HOLD;
+            if ( readying && !wasReadying )
+                s_readyStart = cgameGlob->time;
+            if ( !readying )
+                s_readyStart = -100000;
             if ( reloading && !wasReloading )
             {
                 s_reloadStart = cgameGlob->time;
@@ -989,7 +1000,8 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             action = RT_ACTION_TURN; // RE4's quick turn (CL_LeonQuickTurn)
             actionTime = turnTime;
         }
-        else if ( cgameGlob->time - s_leonHitStart < 2500 && cgameGlob->time >= s_leonHitStart )
+        // (a hit does not break a reload: the reload carried on under it and came back halfway)
+        else if ( !reloading && cgameGlob->time - s_leonHitStart < 2500 && cgameGlob->time >= s_leonHitStart )
         {
             action = s_leonHitBack ? RT_ACTION_HIT_BACK : RT_ACTION_HIT_FRONT;
             actionTime = (float)(cgameGlob->time - s_leonHitStart) * 0.001f;
@@ -1011,6 +1023,11 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         {
             action = RT_ACTION_KNIFE;
             actionTime = (float)(cgameGlob->time - s_knifeStart) * 0.001f;
+        }
+        else if ( s_readyStart > -100000 )
+        {
+            action = RT_ACTION_THROW_READY;
+            actionTime = (float)(cgameGlob->time - s_readyStart) * 0.001f;
         }
         else if ( cgameGlob->time - s_throwStart < 2000 )
         {

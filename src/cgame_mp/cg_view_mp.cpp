@@ -2770,6 +2770,28 @@ void __cdecl CG_ShoulderAimCorrectionDecay(float frac)
 // mod: the shot's (recoil's) weight on the local player's pose this frame (CG_RuntimeXModel_Pose), 0..1
 static float s_shoulderRecoil;
 
+// mod: the aim (ADS) fraction the shoulder camera follows: eased (about 0.2 s to close most of the way) from the
+// weapon's own, whose quick raise jerked the camera's pull-in and the aim's zoom (CG_GetViewFov); once per frame
+static float s_camAds;
+static int s_camAdsTime = -100000;
+
+float __cdecl CG_ShoulderCameraAds(const cg_s *cgameGlob)
+{
+    const float adsRaw = CG_ShoulderAimFrac(cgameGlob);
+    const int gap = cgameGlob->time - s_camAdsTime;
+    if (gap == 0)
+        return s_camAds;
+    s_camAdsTime = cgameGlob->time;
+    if (gap < 0 || gap > 250)
+        s_camAds = adsRaw;
+    else
+    {
+        const float k = 1.0f - expf(-(float)gap * 0.005f);
+        s_camAds += (adsRaw - s_camAds) * k;
+    }
+    return s_camAds;
+}
+
 // mod: the shoulder camera's yaw. Aimed in, the view (the aim: where the shots go) moves freely up to
 // SHOULDER_AIM_DEADZONE degrees either side of it - Leon's arms and torso turn to it (the aim correction, the body
 // staying with the camera) - and pushing past drags the camera (and his body) along; out of the aim it is the view's.
@@ -3002,18 +3024,7 @@ void CG_OffsetThirdPersonView(int localClientNum)
         // aiming pulls the camera in toward the shoulder, as RE4's aim camera does (gently: closer felt cramped), eased
         // over ~0.3 s instead of the weapon's quick raise
         const float adsRaw = CG_ShoulderAimFrac(cgameGlob);
-        static float s_camAds;
-        static int s_camAdsTime;
-        const int camAdsGap = cgameGlob->time - s_camAdsTime;
-        s_camAdsTime = cgameGlob->time;
-        if (camAdsGap < 0 || camAdsGap > 250)
-            s_camAds = adsRaw;
-        else
-        {
-            const float k = camAdsGap * 0.01f < 1.0f ? camAdsGap * 0.01f : 1.0f;
-            s_camAds += (adsRaw - s_camAds) * k;
-        }
-        const float ads = s_camAds;
+        const float ads = CG_ShoulderCameraAds(cgameGlob);
         // the camera's yaw trails the aim inside the dead zone (in by the aim; out of it the camera is the view)
         const float viewYaw = cgameGlob->refdefViewAngles[1];
         if (!s_shoulderCameraYawSet)
