@@ -619,9 +619,10 @@ float __cdecl CL_LeonQuickTurnTime()
 }
 
 // mod (the Leon mod, player_tankControls): standing still (no move or turn key, not aiming, no quick turn) the mouse's
-// yaw orbits the shoulder camera round him - to look him over - instead of turning him; moving, turning or aiming, the
-// camera swings back behind him (~0.3 s) and the mouse turns him again. Taken out of the view's yaw here, after
-// CL_MouseMove, so the server and the prediction never see it; the camera adds it (CL_LeonCameraOrbit).
+// yaw orbits the shoulder camera round him - to look him over - instead of turning him; aiming, he turns to where it
+// looks; moving or turning, the camera swings back behind him (~0.3 s); either way the mouse turns him again. Taken
+// out of the view's yaw here, after CL_MouseMove, so the server and the prediction never see it; the camera adds it
+// (CL_LeonCameraOrbit).
 static float cl_leonOrbit, cl_leonOrbitLastYaw;
 static int cl_leonOrbitTime = -1;
 
@@ -653,6 +654,16 @@ static void CL_LeonOrbit(int localClientNum, usercmd_s *cmd)
         cmd->angles[1] = (unsigned __int16)(int)((cl->viewangles[1] + cl->cgameKickAngles[1]) * 182.04445f);
         cl_leonOrbit = AngleNormalize180(cl_leonOrbit + turn);
     }
+    else if ( cl_leonOrbit != 0.0f && cmd->button_bits.testBit(0xBu) )
+    {
+        // aiming from it he turns to where the camera looks (the orbit goes into his facing, eased over ~0.2 s), the
+        // camera staying where it is
+        const float keep = expf(-dt * 15.0f);
+        const float rest = fabsf(cl_leonOrbit * keep) < 0.05f ? 0.0f : cl_leonOrbit * keep;
+        cl->viewangles[1] = AngleNormalize360(cl->viewangles[1] + (cl_leonOrbit - rest));
+        cmd->angles[1] = (unsigned __int16)(int)((cl->viewangles[1] + cl->cgameKickAngles[1]) * 182.04445f);
+        cl_leonOrbit = rest;
+    }
     else if ( cl_leonOrbit != 0.0f )
     {
         // back behind him, eased (most of the way in ~0.3 s)
@@ -660,6 +671,64 @@ static void CL_LeonOrbit(int localClientNum, usercmd_s *cmd)
         cl_leonOrbit = fabsf(cl_leonOrbit * keep) < 0.05f ? 0.0f : cl_leonOrbit * keep;
     }
     cl_leonOrbitLastYaw = cl->viewangles[1];
+}
+
+// mod (the Leon mod, player_tankControls): RE4's aim sway (game/pl_wep.cpp PlWepLockRand, every 30 Hz frame aimed in):
+// a random walk of the aim around its centre, each frame by up to the weapon's step (fRand1_1() * 0.2864 degrees),
+// clamped to its range (5.73 degrees; RE4 clamps the yaw by the pitch's range too); moving the aim re-centres it
+// (mflag bit 0). The values are the handgun's (objFn57::init setAbility, as most of RE4's weapons). It moves the view
+// itself, so the laser, the shots and his arms follow it; the camera takes it back out (CL_LeonAimSway).
+static float cl_swayPrev[2], cl_swayCur[2], cl_swayApplied[2], cl_swayLast[2];
+static int cl_swayTick = -1;
+
+void __cdecl CL_LeonAimSway(float *pitch, float *yaw)
+{
+    *pitch = cl_swayApplied[0];
+    *yaw = cl_swayApplied[1];
+}
+
+static void CL_LeonSway(int localClientNum, usercmd_s *cmd)
+{
+    clientActive_t *cl = CL_GetLocalClientGlobals(localClientNum);
+    const int now = (int)Sys_Milliseconds();
+    const bool aimed = player_tankControls && player_tankControls->current.enabled && cmd->button_bits.testBit(0xBu)
+                       && CG_ShoulderAimFrac(CG_GetLocalClientGlobals(localClientNum)) >= 0.98f;
+    const bool moved = fabsf(AngleNormalize180(cl->viewangles[0] - cl_swayLast[0])) > 0.001f
+                       || fabsf(AngleNormalize180(cl->viewangles[1] - cl_swayLast[1])) > 0.001f;
+    if ( !aimed || moved || cl_swayTick < 0 || now - cl_swayTick > 250 )
+    {
+        // not aimed in, or the player moved the aim: its centre is where it points now (the offset taken in)
+        cl_swayPrev[0] = cl_swayPrev[1] = cl_swayCur[0] = cl_swayCur[1] = 0.0f;
+        cl_swayApplied[0] = cl_swayApplied[1] = 0.0f;
+        cl_swayTick = now;
+    }
+    else
+    {
+        static const float range = 5.73f, step = 0.2864f;
+        while ( now - cl_swayTick >= 33 ) // RE4's frames (30 Hz)
+        {
+            cl_swayTick += 33;
+            for ( int k = 0; k < 2; ++k )
+            {
+                cl_swayPrev[k] = cl_swayCur[k];
+                const float next = cl_swayCur[k] + step * ((float)rand() / (float)RAND_MAX * 2.0f - 1.0f);
+                cl_swayCur[k] = next > range ? range : (next < -range ? -range : next);
+            }
+        }
+        // between RE4's frames, eased from one to the next (its steps were whole frames apart)
+        const float frac = (float)(now - cl_swayTick) / 33.0f;
+        for ( int k = 0; k < 2; ++k )
+        {
+            const float offset = cl_swayPrev[k] + (cl_swayCur[k] - cl_swayPrev[k]) * frac;
+            cl->viewangles[k] += offset - cl_swayApplied[k];
+            cl_swayApplied[k] = offset;
+        }
+        cl->viewangles[1] = AngleNormalize360(cl->viewangles[1]);
+        cmd->angles[0] = (unsigned __int16)(int)((cl->viewangles[0] + cl->cgameKickAngles[0]) * 182.04445f);
+        cmd->angles[1] = (unsigned __int16)(int)((cl->viewangles[1] + cl->cgameKickAngles[1]) * 182.04445f);
+    }
+    cl_swayLast[0] = cl->viewangles[0];
+    cl_swayLast[1] = cl->viewangles[1];
 }
 
 static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
@@ -805,6 +874,7 @@ usercmd_s *__cdecl CL_CreateCmd(usercmd_s *result, int localClientNum)
         CL_HeadlessKeys(localClientNum, &cmd);
     CL_LeonOrbit(localClientNum, &cmd); // mod
     CL_LeonQuickTurn(localClientNum, &cmd); // mod
+    CL_LeonSway(localClientNum, &cmd); // mod
     memcpy(result, &cmd, sizeof(usercmd_s));
     return result;
 }

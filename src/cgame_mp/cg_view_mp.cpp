@@ -3029,8 +3029,11 @@ void CG_OffsetThirdPersonView(int localClientNum)
         // over ~0.3 s instead of the weapon's quick raise
         const float adsRaw = CG_ShoulderAimFrac(cgameGlob);
         const float ads = CG_ShoulderCameraAds(cgameGlob);
-        // the camera's yaw trails the aim inside the dead zone (in by the aim; out of it the camera is the view)
-        const float viewYaw = cgameGlob->refdefViewAngles[1];
+        // the camera's yaw trails the aim inside the dead zone (in by the aim; out of it the camera is the view), aimed
+        // in without RE4's sway (CL_LeonAimSway: it moves the laser, not the camera)
+        float swayPitch, swayYaw;
+        CL_LeonAimSway(&swayPitch, &swayYaw);
+        const float viewYaw = AngleNormalize360(cgameGlob->refdefViewAngles[1] - swayYaw);
         if (!s_shoulderCameraYawSet)
             s_shoulderCameraYaw = viewYaw;
         s_shoulderCameraYawSet = true;
@@ -3042,7 +3045,7 @@ void CG_OffsetThirdPersonView(int localClientNum)
             s_shoulderCameraYaw = AngleNormalize360(viewYaw + deadZone);
         // through RE4's quick turn the camera trails the view, so his turn shows (CL_LeonQuickTurnCameraLag); standing
         // still the mouse orbits it round him (CL_LeonCameraOrbit)
-        const float cameraAngles[3] = { cgameGlob->refdefViewAngles[0],
+        const float cameraAngles[3] = { cgameGlob->refdefViewAngles[0] - swayPitch,
                                         AngleNormalize360(s_shoulderCameraYaw - CL_LeonQuickTurnCameraLag()
                                                           + CL_LeonCameraOrbit()), 0.0f };
         AngleVectors(cameraAngles, fwd, right, up);
