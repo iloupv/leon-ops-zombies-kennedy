@@ -847,6 +847,9 @@ static const char *CG_RuntimeXModel_AnimSet(unsigned int weapon)
     {
     case WEAPCLASS_SPREAD:
         // the semi-automatic shell-by-shell ones (SPAS, HS10): the Striker; the pump and the double barrels: the shotgun
+        // (the double barrel - the Olympia, rottweil72: the shotgun's set with its shot without the pump)
+        if ( strstr(name, "rottweil72") )
+            return "dbshotgun";
         return strstr(name, "spas") || strstr(name, "hs10") ? "striker" : "shotgun";
     case WEAPCLASS_ROCKETLAUNCHER:
         return "launcher";

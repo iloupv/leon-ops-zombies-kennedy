@@ -108,11 +108,43 @@ static const snd_alias_t *SND_Runtime_Template()
     return 0;
 }
 
+// TEST SWITCH bo1_aliasdump "<word> <word>...": the level's aliases whose names hold one of the words, with their
+// volume, group, distances and flags (the level's sound data, for setting levels)
+static void SND_Runtime_DumpAliases()
+{
+    const dvar_s *dump = Dvar_FindVar("bo1_aliasdump");
+    if ( !dump || dump->type != DVAR_TYPE_STRING || !dump->current.string || !dump->current.string[0] )
+        return;
+    char words[256];
+    I_strncpyz(words, dump->current.string, sizeof(words));
+    std::vector<const char *> list;
+    for ( char *w = strtok(words, " "); w; w = strtok(0, " ") )
+        list.push_back(w);
+    const unsigned int count = SND_AliasCount();
+    for ( unsigned int i = 0; i < count; ++i )
+    {
+        const snd_alias_list_t *alias = SND_AliasByIndex(i);
+        if ( !alias || !alias->name || !alias->head )
+            continue;
+        bool match = false;
+        for ( const char *w : list )
+            match |= I_stristr(alias->name, w) != 0;
+        if ( !match )
+            continue;
+        const snd_alias_t *a = alias->head;
+        Com_Printf(0, "bo1_aliasdump: %s x%d vol %.2f-%.2f group %u dist %u-%u %s %s type %u snapshot %u limit %u\n",
+            alias->name, alias->count, a->volMin / 65535.0f, a->volMax / 65535.0f, (a->flags >> 16) & 0x3F, a->distMin,
+            a->distMax, (a->flags & 2) ? "3d" : "2d", (a->flags & 1) ? "loop" : "once", (a->flags >> 14) & 3,
+            a->snapshotGroup, a->limitCount);
+    }
+}
+
 void __cdecl SND_Runtime_LoadForLevel()
 {
     SND_Runtime_Free();
     if ( !SND_Active() )
         return;
+    SND_Runtime_DumpAliases();
     int fileCount = 0;
     const char **files = FS_ListFiles("sound/rt", (char *)"wav", FS_LIST_ALL, &fileCount);
     if ( !files || !fileCount )
@@ -213,6 +245,13 @@ void __cdecl SND_Runtime_LoadForLevel()
             a.probability = 0;
             a.pitchMin = a.pitchMax = 32767;
             a.volMin = a.volMax = 65535;
+            // the kick's grunt (leon_kicka / leon_kickb) in the voice group (2, full) at 0.6: in the template's (the ui
+            // group's 0.32, as his pain and death) it was too quiet against the fight
+            if ( !_strnicmp(alias->name.c_str(), "leon_kick", 9) && alias->name != "leon_kickhit" )
+            {
+                a.flags = (a.flags & ~0x3F0000u) | (2u << 16);
+                a.volMin = a.volMax = (unsigned __int16)(0.6f * 65535.0f);
+            }
         }
         snd_alias_list_t &list = s_runtimeLists[i];
         memset(&list, 0, sizeof(list));
@@ -282,12 +321,12 @@ float __cdecl SND_Runtime_VoiceScale(unsigned int id)
         scale = 0.0f;
     else if ( list && list->name && !_strnicmp(list->name, "chr_breathing", 13) )
         scale = 0.32f;
-    // George Romero (Call of the Dead's boss, "the director"): his effects and voice at half (-6 dB) - every one full
-    // in its group out to 800 / 1000 units, and several at once, he drowned everything (the master limiter squashing it)
+    // George Romero (Call of the Dead's boss, "the director"): his effects and voice at a quarter (-12 dB; at half he
+    // still drowned everything) - every one at volume 1 in the voice / event group, full out to 800 / 1000 units
     else if ( list && list->name
               && (!_strnicmp(list->name, "zmb_director_", 13) || !_strnicmp(list->name, "vox_romero_", 11)
                   || !_strnicmp(list->name, "vox_director_", 13)) )
-        scale = 0.5f;
+        scale = 0.25f;
     s_answers.push_back({ id, scale });
     return scale;
 }
