@@ -2,6 +2,7 @@
 #include <win32/win_main.h>
 #include <qcommon/common.h>
 #include <dsound.h>
+#include <sound/snd_dvar.h>
 #include <win32/win_wndproc.h>
 #include "r_init.h"
 #include <qcommon/threads.h>
@@ -507,7 +508,7 @@ void __cdecl R_Cinematic_ReleaseImages(CinematicTextureSet *textureSet)
     Image_Release(&textureSet->drawImageA);
 }
 
-void __cdecl R_Cinematic_StartPlayback_Internal(const char *name, unsigned int playbackFlags, int volume)
+void __cdecl R_Cinematic_StartPlayback_Internal(const char *name, unsigned int playbackFlags, float volume)
 {
     Sys_EnterCriticalSection(CRITSECT_CINEMATIC_TARGET_CHANGE);
     I_strncpyz(cinematicGlob.targetCinematicName, name, 256);
@@ -1537,8 +1538,17 @@ void __cdecl R_Cinematic_InitBinkVolumes()
     int v0; // [esp+0h] [ebp-20h]
     int v1; // [esp+14h] [ebp-Ch]
 
-    if ( (int)(__int64)(32768.0 * *(float *)&cinematicGlob.playbackVolume * 0.70700002) < 0x8000 )
-        v1 = (__int64)(32768.0 * *(float *)&cinematicGlob.playbackVolume * 0.70700002);
+    // BO1FIX: Bink plays through its own DirectSound output, past the game's mixer: scale it by the options' cinematic
+    // ("Scales the volume of Bink videos") and master volumes, squared as the mixer squares the menu volumes
+    // (SND_GetBaseLevel) - registered, saved with the profile, and never read, so videos ignored the volume settings
+    float optionScale = 1.0f;
+    if ( snd_menu_cinematic )
+        optionScale *= snd_menu_cinematic->current.value * snd_menu_cinematic->current.value;
+    if ( snd_menu_master )
+        optionScale *= snd_menu_master->current.value * snd_menu_master->current.value;
+    const float volume = *(float *)&cinematicGlob.playbackVolume * optionScale;
+    if ( (int)(__int64)(32768.0 * volume * 0.70700002) < 0x8000 )
+        v1 = (__int64)(32768.0 * volume * 0.70700002);
     else
         v1 = 0x8000;
     if ( v1 > 0 )
@@ -1646,7 +1656,7 @@ float __cdecl R_Cinematic_GetTimeRemaining()
 void __cdecl R_Cinematic_StartPlayback_SP(const char *name, unsigned int playbackFlags, float volume)
 {
     Sys_EnterCriticalSection(CRITSECT_CINEMATIC);
-    R_Cinematic_StartPlayback_Internal(name, playbackFlags, (int)volume);
+    R_Cinematic_StartPlayback_Internal(name, playbackFlags, volume); // BO1FIX: was (int)volume - 0.5 played silent
     Sys_LeaveCriticalSection(CRITSECT_CINEMATIC);
 }
 

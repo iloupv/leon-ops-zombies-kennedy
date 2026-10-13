@@ -79,7 +79,7 @@ void __cdecl R_Cinematic_Init();
 unsigned int *R_Cinematic_ReserveMemory();
 void __cdecl R_Cinematic_Shutdown();
 void __cdecl R_Cinematic_ReleaseImages(CinematicTextureSet *textureSet);
-void __cdecl R_Cinematic_StartPlayback_Internal(const char *name, unsigned int playbackFlags, int volume);
+void __cdecl R_Cinematic_StartPlayback_Internal(const char *name, unsigned int playbackFlags, float volume);
 void __cdecl R_Cinematic_StartNextPlayback();
 bool __cdecl R_Cinematic_IsNextReady_Internal();
 void __cdecl R_Cinematic_StopPlayback();
