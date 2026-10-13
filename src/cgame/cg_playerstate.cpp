@@ -1,3 +1,4 @@
+#include <cgame_mp/cg_pose_mp.h>
 #include "cg_playerstate.h"
 #include <cgame_mp/cg_local_mp.h>
 #include <cgame_mp/cg_predict_mp.h>
@@ -107,7 +108,10 @@ void __cdecl CG_ResetSpectatorViewAngles(int localClientNum)
 void __cdecl CG_TransitionPlayerState(int localClientNum, playerState_s *ps, const transPlayerState_t *ops)
 {
     if ( ps->damageEvent != ops->damageEvent && ps->damageCount )
+    {
         CG_DamageFeedback(localClientNum, ps->damageYaw, ps->damagePitch, ps->damageCount);
+        CG_RuntimeXModel_PlayerHit(localClientNum, ps->damageYaw, ps->damagePitch); // mod: Leon's hit and voice
+    }
     CG_CheckPlayerstateEvents(localClientNum, ps, ops);
 }
 

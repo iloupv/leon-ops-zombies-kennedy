@@ -2483,6 +2483,8 @@ set(SRC_SOUND
 	"${SRC_DIR}/sound/snd.cpp"
 	"${SRC_DIR}/sound/snd.h"
 	"${SRC_DIR}/sound/snd_bank.cpp"
+	"${SRC_DIR}/sound/snd_runtime.cpp"
+	"${SRC_DIR}/sound/snd_runtime.h"
 	"${SRC_DIR}/sound/snd_bank.h"
 	"${SRC_DIR}/sound/snd_db.cpp"
 	"${SRC_DIR}/sound/snd_db.h"

@@ -1278,6 +1278,34 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             }
         }
     }
+    else if ( action == RT_ACTION_HIT_FRONT || action == RT_ACTION_HIT_BACK )
+    {
+        // a hit: from it at the motion's own rate, in over 2 frames, back into the locomotion over the last 6
+        actionAnim = RtFindSetAnim(model, animSet, action == RT_ACTION_HIT_FRONT ? "hit_front" : "hit_back");
+        if ( actionAnim >= 0 )
+        {
+            const RtAnim &hit = s_anims[actionAnim];
+            actionPhase = actionTime * hit.fps;
+            const float left = (float)(hit.frameCount - 1) - actionPhase;
+            if ( left <= 0.0f )
+                actionAnim = -1;
+            else
+                actionWeight = (left < 6.0f ? left / 6.0f : 1.0f) * (actionPhase < 2.0f ? actionPhase / 2.0f : 1.0f);
+        }
+    }
+    else if ( action == RT_ACTION_DEATH )
+    {
+        // down: the fall, then its last frame for as long as he stays down; in over 0.2 s
+        actionAnim = RtFindSetAnim(model, animSet, "death");
+        if ( actionAnim >= 0 )
+        {
+            const RtAnim &death = s_anims[actionAnim];
+            actionPhase = actionTime * death.fps;
+            if ( actionPhase > (float)(death.frameCount - 1) )
+                actionPhase = (float)(death.frameCount - 1);
+            actionWeight = actionTime < 0.2f ? actionTime / 0.2f : 1.0f;
+        }
+    }
     else if ( action == RT_ACTION_TURN )
     {
         // the quick turn: the whole body, at its own rate (the view turns along its root yaw: CL_LeonQuickTurn); the
@@ -1364,7 +1392,8 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             RtBlendPose(mat->quat, mat->trans, quat, trans, aimFrac);
         }
         if ( actionAnim >= 0 && actionWeight > 0.0f
-             && (action == RT_ACTION_TURN || (cur.upperBody && cur.upperBody[b])) )
+             && (action == RT_ACTION_TURN || action == RT_ACTION_HIT_FRONT || action == RT_ACTION_HIT_BACK
+                 || action == RT_ACTION_DEATH || (cur.upperBody && cur.upperBody[b])) )
         {
             float quat[4], trans[3];
             RtSampleBone(s_anims[actionAnim], actionPhase, b, quat, trans);

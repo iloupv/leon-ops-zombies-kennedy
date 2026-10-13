@@ -1,3 +1,4 @@
+#include <sound/snd_runtime.h>
 #include <game_sp/g_sp_measure.h>
 #include <qcommon/actor_model_state.h>
 #include <cgame_mp/cg_anim_commands.h>
@@ -1137,6 +1138,7 @@ void __cdecl CL_InitCGame(int localClientNum)
     // including a map the server already loaded; the builder skips a model already built for this level)
     if ( useFastFile->current.enabled )
         R_RuntimeXModel_LoadForLevel(mapname);
+        SND_Runtime_LoadForLevel(); // mod: the runtime sounds (sound/rt/*.wav)
     CL_SetLocalClientConnectionState(localClientNum, CA_LOADING);
     Com_Printf(14, "Setting state to CA_LOADING in CL_InitCGame\n");
     Demo_IsPlaying();
