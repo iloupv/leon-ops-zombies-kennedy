@@ -1,3 +1,4 @@
+#include <win32/win_common.h>
 #include "com_files.h"
 #include "assertive.h"
 #include "q_shared.h"
@@ -2516,6 +2517,9 @@ void __cdecl FS_Startup(const char *gameName, bool allow_devraw)
     {
         FS_AddGameDirectory((char *)fs_basepath->current.integer, "usermaps", 0, 0);
         FS_AddGameDirectory((char *)fs_basepath->current.integer, fs_gameDirVar->current.string, 0, 0);
+        // mod: the Melty install keeps the mod in fs_h (this exe's folder), not in the player's Black Ops folder
+        if ( Sys_GameDirOverride() && I_stricmp(fs_homepath->current.string, fs_basepath->current.string) )
+            FS_AddGameDirectory((char *)fs_homepath->current.integer, fs_gameDirVar->current.string, 0, 0);
     }
     // mod: fs_mods "a b c" stacks mods/a, mods/b, mods/c on top of the above (later wins for plain files), then
     // mods/_stack: the hook files every mod may ship (maps/<map>_ffotd.gsc, maps/_zombiemode_ffotd.gsc) chained, so
@@ -2675,6 +2679,8 @@ void FS_RegisterDvars()
     homePath = (char *)RETURN_ZERO32();
     if ( !homePath || !*homePath )
         homePath = (char *)fs_basepath->reset.integer;
+    if ( Sys_GameDirOverride() ) // mod: the Melty install - config, logs and the mods in this exe's folder
+        homePath = (char *)Sys_ExeFolder();
     fs_homepath = _Dvar_RegisterString("fs_h", homePath, 0x210u, "Game home path");
     FS_GetOsFolderPath(5, ospathPersonalDocuments);
     fs_userDocuments = _Dvar_RegisterString(

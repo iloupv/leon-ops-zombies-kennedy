@@ -366,6 +366,17 @@ void GScr_SP_LoadScripts(scriptInstance_t inst)
         }
     }
 
+    // mod: an fs_game mod's own entry point, maps/_mod_main::main when the mod has it; Scr_LoadLevel runs it right
+    // after the level main (still the level's first frame: it can precache and load effects). A mod hooks every map
+    // with it instead of shipping a changed copy of a retail script (e.g. maps/_zombiemode_ffotd.gsc).
+    extern int g_modMainScript;
+    g_modMainScript = 0;
+    if ( *Dvar_GetString("fs_game") )
+    {
+        g_modMainScript = GScr_LoadScriptAndLabel(inst, "maps/_mod_main", "main", 0);
+        Com_Printf(24, "mod: maps/_mod_main::main handle %d\n", g_modMainScript);
+    }
+
     GScr_SP_LoadEntityScripts(inst);
 }
 
@@ -422,6 +433,13 @@ void Scr_SP_StartLevelMain()
     }
     hThread = Scr_ExecThread(SCRIPTINSTANCE_SERVER, g_scr_data.levelscript, 0);
     Scr_FreeThread(hThread, SCRIPTINSTANCE_SERVER);
+    // mod: then the fs_game mod's maps/_mod_main::main (G_SP_LoadLevelScripts), as Scr_LoadLevel does on the MP path
+    extern int g_modMainScript;
+    if ( g_modMainScript )
+    {
+        hThread = Scr_ExecThread(SCRIPTINSTANCE_SERVER, g_modMainScript, 0);
+        Scr_FreeThread(hThread, SCRIPTINSTANCE_SERVER);
+    }
     // mod: then the bo1_mod_zones zone scripts (G_SP_LoadLevelScripts), as Scr_LoadLevel does on the MP path; zombie
     // levels start here, not in Scr_LoadLevel, so without this the zone scripts never ran (L33: napalm module silent)
     extern int g_modZoneLevelScripts[BO1_MOD_ZONES_MAX];

@@ -28,12 +28,53 @@ const char *__cdecl Sys_DefaultCDPath()
     return "";
 }
 
+// mod (the Melty install): BO1Z_GAME_DIR names the player's Black Ops folder when this exe runs from a folder of its
+// own: zone\ is read there (Sys_DefaultInstallPath), it is the working folder (videos) and where the game's own DLLs
+// load from (WinMain), fs_b is that folder and fs_h this exe's (the mod, config and logs: FS_RegisterDvars, FS_Startup).
+// Unset, everything is as before.
+const char *__cdecl Sys_GameDirOverride()
+{
+    static char dir[256];
+    static bool read;
+    if ( !read )
+    {
+        read = true;
+        const DWORD n = GetEnvironmentVariableA("BO1Z_GAME_DIR", dir, sizeof(dir));
+        if ( !n || n >= sizeof(dir) )
+            dir[0] = 0;
+        for ( char *c = dir; *c; ++c )
+            if ( *c == '/' )
+                *c = '\\';
+        size_t len = strlen(dir);
+        while ( len > 3 && dir[len - 1] == '\\' )
+            dir[--len] = 0;
+    }
+    return dir[0] ? dir : NULL;
+}
+
+const char *__cdecl Sys_ExeFolder()
+{
+    static char dir[256];
+    if ( !dir[0] )
+    {
+        DWORD len = GetModuleFileNameA(GetModuleHandleA(0), dir, sizeof(dir));
+        if ( len >= sizeof(dir) )
+            len = sizeof(dir) - 1;
+        while ( len && dir[len] != '\\' &&dir[len] != '/' && dir[len] != ':' )
+            --len;
+        dir[len] = 0;
+    }
+    return dir;
+}
+
 char *__cdecl Sys_DefaultInstallPath()
 {
     char *v0; // eax
     unsigned int len; // [esp+0h] [ebp-8h]
     HINSTANCE__ *hinst; // [esp+4h] [ebp-4h]
 
+    if ( !exePath[0] && Sys_GameDirOverride() ) // mod: the player's Black Ops folder
+        I_strncpyz(exePath, Sys_GameDirOverride(), 256);
     if ( !exePath[0] )
     {
         if ( IsDebuggerPresent() )

@@ -101,6 +101,10 @@ target_link_options(BO1Zombies PRIVATE /machine:x86)
 # /LARGEADDRESSAWARE - for convenience (4gb)
 # /DEBUG - PDB for both configs 
 target_link_options(BO1Zombies PRIVATE /DYNAMICBASE:NO /LARGEADDRESSAWARE /DEBUG)
+# The game's own DLLs load when first used, so with BO1Z_GAME_DIR (the Melty install, src/win32/win_common.cpp) they
+# come from the player's Black Ops folder (SetDllDirectory in WinMain), not from this exe's
+target_link_options(BO1Zombies PRIVATE /DELAYLOAD:binkw32.dll /DELAYLOAD:d3dx9_43.dll /DELAYLOAD:XINPUT1_3.dll)
+target_link_libraries(BO1Zombies PUBLIC delayimp.lib)
 
 set_target_properties(BO1Zombies PROPERTIES WIN32_EXECUTABLE TRUE)
 

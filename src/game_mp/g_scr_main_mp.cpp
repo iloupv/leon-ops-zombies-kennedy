@@ -151,6 +151,8 @@ unsigned int __cdecl    GScr_AllocString(const char *s)
 
 // mod: maps/mod_zones/<zone>::main of each bo1_mod_zones zone the fs_game mod has a script for (G_SP_LoadLevelScripts)
 int g_modZoneLevelScripts[BO1_MOD_ZONES_MAX];
+// mod: the fs_game mod's maps/_mod_main::main (G_SP_LoadLevelScripts), run right after the level main
+int g_modMainScript;
 
 void __cdecl Scr_LoadLevel()
 {
@@ -159,6 +161,11 @@ void __cdecl Scr_LoadLevel()
     if ( g_scr_data.levelscript )
     {
         t = Scr_ExecThread(SCRIPTINSTANCE_SERVER, g_scr_data.levelscript, 0);
+        Scr_FreeThread(t, SCRIPTINSTANCE_SERVER);
+    }
+    if ( g_modMainScript )
+    {
+        t = Scr_ExecThread(SCRIPTINSTANCE_SERVER, g_modMainScript, 0);
         Scr_FreeThread(t, SCRIPTINSTANCE_SERVER);
     }
     // mod: then the mod zone scripts, so a mod's code that needs another map's scripts compiles only with that zone
