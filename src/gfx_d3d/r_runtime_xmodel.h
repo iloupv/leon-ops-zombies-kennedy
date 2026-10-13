@@ -17,4 +17,5 @@ enum RtAction
 };
 void __cdecl R_RuntimeXModel_PoseDObj(struct DObj *obj, const float *origin, const float *angles, int timeMs,
                                       bool isPlayer, float aimFrac, float aimPitch, RtAction action = RT_ACTION_NONE,
-                                      float actionTime = 0.0f, float actionDuration = 0.0f);
+                                      float actionTime = 0.0f, float actionDuration = 0.0f,
+                                      const float *aimCorrection = 0);

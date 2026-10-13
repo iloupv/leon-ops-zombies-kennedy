@@ -77,6 +77,7 @@ struct RtAnim
     float moveSpeed;     // inches per second at the cycle's own rate
     const float *frames; // frameCount x boneCount x {quat[4], trans offset[3]}
     const unsigned char *upperBody; // per bone: 1 from j_spinelower up (the aim poses take these), 0 below
+    int spineBone;       // j_spinelower (the aim correction turns it), -1: none
 };
 static std::vector<RtAnim> s_anims; // this level's
 static const XModel *s_laserModels[2]; // this level's laser sight beam segment and dot (R_RuntimeXModel_Laser)
@@ -737,10 +738,17 @@ static const XModel *RtBuildModel(const char *name, const void *data, int size, 
         for ( int a = (int)b; a >= 0 && !upperBody[b]; a = parent[a] )
             upperBody[b] = boneName[a] == "j_spinelower";
     }
+    int spineBone = -1;
+    for ( unsigned int b = 0; b < boneCount; ++b )
+    {
+        if ( boneName[b] == "j_spinelower" )
+            spineBone = (int)b;
+    }
     for ( RtAnim &anim : anims )
     {
         anim.model = linked;
         anim.upperBody = upperBody;
+        anim.spineBone = spineBone;
         s_anims.push_back(anim);
     }
     Com_Printf(0, "runtime model '%s': %u surfaces, %d vertices, %d triangles, %u textures, %u bones, %u animations"
@@ -776,30 +784,53 @@ static void RtPutU32(std::vector<unsigned char> &out, unsigned int v)
     RtPut(out, &v, 4);
 }
 
-// a version 1 .rlm with one red texture and one surface of quads (4 corners each, drawn both ways)
-static std::vector<unsigned char> RtMakeQuadModel(const float (*corners)[3], int quadCount)
+// the laser's glow at texture coordinates (u, v) in 0..1: radial (the dot: a white-hot core, a red bloom fading
+// out) or across v (the beam: bright along its middle, soft at its edges); BGRA
+static void RtLaserTexel(bool radial, float u, float v, unsigned char *bgra)
+{
+    float d = radial ? sqrtf((u - 0.5f) * (u - 0.5f) + (v - 0.5f) * (v - 0.5f)) * 2.0f : fabsf(v - 0.5f) * 2.0f;
+    d = d > 1.0f ? 1.0f : d;
+    const float core = radial ? (d < 0.18f ? 1.0f - d / 0.18f : 0.0f) : (d < 0.35f ? 1.0f - d / 0.35f : 0.0f);
+    float glow = 1.0f - d;
+    glow = radial ? glow * glow * glow : glow * glow; // the bloom falls off fast
+    const float a = core > glow ? core : glow;
+    const float hot = radial ? 200.0f : 60.0f; // the dot's core white-hot; the beam's stays red (thinned far out)
+    bgra[0] = (unsigned char)(40.0f + hot * core); // B
+    bgra[1] = (unsigned char)(40.0f + hot * core); // G
+    bgra[2] = 255;                                    // R
+    bgra[3] = (unsigned char)(255.0f * a);
+}
+
+// a version 1 .rlm with one glow texture (radial: the dot's, else the beam's) and one surface of quads (4 corners
+// each, drawn both ways)
+static std::vector<unsigned char> RtMakeQuadModel(const float (*corners)[3], int quadCount, bool radial)
 {
     std::vector<unsigned char> out;
     RtPut(out, "RLM1", 4);
     RtPutU32(out, 1);
     RtPutU32(out, 1);
     RtPutU32(out, 1);
-    char texName[32] = "laser_red";
+    char texName[32] = {};
+    strcpy(texName, radial ? "laser_dot" : "laser_beam");
     RtPut(out, texName, 32);
-    const unsigned short size = 4;
+    const unsigned short size = 32;
     RtPut(out, &size, 2);
     RtPut(out, &size, 2);
-    const unsigned char mips = 3, masked = 0;
+    const unsigned char mips = 6, masked = 0;
     RtPut(out, &mips, 1);
     RtPut(out, &masked, 1);
     const unsigned short pad = 0;
     RtPut(out, &pad, 2);
-    for ( int m = 0, w = 4; m < 3; ++m, w /= 2 )
+    for ( int m = 0, w = 32; m < 6; ++m, w /= 2 )
     {
-        for ( int i = 0; i < w * w; ++i )
+        for ( int y = 0; y < w; ++y )
         {
-            const unsigned char bgra[4] = { 40, 40, 255, 255 };
-            RtPut(out, bgra, 4);
+            for ( int x = 0; x < w; ++x )
+            {
+                unsigned char bgra[4];
+                RtLaserTexel(radial, ((float)x + 0.5f) / (float)w, ((float)y + 0.5f) / (float)w, bgra);
+                RtPut(out, bgra, 4);
+            }
         }
     }
     RtPutU32(out, 0);
@@ -851,19 +882,18 @@ static void RtBuildLaserModels(int zoneIndex, bool gpu)
         Com_PrintWarning(0, "runtime models: no unlit effect material; no laser sight\n");
         return;
     }
-    const float w = 0.12f, L = 16.0f, d = 0.9f;
+    // the beam's glow is soft at its edges; the dot is one quad facing +X (CG_ShoulderLaser turns it to the camera
+    // and scales it, as RE4's drawPoint), its radial glow round with a bloom
+    const float w = 0.3f, L = 16.0f, d = 2.0f;
     const float beam[4][4][3] = {
         { { 0, -w, 0 }, { L, -w, 0 }, { L, w, 0 }, { 0, w, 0 } },
         { { 0, 0, -w }, { L, 0, -w }, { L, 0, w }, { 0, 0, w } },
         { { 0, -w * 0.5f, -w * 0.5f }, { L, -w * 0.5f, -w * 0.5f }, { L, w * 0.5f, w * 0.5f }, { 0, w * 0.5f, w * 0.5f } },
         { { 0, -w * 0.5f, w * 0.5f }, { L, -w * 0.5f, w * 0.5f }, { L, w * 0.5f, -w * 0.5f }, { 0, w * 0.5f, -w * 0.5f } } };
-    const float dot[3][4][3] = {
-        { { -d, -d, 0 }, { d, -d, 0 }, { d, d, 0 }, { -d, d, 0 } },
-        { { -d, 0, -d }, { d, 0, -d }, { d, 0, d }, { -d, 0, d } },
-        { { 0, -d, -d }, { 0, d, -d }, { 0, d, d }, { 0, -d, d } } };
-    std::vector<unsigned char> data = RtMakeQuadModel(&beam[0][0], 4);
+    const float dot[1][4][3] = { { { 0, -d, -d }, { 0, d, -d }, { 0, d, d }, { 0, -d, d } } };
+    std::vector<unsigned char> data = RtMakeQuadModel(&beam[0][0], 4, false);
     s_laserModels[0] = RtBuildModel("leon_laser", data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
-    data = RtMakeQuadModel(&dot[0][0], 3);
+    data = RtMakeQuadModel(&dot[0][0], 1, true);
     s_laserModels[1] = RtBuildModel("leon_laser_dot", data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
     Com_Printf(0, "runtime models: laser sight on '%s' (%s)\n", effect->info.name, effect->techniqueSet->name);
 }
@@ -962,6 +992,15 @@ static void RtSampleBone(const RtAnim &anim, float phase, int b, float *quat, fl
         quat[k] = a[k] + (sign * c[k] - a[k]) * frac;
     for ( int k = 0; k < 3; ++k )
         trans[k] = a[4 + k] + (c[4 + k] - a[4 + k]) * frac;
+}
+
+// out = a * b (Hamilton; x, y, z, w): b turned by a
+static void RtQuatMul(const float *a, const float *b, float *out)
+{
+    out[0] = a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1];
+    out[1] = a[3] * b[1] - a[0] * b[2] + a[1] * b[3] + a[2] * b[0];
+    out[2] = a[3] * b[2] + a[0] * b[1] - a[1] * b[0] + a[2] * b[3];
+    out[3] = a[3] * b[3] - a[0] * b[0] - a[1] * b[1] - a[2] * b[2];
 }
 
 // a = a + (b - a) * t for a bone pose: the rotation by the shorter way (normalised later), the translation linearly
@@ -1097,7 +1136,7 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
 // for an XAnim pose (the rotation absolute, the translation added to the model's rest offset).
 void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const float *angles, int timeMs,
                                       bool isPlayer, float aimFrac, float aimPitch, RtAction action, float actionTime,
-                                      float actionDuration)
+                                      float actionDuration, const float *aimCorrection)
 {
     if ( s_anims.empty() || !obj->numModels || !obj->skel.mat )
         return;
@@ -1232,6 +1271,21 @@ void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const floa
                 RtBlendPose(quat, trans, pq, pt, actionPitchBlend);
             }
             RtBlendPose(mat->quat, mat->trans, quat, trans, actionWeight);
+        }
+        if ( b == cur.spineBone && aimCorrection && aimLevel >= 0 && (aimCorrection[0] != 0.0f || aimCorrection[1] != 0.0f) )
+        {
+            // the aim correction: the upper body turned (yaw about up, pitch about the left axis, in its parent's
+            // frame) so the gun's barrel points where the shots land; in by the aim
+            const float yaw = aimCorrection[1] * aimFrac * 0.5f * 0.017453292f;
+            const float pitch = aimCorrection[0] * aimFrac * 0.5f * 0.017453292f;
+            const float qy[4] = { 0.0f, 0.0f, sinf(yaw), cosf(yaw) };
+            const float qp[4] = { 0.0f, sinf(pitch), 0.0f, cosf(pitch) };
+            float qc[4];
+            RtQuatMul(qy, qp, qc);
+            float out[4];
+            RtQuatMul(qc, mat->quat, out);
+            for ( int k = 0; k < 4; ++k )
+                mat->quat[k] = out[k];
         }
         const float lenSq = mat->quat[0] * mat->quat[0] + mat->quat[1] * mat->quat[1] + mat->quat[2] * mat->quat[2]
             + mat->quat[3] * mat->quat[3];
