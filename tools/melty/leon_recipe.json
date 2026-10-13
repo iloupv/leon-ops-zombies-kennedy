@@ -6,7 +6,7 @@
     { "slug": "custom-resident-evil-4-2005", "role": "companion" }
   ],
   "components": [
-    { "id": "main", "fileName": "LeonZombies-0.1.0.zip", "label": "Main files", "kind": "main", "required": true }
+    { "id": "main", "fileName": "LeonZombies-0.1.1.zip", "label": "Main files", "kind": "main", "required": true }
   ],
   "requirements": [],
   "mappings": [{ "component": "main", "from": "", "to": "{managed}" }],

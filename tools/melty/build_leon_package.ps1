@@ -9,7 +9,7 @@
 # videos, binkw32's install copy, DirectX cabs stay in the player's install) and nothing converted from RE4 (the
 # setup writes mods\leon\rtmodels and mods\leon\sound on the player's PC).
 param(
-    [string]$Version = '0.1.0',
+    [string]$Version = '0.1.1',
     [string]$ToolsDir = 'C:\dev\refs\leon-tools',
     [string]$Re4Decomp = 'C:\dev\refs\re4'
 )
