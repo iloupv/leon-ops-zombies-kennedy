@@ -272,7 +272,7 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
     int size = FS_ReadFile(va("rtmodels/%s.rlm", name), &file);
     if ( size <= 0 || !file )
     {
-        Com_PrintWarning(8, "runtime model '%s': rtmodels/%s.rlm not found\n", name, name);
+        Com_PrintWarning(0, "runtime model '%s': rtmodels/%s.rlm not found\n", name, name);
         return;
     }
     RtReader r{ (const unsigned __int8 *)file, (const unsigned __int8 *)file, (const unsigned __int8 *)file + size };
@@ -280,7 +280,7 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
     unsigned int version = r.u32(), texCount = r.u32(), surfCount = r.u32();
     if ( !r.ok || memcmp(magic, "RLM1", 4) || version != 1 || !surfCount || surfCount > 255 )
     {
-        Com_PrintWarning(8, "runtime model '%s': not a version 1 .rlm file\n", name);
+        Com_PrintWarning(0, "runtime model '%s': not a version 1 .rlm file\n", name);
         FS_FreeFile(file);
         return;
     }
@@ -322,7 +322,7 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
     FS_FreeFile(file);
     if ( !r.ok )
     {
-        Com_PrintWarning(8, "runtime model '%s': truncated or invalid .rlm file\n", name);
+        Com_PrintWarning(0, "runtime model '%s': truncated or invalid .rlm file\n", name);
         return;
     }
 
@@ -348,7 +348,7 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
     model.radius = sqrtf(radiusSq);
     model.streamInfo.highMipBounds = (XModelHighMipBounds *)RtAlloc(sizeof(XModelHighMipBounds) * surfCount);
     RtLink(ASSET_TYPE_XMODEL, (XAssetHeader)&model, zoneIndex);
-    Com_Printf(8, "runtime model '%s': %u surfaces, %d vertices, %d triangles, %u textures (level zone %d)\n",
+    Com_Printf(0, "runtime model '%s': %u surfaces, %d vertices, %d triangles, %u textures (level zone %d)\n",
         name, surfCount, baseVert, baseTri, texCount, zoneIndex);
 }
 
@@ -362,7 +362,7 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
     const int zoneIndex = RtLevelZoneIndex(mapName);
     if ( !zoneIndex )
     {
-        Com_PrintWarning(8, "runtime models: no level zone '%s'\n", mapName);
+        Com_PrintWarning(0, "runtime models: no level zone '%s'\n", mapName);
         return;
     }
 
@@ -382,7 +382,7 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
     const Material *templ = RtTemplateMaterial();
     if ( !templ )
     {
-        Com_PrintWarning(8, "runtime models: no template material on this level\n");
+        Com_PrintWarning(0, "runtime models: no template material on this level\n");
         return;
     }
     RtFreeAll(); // the previous level's arrays; its zone (and the GPU side) is gone
