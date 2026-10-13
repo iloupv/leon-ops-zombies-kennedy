@@ -2773,7 +2773,7 @@ static float s_shoulderRecoil;
 // mod: the shoulder camera's yaw. Aimed in, the view (the aim: where the shots go) moves freely up to
 // SHOULDER_AIM_DEADZONE degrees either side of it - Leon's arms and torso turn to it (the aim correction, the body
 // staying with the camera) - and pushing past drags the camera (and his body) along; out of the aim it is the view's.
-static const float SHOULDER_AIM_DEADZONE = 20.0f;
+static const float SHOULDER_AIM_DEADZONE = 8.0f;
 static float s_shoulderCameraYaw;
 static bool s_shoulderCameraYawSet;
 
@@ -2834,7 +2834,8 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
     CG_ShoulderAimPoint(cgameGlob, eye, fwd, aim);
     float want[3] = { aim[0] - orient.origin[0], aim[1] - orient.origin[1], aim[2] - orient.origin[2] };
     const bool wantValid = Vec3Normalize(want) > 1.0f;
-    if (wantValid && s_shoulderRecoil <= 0.0f) // the recoil's kick is not aim error: hold the correction
+    static float s_lastWantAngles[2];
+    if (wantValid)
     {
         float wantAngles[3], barrelAngles[3];
         vectoangles(want, wantAngles);
@@ -2843,14 +2844,30 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
         const float k = dt * 12.0f < 1.0f ? dt * 12.0f : 1.0f;
         for (int i = 0; i < 2; ++i)
         {
-            const float error = AngleNormalize180(wantAngles[i] - barrelAngles[i]);
-            float corr = s_shoulderAimCorrection[i] + error * k;
+            // the barrel's error closes in; through a shot's motion its kick is not aim error, so the upper body
+            // only follows the aim's own moves (the mouse) instead
+            float corr = s_shoulderRecoil > 0.0f
+                ? s_shoulderAimCorrection[i] + AngleNormalize180(wantAngles[i] - s_lastWantAngles[i])
+                : s_shoulderAimCorrection[i] + AngleNormalize180(wantAngles[i] - barrelAngles[i]) * k;
             s_shoulderAimCorrection[i] = corr > 45.0f ? 45.0f : (corr < -45.0f ? -45.0f : corr);
+            s_lastWantAngles[i] = wantAngles[i];
         }
     }
-    // off through a shot's motion (the recoil, the shotgun's pump), back once it is over
-    if (s_shoulderRecoil > 0.0f)
+    // off while the weapon cannot fire again (the shot, a pump or bolt); back as soon as it can, then through the rest
+    // of the shot's motion along where the shots land (not the kicking barrel), blending back onto it as the motion ends
+    if (weaponState == WEAPON_FIRING || weaponState == WEAPON_RECHAMBERING || weaponState == WEAPON_FIRING_LEFT
+        || weaponState == WEAPON_FIRING_BOTH)
         return;
+    if (wantValid && s_shoulderRecoil > 0.0f)
+    {
+        const float r = s_shoulderRecoil < 1.0f ? s_shoulderRecoil : 1.0f;
+        float dir[3], angles[3];
+        for (int k = 0; k < 3; ++k)
+            dir[k] = orient.axis[0][k] + (want[k] - orient.axis[0][k]) * r;
+        Vec3Normalize(dir);
+        vectoangles(dir, angles);
+        AnglesToAxis(angles, orient.axis);
+    }
     // none on a launcher (the aim correction above still points it)
     if (BG_GetWeaponDef(cgameGlob->predictedPlayerState.weapon)->weapClass == WEAPCLASS_ROCKETLAUNCHER)
         return;
