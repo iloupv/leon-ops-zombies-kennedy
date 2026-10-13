@@ -1,3 +1,5 @@
+#include "cg_pose_mp.h"
+#include <gfx_d3d/r_runtime_xmodel.h>
 #include "cg_players_mp.h"
 #include "cg_local_mp.h"
 #include <client_mp/cl_cgame_mp.h>
@@ -1856,6 +1858,13 @@ void __cdecl CG_UpdateWeaponVisibilityInternal(int localClientNum, centity_s *ce
         addGrenade = BG_IsGrenadeAnim(ci, cent->nextState.anim.torsoAnim);
         if ( !addGrenade )
             addGrenade = BG_IsGrenadeAnim(ci, cent->nextState.animState.state);
+        // mod: a runtime-animated body (the Leon mod) slashes and throws with its own motions: no CoD knife or grenade
+        // model on its knife tag (it has none, so the knife hung elsewhere), and no DObj rebuild that restarts its pose
+        {
+            const DObj *bodyObj = Com_GetClientDObj(p_nextState->number, localClientNum);
+            if ( bodyObj && bodyObj->numModels && R_RuntimeXModel_IsAnimated(bodyObj->localModels[0]) )
+                addKnife = addGrenade = 0;
+        }
         if ( !addKnife || ci->usingKnife )
         {
             if ( addKnife || !ci->usingKnife )
