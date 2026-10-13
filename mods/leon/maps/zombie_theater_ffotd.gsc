@@ -9,8 +9,7 @@
 
 main_start()
 {
-	logPrint( "leon: main_start
-" );
+	logPrint( "leon: main_start\n" );
 	precacheModel( "leon" );
 }
 
@@ -29,6 +28,5 @@ leon_spawn_test()
 	leon.angles = ( 0, player.angles[1] + 180, 0 );
 	leon setModel( "leon" );
 	iPrintLn( "leon: spawned at " + leon.origin );
-	logPrint( "leon: spawned at " + leon.origin + " facing " + leon.angles + "
-" );
+	logPrint( "leon: spawned at " + leon.origin + " facing " + leon.angles + "\n" );
 }
