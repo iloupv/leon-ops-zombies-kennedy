@@ -889,6 +889,7 @@ void __cdecl CG_Player(int localClientNum, centity_s *cent)
                             extraCamConstSetPtr,
                             0.0,
                             1.0);
+                        CG_ShoulderLaser(localClientNum, cent, obj); // mod: the laser sight over the shoulder
                         if ( (p_nextState->lerp.eFlags & 0x40000) == 0 )
                         {
                             PROF_SCOPED("CG_AddPlayerWeapon");

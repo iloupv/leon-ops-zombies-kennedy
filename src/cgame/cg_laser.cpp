@@ -51,6 +51,9 @@ void __cdecl CG_Laser_Add_Core(
     float laserEnd[3]; // [esp+168h] [ebp-Ch] BYREF
 
     Com_Memset((unsigned int *)&traceResults, 0, 56);
+    // fix: the beam's other fields (material2, perpSegmentCount, segmentVerts, flags, animFrac) were left as stack
+    // garbage, which FX_Beam_GenerateVerts reads (segmentVerts / flags pick its paths)
+    memset(&beam, 0, sizeof(beam));
     if ( (unsigned int)laserOwner >= 2
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\cgame\\cg_laser.cpp",

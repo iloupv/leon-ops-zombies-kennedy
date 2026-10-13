@@ -45,6 +45,8 @@ leon_spawn_test()
 		setDvar( "cg_thirdPerson", "1" );
 	if ( getDvar( "leon_tpangle" ) != "" )
 		setDvar( "cg_thirdPersonAngle", getDvar( "leon_tpangle" ) ); // tests: the camera around the player
+	if ( getDvar( "leon_setdvar" ) != "" )
+		setDvar( getDvar( "leon_setdvar" ), getDvar( "leon_setvalue" ) ); // tests: one (cheat) dvar once the level runs
 	if ( getDvar( "leon_aimtest" ) != "" )
 		setDvar( "cg_thirdPersonAimTest", getDvar( "leon_aimtest" ) ); // tests: aiming without input
 	if ( getDvar( "leon_aimpitch" ) != "" )

@@ -1670,6 +1670,50 @@ void __cdecl Pmove_1(pmove_t *pm)
     }
 }
 
+// mod: Resident Evil 4's controls (player_tankControls, the Leon mod), from the RE4 player code (game/player.cpp):
+// forward / back move along the facing only (no strafing) and left / right turn the player (pl_R1_Walk / pl_R1_Back:
+// SPEED_WALK_TURN, 0.0418879 rad a 30 Hz frame; pl_R1_Run 10 % faster); he walks, and runs only while the run key
+// (BO1's sprint key) is held moving forward, at the speeds of RE4's own cycles (the root motion of the handgun set:
+// walk 68, run 167, back step 77 inches a second); aiming (joyKamae) stops him; back + run turns him around
+// (pl_R1_Turn180); he fires only aimed in. The mouse still turns him too. Runs in Pmove on the server and in the client's prediction alike:
+// the turns go through delta_angles, as script view changes do.
+static void PM_TankControls(pmove_t *pm, float frametime)
+{
+    playerState_s *ps = pm->ps;
+    usercmd_s *cmd = &pm->cmd;
+    const bool aiming = cmd->button_bits.testBit(0xBu) || ps->fWeaponPosFrac > 0.0f;
+    if ( !cmd->button_bits.testBit(0xBu) || ps->fWeaponPosFrac < 0.75f )
+        cmd->button_bits.resetBit(0); // RE4 fires only aimed in (the laser on)
+    const bool runKey = cmd->button_bits.testBit(1u);
+    cmd->button_bits.resetBit(1u); // no BO1 sprint (stamina, lowered weapon): RE4's run instead
+    if ( runKey && cmd->forwardmove < 0 && !aiming
+         && !(pm->oldcmd.button_bits.testBit(1u) && pm->oldcmd.forwardmove < 0) )
+    {
+        ps->delta_angles[1] = AngleNormalize180(ps->delta_angles[1] + 180.0f); // the quick turn
+        cmd->forwardmove = 0;
+        cmd->rightmove = 0;
+        return;
+    }
+    const bool running = runKey && cmd->forwardmove > 0 && !aiming;
+    if ( cmd->rightmove )
+    {
+        const float rate = 0.0418879f * 57.29578f * 30.0f * (running ? 1.1f : 1.0f); // degrees a second
+        ps->delta_angles[1] = AngleNormalize180(ps->delta_angles[1] - rate * frametime * ((float)cmd->rightmove / 127.0f));
+        cmd->rightmove = 0;
+    }
+    if ( aiming || !cmd->forwardmove )
+    {
+        cmd->forwardmove = 0;
+        return;
+    }
+    const float speed = cmd->forwardmove < 0 ? 77.0f : (running ? 167.0f : 68.0f);
+    const float full = ps->speed > 0 ? (float)ps->speed : 190.0f;
+    float move = 127.0f * speed / full;
+    if ( move > 127.0f )
+        move = 127.0f;
+    cmd->forwardmove = (char)(cmd->forwardmove < 0 ? -move : move);
+}
+
 void __cdecl PmoveSingle(pmove_t *pm)
 {
     int EffectiveStance; // eax
@@ -1903,6 +1947,8 @@ void __cdecl PmoveSingle(pmove_t *pm)
     pml.previous_velocity[1] = ps->velocity[1];
     pml.previous_velocity[2] = ps->velocity[2];
     pml.frametime = (float)pml.msec * 0.001;
+    if ( player_tankControls && player_tankControls->current.enabled && ps->pm_type < 7 && !(ps->eFlags & 0x4300) )
+        PM_TankControls(pm, pml.frametime); // mod
     PM_AdjustAimSpreadScale(pm, &pml);
     PM_UpdateViewAngles(pm->localClientNum, ps, (float)pml.msec, &pm->cmd, pm->handler);
     PM_SetWaterLevel(pm);

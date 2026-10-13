@@ -453,6 +453,7 @@ const dvar_s *player_enduranceSpeedScale;
 const dvar_s *player_sprintForwardMinimum;
 const dvar_s *player_sprintSpeedScale;
 const dvar_s *player_sprintUnlimited;
+const dvar_s *player_tankControls; // mod: Resident Evil 4's controls (bg_pmove.cpp)
 const dvar_s *player_sprintTime;
 const dvar_s *player_sprintMinTime;
 const dvar_s *player_sprintRechargePause;
@@ -1414,6 +1415,11 @@ void __cdecl BG_RegisterDvars()
                                                          0,
                                                          0x180u,
                                                          "Whether players can sprint forever or not");
+    player_tankControls = _Dvar_RegisterBool( // mod (the Leon mod); 0x100: the server's value reaches the clients
+                                                         "player_tankControls",
+                                                         0,
+                                                         0x100u,
+                                                         "Resident Evil 4's controls: forward / back along the facing, left / right turn, walk (the sprint key runs), no moving while aiming, back + sprint turns around");
     player_sprintTime = _Dvar_RegisterFloat(
                                                 "player_sprintTime",
                                                 4.0,
