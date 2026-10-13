@@ -55,6 +55,8 @@ leon_spawn_test()
 		player setPlayerAngles( ( getDvarFloat( "leon_aimpitch" ), yaw, 0 ) ); // tests: the view pitch (+ down)
 	if ( getDvar( "leon_damagelog" ) == "1" )
 		player thread leon_damage_log(); // tests: the damage the player takes (zombie attacks)
+	if ( getDvar( "leon_emptyclip" ) == "1" )
+		player thread leon_empty_clip(); // tests: a reload to make (a headless client fires only aimed in)
 	if ( getDvar( "leon_hurttest" ) != "" )
 		player thread leon_hurt_loop( getDvarInt( "leon_hurttest" ) ); // tests: hits (and going down) without zombies
 
@@ -110,6 +112,17 @@ leon_damage_log_events()
 	{
 		self waittill( "damage", amount, attacker, dir, point, mod );
 		logPrint( "leon: damage " + amount + " mod " + mod + " health " + self.health + "\n" );
+	}
+}
+
+// One round left in the clip every 3 s (tests: a reload is always there to make).
+leon_empty_clip()
+{
+	self endon( "disconnect" );
+	for ( ;; )
+	{
+		self setWeaponAmmoClip( self getCurrentWeapon(), 1 );
+		wait 3;
 	}
 }
 

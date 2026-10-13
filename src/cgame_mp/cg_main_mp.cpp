@@ -1,3 +1,4 @@
+#include <gfx_d3d/r_runtime_xmodel.h>
 #include <qcommon/cm_mapkit.h>
 #include <database/db_registry.h>
 #include <game_sp/g_sp_measure.h>
@@ -3595,11 +3596,14 @@ unsigned __int16 __cdecl CG_AttachWeapon(DObjModel_s *dobjModels, unsigned __int
     const WeaponDef *weapDefa; // [esp+10h] [ebp-4h]
     const WeaponDef *weapDefb; // [esp+10h] [ebp-4h]
 
+    // mod: a runtime-animated body (the Leon mod: RE4's knife slash is right-handed) puts its gun away for a melee and
+    // takes the knife in its right hand
+    const bool runtimeBody = numModels && dobjModels[0].model && R_RuntimeXModel_IsAnimated(dobjModels[0].model);
     if ( ci->iDObjWeapon )
     {
         weapDef = BG_GetWeaponDef(ci->iDObjWeapon);
         weaponModel = ci->weaponModel;
-        if ( weapDef->worldModel[weaponModel] && !weapDef->bHideThirdPerson )
+        if ( weapDef->worldModel[weaponModel] && !weapDef->bHideThirdPerson && !(runtimeBody && ci->usingKnife) )
         {
             if ( numModels >= 0x20u
                 && !Assert_MyHandler(
@@ -3673,7 +3677,7 @@ unsigned __int16 __cdecl CG_AttachWeapon(DObjModel_s *dobjModels, unsigned __int
                     __debugbreak();
                 }
                 dobjModels[numModels].model = weapDefa->worldModel[ci->meleeWeaponModel];
-                dobjModels[numModels].boneName = scr_const.tag_weapon_left;
+                dobjModels[numModels].boneName = runtimeBody ? scr_const.tag_inhand : scr_const.tag_weapon_left; // the right palm
                 dobjModels[numModels++].ignoreCollision = 0;
             }
         }

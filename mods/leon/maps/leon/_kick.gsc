@@ -197,6 +197,7 @@ leon_kick()
 	setDvar( "leon_kick_stamp", getTime() ); // the client starts Leon's kick on it
 	setDvar( "leon_kick_ready", "0" ); // no prompt through the kick
 	setDvar( "leon_kicking", "1" ); // no reload through it (PM_TankControls)
+	self enableInvulnerability(); // no damage through the kick
 	wait 0.53;
 	forward = anglesToForward( ( 0, self.angles[1], 0 ) );
 	center = self.origin + forward * 30;
@@ -223,6 +224,8 @@ leon_kick()
 	wait 1.25; // to the motion's end (50 frames: 1.67 s) and its blend out
 	setDvar( "leon_kick_ready", "0" );
 	setDvar( "leon_kicking", "0" );
+	if ( getDvar( "leon_test" ) == "" && getDvar( "leon_kicktest" ) != "1" ) // (the tests keep him invulnerable)
+		self disableInvulnerability();
 	while ( self useButtonPressed() )
 		wait 0.05;
 	self.leon_kicking = undefined;
