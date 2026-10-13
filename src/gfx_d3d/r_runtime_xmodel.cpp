@@ -46,6 +46,7 @@
 #include <universal/com_memory.h>
 #include <universal/dvar.h>
 #include <universal/q_shared.h>
+#include <universal/com_math.h>
 #include <win32/win_shared.h>
 #include <malloc.h>
 #include <string.h>
@@ -82,8 +83,10 @@ struct RtAnimState
     const DObj *obj; // the DObj the state belongs to (a new one restarts it)
     int lastTime;
     float lastOrigin[3];
-    float speed;       // smoothed ground speed, inches per second
-    float forwardSpeed; // its component along the facing
+    float vel[2];      // smoothed ground velocity, inches per second
+    float speed;       // its length
+    float moveRel;     // its direction relative to the facing, degrees (0: forward, +-180: backward)
+    float bodyYaw;     // the body's turn toward the motion (a strafing player), degrees
     int cur, prev;     // s_anims indices (-1: none)
     float curPhase, prevPhase; // frames
     float prevRate;
@@ -841,7 +844,7 @@ static int RtChooseCycle(const XModel *model, const RtAnimState &st)
     const bool moving = st.cur >= 0 && st.cur != still;
     if ( st.speed < (moving ? 6.0f : 12.0f) || (walk < 0 && run < 0) )
         return still;
-    if ( back >= 0 && st.forwardSpeed < -0.4f * st.speed )
+    if ( back >= 0 && fabsf(st.moveRel) > (st.cur == back ? 100.0f : 115.0f) )
         return back;
     if ( walk < 0 )
         return run;
@@ -876,15 +879,15 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
         const float dt = (float)(timeMs - st.lastTime) * 0.001f;
         if ( dt > 0.0f && dt <= 0.5f )
         {
-            const float dx = origin[0] - st.lastOrigin[0], dy = origin[1] - st.lastOrigin[1];
-            float speed = sqrtf(dx * dx + dy * dy) / dt;
-            const float yaw = angles[1] * 0.017453292f;
-            float forward = (dx * cosf(yaw) + dy * sinf(yaw)) / dt;
-            if ( speed > 2000.0f ) // a teleport
-                speed = forward = 0.0f;
+            float vx = (origin[0] - st.lastOrigin[0]) / dt, vy = (origin[1] - st.lastOrigin[1]) / dt;
+            if ( vx * vx + vy * vy > 2000.0f * 2000.0f ) // a teleport
+                vx = vy = 0.0f;
             const float k = dt * 10.0f < 1.0f ? dt * 10.0f : 1.0f;
-            st.speed += (speed - st.speed) * k;
-            st.forwardSpeed += (forward - st.forwardSpeed) * k;
+            st.vel[0] += (vx - st.vel[0]) * k;
+            st.vel[1] += (vy - st.vel[1]) * k;
+            st.speed = sqrtf(st.vel[0] * st.vel[0] + st.vel[1] * st.vel[1]);
+            if ( st.speed > 1.0f )
+                st.moveRel = AngleNormalize180(atan2f(st.vel[1], st.vel[0]) * 57.29578f - angles[1]);
 
             const int target = RtChooseCycle(model, st);
             if ( target != st.cur && target >= 0 )
@@ -899,6 +902,16 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
                 st.cur = target;
                 st.blend = 0.0f;
             }
+            // the body turns toward a sideways motion (backward: the back step, turned the other way)
+            float bodyTarget = 0.0f;
+            if ( s_anims[st.cur].moveSpeed > 0.0f )
+            {
+                const bool backStep = !strcmp(s_anims[st.cur].name, "back");
+                bodyTarget = backStep ? AngleNormalize180(st.moveRel - 180.0f) : st.moveRel;
+                const float limit = backStep ? 70.0f : 100.0f;
+                bodyTarget = bodyTarget > limit ? limit : (bodyTarget < -limit ? -limit : bodyTarget);
+            }
+            st.bodyYaw += (bodyTarget - st.bodyYaw) * (dt * 8.0f < 1.0f ? dt * 8.0f : 1.0f);
             const RtAnim &cur = s_anims[st.cur];
             st.curPhase = RtWrapPhase(st.curPhase + dt * cur.fps * RtCycleRate(cur, st.speed), cur.frameCount);
             if ( st.prev >= 0 )
@@ -943,9 +956,22 @@ void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const floa
         numBones = obj->numBones;
     for ( int b = 0; b < numBones; ++b )
     {
+        DObjAnimMat *mat = &obj->skel.mat[b];
+        // the root: the body's turn toward the motion, in place of a player's CoD leg yaw (BG_Player_DoControllers
+        // sets tag_origin for CoD's own leg animations) unless the skeleton is built from it already
+        if ( b == 0 && !(obj->skel.partBits.skel[0] & 0x80000000) )
+        {
+            const float half = st.bodyYaw * 0.5f * 0.017453292f;
+            mat->quat[0] = mat->quat[1] = 0.0f;
+            mat->quat[2] = sinf(half);
+            mat->quat[3] = cosf(half);
+            mat->trans[0] = mat->trans[1] = mat->trans[2] = 0.0f;
+            mat->transWeight = 2.0f;
+            obj->skel.partBits.anim[0] |= 0x80000000;
+            continue;
+        }
         if ( obj->skel.partBits.anim[b >> 5] & (0x80000000 >> (b & 31)) )
             continue; // posed already this frame (an earlier CG_DObjCalcBone / CG_DObjCalcPose)
-        DObjAnimMat *mat = &obj->skel.mat[b];
         RtSampleBone(cur, st.curPhase, b, mat->quat, mat->trans);
         if ( prev )
         {
