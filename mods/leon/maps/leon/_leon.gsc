@@ -16,6 +16,7 @@ init()
 	precacheModel( "t5_weapon_m14_world" ); // the npc test's weapon (common_zombie: on every map)
 	level thread leon_spawn_test();
 	level thread maps\leon\_kick::init(); // RE4's stagger and kick
+	level thread maps\leon\_helmet::init(); // Moon's astronaut helmet on him
 }
 
 leon_spawn_test()
@@ -42,6 +43,7 @@ leon_spawn_test()
 		player setModel( "leon" );
 		player thread leon_keep_model();
 	}
+	player thread leon_down_no_weapons();
 	logPrint( "leon: player model " + player.model + "\n" );
 	if ( getDvar( "leon_thirdperson" ) == "1" )
 		setDvar( "cg_thirdPerson", "1" );
@@ -172,6 +174,23 @@ leon_empty_clip()
 	}
 }
 
+// Down (last stand: Quick Revive in solo, or waiting for a teammate) he lies there with RE4's death and cannot shoot:
+// BO1's last stand pistol is put away until he is revived (or bleeds out).
+leon_down_no_weapons()
+{
+	self endon( "disconnect" );
+	for ( ;; )
+	{
+		self waittill( "player_downed" );
+		wait 0.05; // after the last stand has handed him its pistol
+		self disableWeapons();
+		logPrint( "leon: down, weapons off\n" );
+		self waittill_any( "player_revived", "bled_out", "death", "spawned_player" );
+		self enableWeapons();
+		logPrint( "leon: up, weapons on\n" );
+	}
+}
+
 // Leon again whenever the game gives him back a character model (a respawn, a revive).
 leon_keep_model()
 {
@@ -192,7 +211,10 @@ leon_hurt_loop( damage )
 {
 	self endon( "disconnect" );
 	if ( getDvar( "leon_hurtqr" ) == "1" )
+	{
 		self setPerk( "specialty_quickrevive" ); // solo: down (last stand) instead of game over
+		self.lives = 1; // (the machine's solo life: _zombiemode's solo death checks self.lives)
+	}
 	for ( ;; )
 	{
 		wait 3;
