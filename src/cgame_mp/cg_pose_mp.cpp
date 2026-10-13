@@ -1,4 +1,5 @@
 #include "cg_pose_mp.h"
+#include "cg_view_mp.h"
 #include <xanim/dobj_utils.h>
 #include <ragdoll/ragdoll_controller.h>
 #include "cg_local_mp.h"
@@ -896,8 +897,17 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             actionDuration = 1.6f;
         }
     }
+    // the aim correction (CG_ShoulderLaser): the upper body turned so the barrel points where the shots land; it
+    // fades while not aimed in
+    float aimCorrection[2] = { 0.0f, 0.0f };
+    if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
+    {
+        if ( aimFrac < 0.98f )
+            CG_ShoulderAimCorrectionDecay(0.9f);
+        CG_ShoulderAimCorrection(aimCorrection);
+    }
     R_RuntimeXModel_PoseDObj(obj, origin, angles, cgameGlob->time, isPlayer, aimFrac, aimPitch, action, actionTime,
-                             actionDuration);
+                             actionDuration, aimCorrection);
 }
 
 DObjAnimMat *__cdecl CG_DObjCalcPose(const cpose_t *remote_pose, DObj *obj, int *partBits)

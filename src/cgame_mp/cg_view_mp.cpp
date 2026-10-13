@@ -2751,6 +2751,22 @@ bool __cdecl CG_ShoulderCameraActive(const cg_s *cgameGlob)
         && !(cgameGlob->predictedPlayerState.eFlags & 0x4300);
 }
 
+// mod: the upper body's turn (pitch, yaw: degrees) that points the gun's barrel where the shots land, measured by
+// CG_ShoulderLaser from the muzzle each frame and put on the pose by CG_RuntimeXModel_Pose
+static float s_shoulderAimCorrection[2];
+
+void __cdecl CG_ShoulderAimCorrection(float *pitchYaw)
+{
+    pitchYaw[0] = s_shoulderAimCorrection[0];
+    pitchYaw[1] = s_shoulderAimCorrection[1];
+}
+
+void __cdecl CG_ShoulderAimCorrectionDecay(float frac)
+{
+    s_shoulderAimCorrection[0] *= frac;
+    s_shoulderAimCorrection[1] *= frac;
+}
+
 // mod: the local player's aim (ADS) fraction (cg_thirdPersonAimTest forces one for headless tests)
 float __cdecl CG_ShoulderAimFrac(const cg_s *cgameGlob)
 {
@@ -2789,17 +2805,28 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
     if ((weaponState >= WEAPON_RELOADING_RIGHT && weaponState <= WEAPON_RELOAD_QUICK_EMPTY)
         || cg_thirdPersonActionTest->current.integer == 2)
         return; // off while reloading, as in RE4
+    // straight out of the barrel (the muzzle tag's forward axis), as RE4's; the aim correction turns the upper body
+    // until the barrel points where the shots land (the view line's hit), so the dot settles there
     orientation_t orient;
-    if (!CG_DObjGetWorldTagPos(&cent->pose, obj, scr_const.tag_flash, orient.origin))
+    if (!CG_DObjGetWorldTagMatrix(&cent->pose, obj, scr_const.tag_flash, orient.axis, orient.origin))
         return;
     float eye[3], fwd[3], aim[3];
     CG_ShoulderAimPoint(cgameGlob, eye, fwd, aim);
-    float dir[3] = { aim[0] - orient.origin[0], aim[1] - orient.origin[1], aim[2] - orient.origin[2] };
-    if (Vec3Normalize(dir) < 1.0f)
-        Vec3Copy(fwd, dir);
-    float angles[3];
-    vectoangles(dir, angles);
-    AnglesToAxis(angles, orient.axis);
+    float want[3] = { aim[0] - orient.origin[0], aim[1] - orient.origin[1], aim[2] - orient.origin[2] };
+    if (Vec3Normalize(want) > 1.0f)
+    {
+        float wantAngles[3], barrelAngles[3];
+        vectoangles(want, wantAngles);
+        vectoangles(orient.axis[0], barrelAngles);
+        const float dt = (float)cgameGlob->frametime * 0.001f;
+        const float k = dt * 12.0f < 1.0f ? dt * 12.0f : 1.0f;
+        for (int i = 0; i < 2; ++i)
+        {
+            const float error = AngleNormalize180(wantAngles[i] - barrelAngles[i]);
+            float corr = s_shoulderAimCorrection[i] + error * k;
+            s_shoulderAimCorrection[i] = corr > 45.0f ? 45.0f : (corr < -45.0f ? -45.0f : corr);
+        }
+    }
     // the beam: the laser models made with the runtime models (r_runtime_xmodel.cpp), segments end to end from the
     // muzzle to where the line hits, and the dot there (the engine's FX beam / sprite laser draws nothing here)
     const XModel *beam = R_RuntimeXModel_Laser(false), *dot = R_RuntimeXModel_Laser(true);
@@ -2817,16 +2844,39 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
     static unsigned __int16 lighting[130];
     GfxScaledPlacement placement;
     AxisToQuat(orient.axis, placement.base.quat);
-    placement.scale = 1.0f;
+    // RE4's line (cObjWep::drawLaserSight, esp19's Draw_line3d_local_222): it starts 500 mm (19.7") past the muzzle
+    // once the hit is farther than that, and fades out over max_laser_dist (12000 mm: 472"), where it ends; here the
+    // fade thins the segments (each as long as it is wide), so they stay end to end
+    const float laserStart = length > 19.7f ? 19.7f : length, laserMax = 472.0f;
+    const float lineEnd = length < laserMax ? length : laserMax;
     int segment = 0;
-    for (float d = 0.0f; d < length && segment < 128; d += 16.0f, ++segment)
+    for (float d = laserStart; d < lineEnd && segment < 128; ++segment)
     {
+        const float rate = 1.0f - d / laserMax;
+        placement.scale = rate > 0.15f ? rate : 0.15f;
         for (int k = 0; k < 3; ++k)
             placement.base.origin[k] = orient.origin[k] + orient.axis[0][k] * d;
         R_FilterXModelIntoScene(beam, &placement, 0, &lighting[segment], 0.0f);
+        d += 16.0f * placement.scale;
     }
+    // RE4's dot (drawPoint): where the line hits, facing the camera (round), sized with the camera's distance:
+    // 0.8 + dist / 8000 mm (315"), at most 3; RE4 draws it only past the line's 500 mm start
+    if (trace.fraction >= 1.0f || length <= 19.7f)
+        return;
+    float hit[3], toCamera[3];
     for (int k = 0; k < 3; ++k)
-        placement.base.origin[k] = orient.origin[k] + orient.axis[0][k] * length;
+        hit[k] = orient.origin[k] + orient.axis[0][k] * length;
+    Vec3Sub(cgameGlob->refdef.vieworg, hit, toCamera);
+    const float cameraDist = Vec3Normalize(toCamera);
+    float dotAxis[3][3];
+    Vec3Copy(toCamera, dotAxis[0]);
+    PerpendicularVector(dotAxis[0], dotAxis[1]);
+    Vec3Cross(dotAxis[0], dotAxis[1], dotAxis[2]);
+    AxisToQuat(dotAxis, placement.base.quat);
+    const float mul = 0.8f + cameraDist / 315.0f;
+    placement.scale = mul < 3.0f ? mul : 3.0f;
+    for (int k = 0; k < 3; ++k)
+        placement.base.origin[k] = hit[k] + toCamera[k] * 1.0f; // off the surface, toward the camera
     R_FilterXModelIntoScene(dot, &placement, 0, &lighting[129], 0.0f);
 }
 
