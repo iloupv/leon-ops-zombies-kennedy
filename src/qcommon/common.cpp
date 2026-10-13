@@ -2932,10 +2932,10 @@ static void Com_StartMapLoadCinematic(const char *mapName)
     Com_sprintf(s_mapLoadCinematicName, sizeof(s_mapLoadCinematicName), "%s_load", mapName);
     s_mapLoadCinematicHandoffPending = true;
     s_mapLoadCinematicPlaying = true;
-    // 2: loop, so the art and music last through a load longer than the video; at a quarter volume (-12 dB): at full
-    // scale (and at half) its music played well over the level's own once it loaded (round music ~0.4 after the
-    // music group)
-    R_Cinematic_StartPlayback_SP(s_mapLoadCinematicName, 2, 0.25f);
+    // once (it looped through a long load and the shader warm pass, and seemed to start again; when it ends first, the
+    // still art takes over: Com_UpdateLevelBriefingMaterial); at a quarter volume (-12 dB): at full scale (and at
+    // half) its music played well over the level's own once it loaded (round music ~0.4 after the music group)
+    R_Cinematic_StartPlayback_SP(s_mapLoadCinematicName, 0, 0.25f);
 }
 
 // BO1FIX: called before every screen draw (SCR_DrawScreenField, main or render thread).
@@ -2951,28 +2951,31 @@ void __cdecl Com_UpdateLevelBriefingMaterial()
     Material *briefing = Material_RegisterHandle((char *)"$levelbriefing", 0);
     if (Com_IsMissingMaterial(briefing))
         Com_SetLevelBriefingMaterial("black");
+    // the video over before the load: back to the level's still art (the stopped video's images go black)
+    if (s_mapLoadCinematicPlaying && !s_mapLoadCinematicHandoffPending && R_Cinematic_IsFinished())
+    {
+        s_mapLoadCinematicPlaying = false;
+        Com_SetLevelBriefingStillArt(s_mapLoadCinematicMap);
+    }
     if (!s_mapLoadCinematicHandoffPending || !R_Cinematic_IsShowingFrameOf(s_mapLoadCinematicName))
         return;
     s_mapLoadCinematicHandoffPending = false;
     Com_SetLevelBriefingMaterial("cinematic");
 }
 
-// BO1FIX: called every client frame. The load is not over at the first snapshot: the first world frame
+// BO1FIX: called every client frame. The video stops at the first snapshot (the level is in); the first world frame
 // still sorts the materials and runs the shader warm pass (R_BeginFrame / RB_ShaderWarming, seconds behind
-// PATCH_SHADER_WARMING), so the video and its music run until that is done and the level fades in.
+// PATCH_SHADER_WARMING) under the loading screen, which shows the level's still art meanwhile (the video ran on
+// through it, looping, and seemed to play again).
 void __cdecl Com_UpdateMapLoadCinematic(int localClientNum)
 {
     if (!s_mapLoadCinematicPlaying || CL_GetLocalClientConnectionState(localClientNum) != CA_ACTIVE)
         return;
-    if (!rgp.world || rgp.needSortMaterials)
-        return;
-    if (r_shaderWarming && r_shaderWarming->current.enabled && rgp.needMaterialPreload)
-        return;
     s_mapLoadCinematicPlaying = false;
     s_mapLoadCinematicHandoffPending = false;
     R_Cinematic_StopPlayback();
-    // the stopped video's images go black; say so, rather than leave the cinematic material in place
-    Com_SetLevelBriefingMaterial("black");
+    // the stopped video's images go black: the still art instead
+    Com_SetLevelBriefingStillArt(s_mapLoadCinematicMap);
 }
 
 void __cdecl Com_LoadMapLoadingScreenFastFile(const char *mapName)
