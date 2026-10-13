@@ -869,6 +869,16 @@ static bool s_leonHitBack;
 static int s_leonDownStart = -100000, s_leonLastPmType = -1;
 static bool s_leonDown;
 
+// mod: the local player's knife out: while RE4's slash plays on him (CG_RuntimeXModel_Pose), the gun put away and the
+// knife in his right hand (CG_UpdateWeaponVisibilityInternal, CG_AttachWeapon) - BO1's own knife flag follows its melee
+// torso animation, which ran apart from the slash
+static bool s_leonKnifeOut;
+
+bool __cdecl CG_RuntimeXModel_KnifeOut()
+{
+    return s_leonKnifeOut;
+}
+
 void __cdecl CG_RuntimeXModel_PlayerState(int localClientNum, const playerState_s *ps)
 {
     const cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
@@ -964,7 +974,10 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             if ( stamp != s_kickStamp )
             {
                 if ( stamp )
+                {
                     s_kickStart = cgameGlob->time;
+                    s_leonHitStart = -100000; // the kick overrides a hit reaction still playing (he takes none in it)
+                }
                 s_kickStamp = stamp;
             }
             // BO1's grenade: init / prepare / start / hold (cooking while the key is held), then the release
@@ -998,12 +1011,6 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             action = RT_ACTION_TURN; // RE4's quick turn (CL_LeonQuickTurn)
             actionTime = turnTime;
         }
-        // (a hit does not break a reload: the reload carried on under it and came back halfway)
-        else if ( !reloading && cgameGlob->time - s_leonHitStart < 2500 && cgameGlob->time >= s_leonHitStart )
-        {
-            action = s_leonHitBack ? RT_ACTION_HIT_BACK : RT_ACTION_HIT_FRONT;
-            actionTime = (float)(cgameGlob->time - s_leonHitStart) * 0.001f;
-        }
         else if ( cgameGlob->time - s_kickStart < 2000 && cgameGlob->time >= s_kickStart )
         {
             action = RT_ACTION_KICK;
@@ -1016,6 +1023,12 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                 SND_Runtime_PlayLocal(pose->localClientNum, "leon_kicka");
                 SND_Runtime_PlayLocal(pose->localClientNum, "leon_kickb");
             }
+        }
+        // (a hit does not break a reload: the reload carried on under it and came back halfway)
+        else if ( !reloading && cgameGlob->time - s_leonHitStart < 2500 && cgameGlob->time >= s_leonHitStart )
+        {
+            action = s_leonHitBack ? RT_ACTION_HIT_BACK : RT_ACTION_HIT_FRONT;
+            actionTime = (float)(cgameGlob->time - s_leonHitStart) * 0.001f;
         }
         else if ( cgameGlob->time - s_knifeStart < 2000 )
         {
@@ -1043,6 +1056,10 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             action = RT_ACTION_FIRE;
             actionTime = (float)(cgameGlob->time - s_fireStart) * 0.001f;
         }
+        // the knife out through the slash, to its last frames' blend back into the aim
+        float knifeYaw, knifeLength = 1.0f;
+        R_RuntimeXModel_RootYaw("knife", 0.0f, &knifeYaw, &knifeLength);
+        s_leonKnifeOut = action == RT_ACTION_KNIFE && actionTime < knifeLength - 0.1f;
         if ( cg_thirdPersonActionTest->current.integer == 1 )
         {
             action = RT_ACTION_FIRE;

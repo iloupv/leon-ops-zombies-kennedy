@@ -5,6 +5,7 @@
 #include <cgame_mp/cg_predict_mp.h>
 #include <game/actor_physics.h>
 #include "bg_misc.h"
+#include "bg_weapons.h"
 #include "bg_slidemove.h"
 #include <glass/glass_server.h>
 #include "bg_weapons_ammo.h"
@@ -1697,10 +1698,13 @@ static void PM_TankControls(pmove_t *pm, float frametime)
             cmd->button_bits.resetBit(5u);
             if ( kickDvar == s_kickDvars[1] )
             {
-                // through the kick itself: no aim (11), shot (0) or knife (2) either
+                // through the kick itself: no aim (11), shot (0) or knife (2) either, and a reload under way is
+                // dropped (the kick overrides it, as a sprint does: the clip stays as it was)
                 cmd->button_bits.resetBit(0xBu);
                 cmd->button_bits.resetBit(0);
                 cmd->button_bits.resetBit(2u);
+                if ( ps->weaponstate >= WEAPON_RELOADING_RIGHT && ps->weaponstate <= WEAPON_RELOAD_QUICK_EMPTY )
+                    PM_Weapon_Idle(ps);
             }
         }
     }

@@ -1858,12 +1858,13 @@ void __cdecl CG_UpdateWeaponVisibilityInternal(int localClientNum, centity_s *ce
         addGrenade = BG_IsGrenadeAnim(ci, cent->nextState.anim.torsoAnim);
         if ( !addGrenade )
             addGrenade = BG_IsGrenadeAnim(ci, cent->nextState.animState.state);
-        // mod: a runtime-animated body (the Leon mod) slashes with RE4's knife motion, its gun in hand: no CoD knife in
-        // the left hand (it hung there as a second blade); its grenade throw shows the grenade (on its tag_inhand)
+        // mod: a runtime-animated body (the Leon mod) has its knife out while RE4's slash plays on it (only the local
+        // player slashes): not with BO1's melee torso animation, which ran apart from it
         {
             const DObj *bodyObj = Com_GetClientDObj(p_nextState->number, localClientNum);
             if ( bodyObj && bodyObj->numModels && R_RuntimeXModel_IsAnimated(bodyObj->localModels[0]) )
-                addKnife = 0;
+                addKnife = p_nextState->clientNum == cgameGlob->predictedPlayerState.clientNum
+                           && CG_RuntimeXModel_KnifeOut();
         }
         if ( !addKnife || ci->usingKnife )
         {
