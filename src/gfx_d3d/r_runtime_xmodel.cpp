@@ -44,6 +44,7 @@
 #include <string.h>
 #include <math.h>
 #include <vector>
+#include <string>
 
 extern XZoneName g_zoneNames[33];
 extern unsigned int g_zoneIndex;
@@ -302,8 +303,129 @@ static void RtBuildSurface(RtReader &r, XSurface *surf, float *mins, float *maxs
     surf->vertList->triOffset = 0;
     surf->vertList->triCount = (unsigned __int16)triCount;
     surf->vertList->collisionTree = RtBuildCollisionTree(surf);
-    Com_Printf(0, "runtime models: surface done" "\n");
     surf->partBits[0] = (int)0x80000000; // bone 0
+}
+
+struct RtSkinVert // the .rlm v2 vertex
+{
+    float pos[3];
+    float normal[3];
+    float uv[2];
+    unsigned __int16 bone[4];
+    float weight[4];
+};
+
+static void RtFillVertexInfo(XVertexInfo_s &x, const float *pos, const float *normal, const float *uv)
+{
+    for ( int k = 0; k < 3; ++k )
+    {
+        x.offset[k] = pos[k];
+        x.normal[k] = normal[k];
+    }
+    // a tangent frame around the normal (the materials use a flat normal map, so any frame will do)
+    float up[3] = { 0.0f, 0.0f, 1.0f };
+    if ( fabsf(x.normal[2]) > 0.9f )
+        up[0] = 1.0f, up[2] = 0.0f;
+    float t[3] = { up[1] * x.normal[2] - up[2] * x.normal[1], up[2] * x.normal[0] - up[0] * x.normal[2],
+                   up[0] * x.normal[1] - up[1] * x.normal[0] };
+    float len = sqrtf(t[0] * t[0] + t[1] * t[1] + t[2] * t[2]);
+    len = len > 0.0f ? 1.0f / len : 0.0f;
+    for ( int k = 0; k < 3; ++k )
+        x.tangent[k] = t[k] * len;
+    x.binormal[0] = x.normal[1] * x.tangent[2] - x.normal[2] * x.tangent[1];
+    x.binormal[1] = x.normal[2] * x.tangent[0] - x.normal[0] * x.tangent[2];
+    x.binormal[2] = x.normal[0] * x.tangent[1] - x.normal[1] * x.tangent[0];
+    x.texCoordX = uv[0];
+    x.texCoordY = uv[1];
+    x.color[0] = x.color[1] = x.color[2] = x.color[3] = 0xFF;
+    x.numWeights = 0;
+    x.boneOffset = 0;
+}
+
+// A weighted (deformed) surface, skinned on the CPU from the DObj's bone matrices (R_SkinXSurfaceWeight*): the
+// vertices sorted by extra-weight count (0..3: vertInfo.vertCount[k]), vertsBlend per vertex {bone0 << 6, then
+// (bone << 6, weight * 65536) per extra weight} - bone 0's weight is the rest, and it alone turns the normal, so
+// it is the heaviest. No rigid vertex lists, so no collision tree (marks skip deformed surfaces).
+static void RtBuildSkinnedSurface(RtReader &r, XSurface *surf, int numBones, const float (*boneWorld)[3],
+                                  float (*boneMins)[3], float (*boneMaxs)[3], float *mins, float *maxs)
+{
+    unsigned int vertCount = r.u32(), triCount = r.u32();
+    const RtSkinVert *src = (const RtSkinVert *)r.take((size_t)vertCount * sizeof(RtSkinVert));
+    const unsigned short *idx = (const unsigned short *)r.take((size_t)triCount * 6);
+    while ( r.ok && ((r.p - r.base) & 3) )
+        r.take(1);
+    if ( !r.ok || !vertCount || vertCount > 0xFFFF || triCount > 0xFFFF )
+    {
+        r.ok = false;
+        return;
+    }
+
+    // extra-weight count per vertex, then the new order (stable within a group)
+    std::vector<int> group(vertCount), order, newIndex(vertCount);
+    int groupCount[4] = {};
+    for ( unsigned int v = 0; v < vertCount; ++v )
+    {
+        int n = 0;
+        for ( int k = 1; k < 4; ++k )
+            if ( src[v].weight[k] > 0.0f && src[v].bone[k] < numBones )
+                n = k;
+        group[v] = n;
+        ++groupCount[n];
+    }
+    for ( int g = 0; g < 4; ++g )
+        for ( unsigned int v = 0; v < vertCount; ++v )
+            if ( group[v] == g )
+            {
+                newIndex[v] = (int)order.size();
+                order.push_back((int)v);
+            }
+
+    XVertexInfo_s *info = (XVertexInfo_s *)_aligned_malloc(sizeof(XVertexInfo_s) * vertCount, 16);
+    memset(info, 0, sizeof(XVertexInfo_s) * vertCount);
+    size_t blendCount = 0;
+    for ( int g = 0; g < 4; ++g )
+        blendCount += (size_t)groupCount[g] * (1 + 2 * g);
+    surf->vertInfo.vertsBlend = (unsigned __int16 *)RtAlloc((int)(blendCount * 2));
+    unsigned __int16 *blend = surf->vertInfo.vertsBlend;
+    for ( unsigned int n = 0; n < vertCount; ++n )
+    {
+        const RtSkinVert &v = src[order[n]];
+        RtFillVertexInfo(info[n], v.pos, v.normal, v.uv);
+        const int bone0 = v.bone[0] < numBones ? v.bone[0] : 0;
+        *blend++ = (unsigned __int16)(bone0 << 6);
+        surf->partBits[bone0 >> 5] |= (int)(0x80000000u >> (bone0 & 31));
+        for ( int k = 1; k <= group[order[n]]; ++k )
+        {
+            const int b = v.bone[k];
+            const float w = v.weight[k] * 65536.0f + 0.5f;
+            *blend++ = (unsigned __int16)(b << 6);
+            *blend++ = (unsigned __int16)(w > 65535.0f ? 65535.0f : w);
+            surf->partBits[b >> 5] |= (int)(0x80000000u >> (b & 31));
+        }
+        for ( int k = 0; k < 3; ++k )
+        {
+            mins[k] = v.pos[k] < mins[k] ? v.pos[k] : mins[k];
+            maxs[k] = v.pos[k] > maxs[k] ? v.pos[k] : maxs[k];
+            const float local = v.pos[k] - boneWorld[bone0][k]; // bone space: the bind pose has no rotation
+            boneMins[bone0][k] = local < boneMins[bone0][k] ? local : boneMins[bone0][k];
+            boneMaxs[bone0][k] = local > boneMaxs[bone0][k] ? local : boneMaxs[bone0][k];
+        }
+    }
+    for ( int g = 0; g < 4; ++g )
+        surf->vertInfo.vertCount[g] = (__int16)groupCount[g];
+
+    surf->tileMode = 0;
+    surf->flags = 0x82; // XSURFACE_FLAG_DEFORMED | XSURFACE_FLAG_SKINNED
+    surf->vertCount = (unsigned __int16)vertCount;
+    surf->triCount = (unsigned __int16)triCount;
+    surf->verts0 = (GfxPackedVertex *)RtAlloc(sizeof(GfxPackedVertex) * vertCount);
+    XSurfaceTransfer((const XVertexBuffer *)info, surf->verts0, surf->verts0, (int)vertCount);
+    _aligned_free(info);
+    surf->triIndices = (unsigned __int16 *)RtAlloc((int)triCount * 6);
+    for ( unsigned int i = 0; i < triCount * 3; ++i )
+        surf->triIndices[i] = (unsigned __int16)newIndex[idx[i] < vertCount ? idx[i] : 0];
+    surf->vertListCount = 0;
+    surf->vertList = 0;
 }
 
 static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, bool gpu)
@@ -318,9 +440,11 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
     RtReader r{ (const unsigned __int8 *)file, (const unsigned __int8 *)file, (const unsigned __int8 *)file + size };
     const void *magic = r.take(4);
     unsigned int version = r.u32(), texCount = r.u32(), surfCount = r.u32();
-    if ( !r.ok || memcmp(magic, "RLM1", 4) || version != 1 || !surfCount || surfCount > 255 )
+    unsigned int boneCount = version >= 2 ? r.u32() : 1;
+    if ( !r.ok || memcmp(magic, "RLM1", 4) || (version != 1 && version != 2) || !surfCount || surfCount > 255 || !boneCount
+         || boneCount >= 160 )
     {
-        Com_PrintWarning(0, "runtime model '%s': not a version 1 .rlm file\n", name);
+        Com_PrintWarning(0, "runtime model '%s': not a version 1 or 2 .rlm file\n", name);
         FS_FreeFile(file);
         return;
     }
@@ -332,31 +456,115 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
         materials.push_back(image ? RtCreateMaterial(templ, image, va("%s_mtl%u", name, t), zoneIndex) : 0);
     }
 
+    // the skeleton (version 1: only tag_origin); roots first, parents before children
+    std::vector<int> parent(boneCount, -1);
+    std::vector<float> localTrans(boneCount * 3, 0.0f), localQuat(boneCount * 4, 0.0f);
+    std::vector<std::string> boneName(boneCount, "tag_origin");
+    localQuat[3] = 1.0f;
+    for ( unsigned int b = 0; version >= 2 && b < boneCount && r.ok; ++b )
+    {
+        char boneStr[33] = {};
+        if ( const void *n = r.take(32) )
+            memcpy(boneStr, n, 32);
+        boneName[b] = boneStr;
+        parent[b] = (int)r.u32();
+        const float *f = (const float *)r.take(7 * sizeof(float));
+        for ( int k = 0; f && k < 3; ++k )
+            localTrans[3 * b + k] = f[k];
+        for ( int k = 0; f && k < 4; ++k )
+            localQuat[4 * b + k] = f[3 + k];
+    }
+    int numRoot = 0;
+    while ( numRoot < (int)boneCount && parent[numRoot] < 0 )
+        ++numRoot;
+    for ( unsigned int b = numRoot; b < boneCount; ++b )
+        if ( parent[b] < 0 || parent[b] >= (int)b || (int)b - parent[b] > 255 )
+            r.ok = false; // roots first, parents before children, within the u8 parent offset
+    if ( !r.ok || !numRoot )
+    {
+        Com_PrintWarning(0, "runtime model '%s': bad skeleton\n", name);
+        FS_FreeFile(file);
+        return;
+    }
+    // bind pose: the vertices' rest pose, every bone unrotated at its accumulated offset
+    std::vector<float> world(boneCount * 3, 0.0f);
+    for ( unsigned int b = numRoot; b < boneCount; ++b )
+        for ( int k = 0; k < 3; ++k )
+            world[3 * b + k] = world[3 * parent[b] + k] + localTrans[3 * b + k];
+
     XModel model;
     memset(&model, 0, sizeof(model));
     model.name = RtString(name);
-    model.numBones = 1;
-    model.numRootBones = 1;
+    model.numBones = (unsigned __int8)boneCount;
+    model.numRootBones = (unsigned __int8)numRoot;
     model.numsurfs = (unsigned __int8)surfCount;
-    model.boneNames = (unsigned __int16 *)RtAlloc(sizeof(unsigned __int16));
-    model.boneNames[0] = (unsigned __int16)SL_GetString((char *)"tag_origin", 4, SCRIPTINSTANCE_SERVER);
-    model.partClassification = (unsigned __int8 *)RtAlloc(1);
-    model.baseMat = (DObjAnimMat *)RtAlloc(sizeof(DObjAnimMat));
-    model.baseMat->quat[3] = 1.0f;
-    model.baseMat->transWeight = 2.0f;
+    model.boneNames = (unsigned __int16 *)RtAlloc(sizeof(unsigned __int16) * boneCount);
+    for ( unsigned int b = 0; b < boneCount; ++b )
+        model.boneNames[b] = (unsigned __int16)SL_GetString((char *)boneName[b].c_str(), 4, SCRIPTINSTANCE_SERVER);
+    const int nonRoot = (int)boneCount - numRoot;
+    if ( nonRoot )
+    {
+        // the local pose DObjCalcBaseAnim builds the skeleton from: parent offset (child - parent), the rotation in
+        // s16 (x 32767) and the translation, per non-root bone
+        model.parentList = (unsigned __int8 *)RtAlloc(nonRoot);
+        model.quats = (__int16 *)RtAlloc(sizeof(__int16) * 4 * nonRoot);
+        model.trans = (float *)RtAlloc(sizeof(float) * 3 * nonRoot);
+        for ( int i = 0; i < nonRoot; ++i )
+        {
+            const int b = numRoot + i;
+            model.parentList[i] = (unsigned __int8)(b - parent[b]);
+            const float *q = &localQuat[4 * b];
+            const float len = sqrtf(q[0] * q[0] + q[1] * q[1] + q[2] * q[2] + q[3] * q[3]);
+            for ( int k = 0; k < 4; ++k )
+            {
+                const float c = len > 0.0f ? q[k] / len : (k == 3 ? 1.0f : 0.0f);
+                model.quats[4 * i + k] = (__int16)floorf(c * 32767.0f + 0.5f);
+            }
+            for ( int k = 0; k < 3; ++k )
+                model.trans[3 * i + k] = localTrans[3 * b + k];
+        }
+    }
+    model.partClassification = (unsigned __int8 *)RtAlloc(boneCount);
+    model.baseMat = (DObjAnimMat *)RtAlloc(sizeof(DObjAnimMat) * boneCount);
+    for ( unsigned int b = 0; b < boneCount; ++b )
+    {
+        model.baseMat[b].quat[3] = 1.0f;
+        model.baseMat[b].transWeight = 2.0f;
+        for ( int k = 0; k < 3; ++k )
+            model.baseMat[b].trans[k] = world[3 * b + k];
+    }
+
     model.surfs = (XSurface *)RtAlloc(sizeof(XSurface) * surfCount);
     model.materialHandles = (Material **)RtAlloc(sizeof(Material *) * surfCount);
     float mins[3] = { 1e9f, 1e9f, 1e9f }, maxs[3] = { -1e9f, -1e9f, -1e9f };
+    std::vector<float> boneMins(boneCount * 3, 1e9f), boneMaxs(boneCount * 3, -1e9f);
     int baseTri = 0, baseVert = 0;
     for ( unsigned int s = 0; s < surfCount && r.ok; ++s )
     {
         unsigned int tex = r.u32();
         XSurface *surf = &model.surfs[s];
-        RtBuildSurface(r, surf, mins, maxs);
+        if ( version >= 2 )
+        {
+            RtBuildSkinnedSurface(r, surf, (int)boneCount, (const float (*)[3])world.data(), (float (*)[3])boneMins.data(),
+                                  (float (*)[3])boneMaxs.data(), mins, maxs);
+        }
+        else
+        {
+            RtBuildSurface(r, surf, mins, maxs);
+            for ( int k = 0; k < 3; ++k )
+            {
+                boneMins[k] = mins[k];
+                boneMaxs[k] = maxs[k];
+            }
+        }
         surf->baseTriIndex = (unsigned __int16)baseTri;
         surf->baseVertIndex = (unsigned __int16)baseVert;
         baseTri += surf->triCount;
         baseVert += surf->vertCount;
+        for ( int k = 0; k < 5; ++k )
+            model.lodInfo[0].partBits[k] |= surf->partBits[k];
+        if ( surf->flags & 0x80 )
+            model.lodRampType = 1;
         model.materialHandles[s] = tex < materials.size() && materials[tex] ? materials[tex] : (Material *)templ;
     }
     FS_FreeFile(file);
@@ -369,27 +577,38 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
     model.lodInfo[0].dist = 0.0f; // never switched out
     model.lodInfo[0].numsurfs = (unsigned __int16)surfCount;
     model.lodInfo[0].surfIndex = 0;
-    model.lodInfo[0].partBits[0] = (int)0x80000000;
     model.numLods = 1;
     model.collLod = -1;
-    model.boneInfo = (XBoneInfo *)RtAlloc(sizeof(XBoneInfo));
+    model.boneInfo = (XBoneInfo *)RtAlloc(sizeof(XBoneInfo) * boneCount);
+    for ( unsigned int b = 0; b < boneCount; ++b )
+    {
+        XBoneInfo *bi = &model.boneInfo[b];
+        if ( boneMins[3 * b] > boneMaxs[3 * b] )
+            continue; // no vertices: an empty box at the bone
+        float radiusSq = 0.0f;
+        for ( int k = 0; k < 3; ++k )
+        {
+            bi->bounds[0][k] = boneMins[3 * b + k];
+            bi->bounds[1][k] = boneMaxs[3 * b + k];
+            bi->offset[k] = 0.5f * (boneMins[3 * b + k] + boneMaxs[3 * b + k]);
+            const float half = 0.5f * (boneMaxs[3 * b + k] - boneMins[3 * b + k]);
+            radiusSq += half * half;
+        }
+        bi->radiusSquared = radiusSq;
+    }
     float radiusSq = 0.0f;
     for ( int k = 0; k < 3; ++k )
     {
         model.mins[k] = mins[k];
         model.maxs[k] = maxs[k];
-        model.boneInfo->bounds[0][k] = mins[k];
-        model.boneInfo->bounds[1][k] = maxs[k];
-        model.boneInfo->offset[k] = 0.5f * (mins[k] + maxs[k]);
-        float half = 0.5f * (maxs[k] - mins[k]);
+        const float half = 0.5f * (maxs[k] - mins[k]);
         radiusSq += half * half;
     }
-    model.boneInfo->radiusSquared = radiusSq;
     model.radius = sqrtf(radiusSq);
     model.streamInfo.highMipBounds = (XModelHighMipBounds *)RtAlloc(sizeof(XModelHighMipBounds) * surfCount);
     RtLink(ASSET_TYPE_XMODEL, (XAssetHeader)&model, zoneIndex);
-    Com_Printf(0, "runtime model '%s': %u surfaces, %d vertices, %d triangles, %u textures (level zone %d)\n",
-        name, surfCount, baseVert, baseTri, texCount, zoneIndex);
+    Com_Printf(0, "runtime model '%s': %u surfaces, %d vertices, %d triangles, %u textures, %u bones (level zone %d)\n",
+        name, surfCount, baseVert, baseTri, texCount, boneCount, zoneIndex);
 }
 
 // Called by CL_InitCGame once the level's fastfiles are queued, before CG_Init registers the models.
