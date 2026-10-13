@@ -2770,8 +2770,8 @@ void __cdecl CG_ShoulderAimCorrectionDecay(float frac)
 // mod: the shot's (recoil's) weight on the local player's pose this frame (CG_RuntimeXModel_Pose), 0..1
 static float s_shoulderRecoil;
 
-// mod: the aim (ADS) fraction the shoulder camera follows: eased (about 0.2 s to close most of the way) from the
-// weapon's own, whose quick raise jerked the camera's pull-in and the aim's zoom (CG_GetViewFov); once per frame
+// mod: the aim (ADS) fraction the shoulder camera follows (its pull-in, the aim's zoom: CG_GetViewFov, Leon's arms):
+// the weapon's own, a pistol's eased a touch (~70 ms: its quick raise jerked them); once per frame
 static float s_camAds;
 static int s_camAdsTime = -100000;
 
@@ -2782,11 +2782,12 @@ float __cdecl CG_ShoulderCameraAds(const cg_s *cgameGlob)
     if (gap == 0)
         return s_camAds;
     s_camAdsTime = cgameGlob->time;
-    if (gap < 0 || gap > 250)
+    const WeaponDef *weapDef = BG_GetWeaponDef(cgameGlob->predictedPlayerState.weapon);
+    if (gap < 0 || gap > 250 || !weapDef || weapDef->weapClass != WEAPCLASS_PISTOL)
         s_camAds = adsRaw;
     else
     {
-        const float k = 1.0f - expf(-(float)gap * 0.005f);
+        const float k = 1.0f - expf(-(float)gap * 0.015f);
         s_camAds += (adsRaw - s_camAds) * k;
     }
     return s_camAds;
