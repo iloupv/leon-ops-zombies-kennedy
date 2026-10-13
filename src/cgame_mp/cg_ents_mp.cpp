@@ -2107,6 +2107,12 @@ void __cdecl CG_PrimaryLight(int localClientNum, centity_s *cent)
     float lerpFrac = cgameGlob->frameInterpolation;
     if ( lerpFrac > 1.0f )
         lerpFrac = 1.0f;
+    // BO1FIX(flicker): a client-script light (CScrCmd_MakeLight on a CSC entity: Der Riese's fire lights) has no
+    // snapshot pair - its currentState is set once, at makeLight, and only nextState follows the script's
+    // SetLightIntensity / SetLightColor - so lerping by the snapshot fraction ramped it from its original state to the
+    // script's every snapshot and snapped it back (a sawtooth flicker over the script's own). It shows the script's.
+    if ( EntNum_IsCsc(cent->nextState.number) )
+        lerpFrac = 1.0f;
     Vec3Lerp(oldColor, newColor, lerpFrac, light->color);
     light->diffuseColor[0] = light->color[0];
     light->diffuseColor[1] = light->color[1];
@@ -2146,6 +2152,34 @@ void __cdecl CG_PrimaryLight(int localClientNum, centity_s *cent)
                                                                              - cent->currentState.u.primaryLight.colorAndExp[3])
                                                              * lerpFrac)
                                     + cent->currentState.u.primaryLight.colorAndExp[3];
+    // TEST SWITCH bo1_lightlog: logs a map light whose brightness jumps between frames (flicker hunting), with the
+    // pair it lerped
+    {
+        static const dvar_s *s_lightLog;
+        static float s_lastBright[1024];
+        static int s_lastTime[1024];
+        if ( !s_lightLog )
+            s_lightLog = _Dvar_RegisterBool("bo1_lightlog", false, 0, "TEST: log map light brightness jumps");
+        const unsigned int li = cent->nextState.index.brushmodel;
+        if ( s_lightLog->current.enabled && li < 1024 )
+        {
+            const float bright = light->color[0] + light->color[1] + light->color[2];
+            const float last = s_lastBright[li];
+            const int gap = cgameGlob->time - s_lastTime[li];
+            if ( gap > 0 && gap < 200 && fabsf(bright - last) > 0.15f * (last > bright ? last : bright)
+                 && (last > 0.05f || bright > 0.05f) )
+            {
+                const unsigned __int8 *cb = cent->currentState.u.primaryLight.colorAndExp;
+                Com_Printf(14,
+                    "bo1_lightlog: t=%d pl#%u %.3f -> %.3f (gap %d) lerp %.2f cur i%.3f rgb %u %u %u next i%.3f rgb %u %u %u snap %d/%d\n",
+                    cgameGlob->time, li, last, bright, gap, lerpFrac, v6, cb[0], cb[1], cb[2], v5, nextColorBytes[0],
+                    nextColorBytes[1], nextColorBytes[2], cgameGlob->snap ? cgameGlob->snap->serverTime : -1,
+                    cgameGlob->nextSnap ? cgameGlob->nextSnap->serverTime : -1);
+            }
+            s_lastBright[li] = bright;
+            s_lastTime[li] = cgameGlob->time;
+        }
+    }
     // zombies: SP CG_PrimaryLight (0x00775F40) stores the lerped pair unchecked. frameInterpolation is only clamped
     // below 0 (SP CG_SetFrameInterpolation 0x00556480, same as here) and is not recomputed when a snapshot transition
     // leaves snap == nextSnap, so t reaches ~2 and a client-script SetLightFovRange that narrows the pair (nextState)
