@@ -1,12 +1,15 @@
 #include maps\_utility;
 #include common_scripts\utility;
 
-// LEON MOD (test) - not part of the original game. Loaded only with +set fs_game mods/leon.
+// LEON MOD - not part of the original game. Loaded only with +set fs_game mods/leon (PlayLeon.bat).
 // Retail maps\zombie_theater_ffotd.gsc is this file with both functions empty: the map's own "fix for the day"
 // hook. The engine builds the "leon" model at level load from rtmodels/leon.rlm (+set bo1_rtmodels leon),
-// which the mod's converter writes from the player's own Resident Evil 4; this test lines four of him up in
-// front of the first player (main_end is not reached in this port, so the test starts from main_start). The
-// engine picks each one's RE4 cycle (idle / walk / run / back step) from how the script moves him.
+// which the mod's converter writes from the player's own Resident Evil 4, and plays his RE4 cycles (idle / walk /
+// run / back step) from how each Leon moves. Here the player becomes Leon (main_end is not reached in this port,
+// so it starts from main_start):
+//   leon_thirdperson 1  third person (cg_thirdPerson is a cheat dvar: set once the devmap level runs)
+//   leon_test player    headless test: the player is stepped through the cycles (a headless client sends no input)
+//   leon_test npc       headless test: a line of script_model Leons walking / running / back stepping / circling
 
 main_start()
 {
@@ -33,17 +36,19 @@ leon_spawn_test()
 	forward = anglesToForward( ( 0, yaw, 0 ) );
 	right = anglesToRight( ( 0, yaw, 0 ) );
 	logPrint( "leon: player at " + player.origin + " yaw " + yaw + "\n" );
-	player enableInvulnerability(); // the test's camera stays put while the zombies come
 
-	// the player is Leon
 	player detachAll();
 	player setModel( "leon" );
 	logPrint( "leon: player model " + player.model + "\n" );
 	if ( getDvar( "leon_thirdperson" ) == "1" )
-	{
-		// the player test alone: third person (a cheat dvar, set once the devmap level runs), the player walked
-		// through the locomotion cycles
 		setDvar( "cg_thirdPerson", "1" );
+
+	test = getDvar( "leon_test" );
+	if ( test == "" )
+		return;
+	player enableInvulnerability(); // the test's camera stays put while the zombies come
+	if ( test == "player" )
+	{
 		player thread leon_player_moves( forward, right );
 		return;
 	}
