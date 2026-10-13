@@ -2999,7 +2999,7 @@ void CG_OffsetThirdPersonView(int localClientNum)
     {
         float fwd[3], right[3], up[3], shoulder[3], back[3], dir[3], angles[3];
 
-        // aiming pulls the camera in toward the shoulder, as RE4's aim camera does
+        // aiming pulls the camera in toward the shoulder, as RE4's aim camera does (gently: closer felt cramped)
         const float ads = CG_ShoulderAimFrac(cgameGlob);
         // the camera's yaw trails the aim inside the dead zone (in by the aim; out of it the camera is the view)
         const float viewYaw = cgameGlob->refdefViewAngles[1];
@@ -3014,9 +3014,9 @@ void CG_OffsetThirdPersonView(int localClientNum)
             s_shoulderCameraYaw = AngleNormalize360(viewYaw + deadZone);
         const float cameraAngles[3] = { cgameGlob->refdefViewAngles[0], s_shoulderCameraYaw, 0.0f };
         AngleVectors(cameraAngles, fwd, right, up);
-        const float side = cg_thirdPersonShoulder->current.value * (1.0f - 0.25f * ads);
-        const float lift = cg_thirdPersonShoulderUp->current.value * (1.0f - 0.4f * ads);
-        const float range = cg_thirdPersonRange->current.value * (1.0f - 0.45f * ads);
+        const float side = cg_thirdPersonShoulder->current.value * (1.0f - 0.1f * ads);
+        const float lift = cg_thirdPersonShoulderUp->current.value * (1.0f - 0.15f * ads);
+        const float range = cg_thirdPersonRange->current.value * (1.0f - 0.2f * ads);
         // The two legs are traced, and their allowed lengths smoothed: a wall or prop behind (or beside) pulls the
         // camera in fast, open space lets it ease back out, so turning past corners does not make it jump
         static float s_side = -1.0f, s_back = -1.0f;
