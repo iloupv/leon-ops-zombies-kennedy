@@ -965,9 +965,14 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                 s_fireStart = cgameGlob->time;
             // a melee (Space under tank controls: CL_LeonQuickTurn) slashes the knife; a grenade's throw (its
             // release: BO1's offhand start) throws
+            // each new action overrides the one playing: a slash a hit reaction, a reload a hit or a slash, the kick
+            // all three (its reload is dropped: PM_TankControls) - the one overridden came back halfway through after it
             if ( (state == WEAPON_MELEE_INIT || state == WEAPON_MELEE_FIRE) && s_lastState != WEAPON_MELEE_INIT
                  && s_lastState != WEAPON_MELEE_FIRE )
+            {
                 s_knifeStart = cgameGlob->time;
+                s_leonHitStart = -100000;
+            }
             const dvar_s *kickStamp = Dvar_FindVar("leon_kick_stamp");
             const int stamp = kickStamp && kickStamp->type == DVAR_TYPE_STRING && kickStamp->current.string
                 ? atoi(kickStamp->current.string) : 0;
@@ -976,7 +981,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                 if ( stamp )
                 {
                     s_kickStart = cgameGlob->time;
-                    s_leonHitStart = -100000; // the kick overrides a hit reaction still playing (he takes none in it)
+                    s_leonHitStart = s_knifeStart = -100000;
                 }
                 s_kickStamp = stamp;
             }
@@ -996,6 +1001,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             {
                 s_reloadStart = cgameGlob->time;
                 s_reloadLength = ps->weaponTime > 300 ? ps->weaponTime : 300;
+                s_leonHitStart = s_knifeStart = -100000;
             }
             s_lastState = state;
             s_lastWeaponTime = ps->weaponTime;
@@ -1056,10 +1062,6 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             action = RT_ACTION_FIRE;
             actionTime = (float)(cgameGlob->time - s_fireStart) * 0.001f;
         }
-        // the knife out through the slash, to its last frames' blend back into the aim
-        float knifeYaw, knifeLength = 1.0f;
-        R_RuntimeXModel_RootYaw("knife", 0.0f, &knifeYaw, &knifeLength);
-        s_leonKnifeOut = action == RT_ACTION_KNIFE && actionTime < knifeLength - 0.1f;
         if ( cg_thirdPersonActionTest->current.integer == 1 )
         {
             action = RT_ACTION_FIRE;
@@ -1071,6 +1073,15 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             actionTime = (float)(cgameGlob->time % 1600) * 0.001f;
             actionDuration = 1.6f;
         }
+        else if ( cg_thirdPersonActionTest->current.integer == 3 )
+        {
+            action = RT_ACTION_KNIFE; // the slash held at 0.3 s (the knife in his hand)
+            actionTime = 0.3f;
+        }
+        // the knife out through the slash, to its last frames' blend back into the aim
+        float knifeYaw, knifeLength = 1.0f;
+        R_RuntimeXModel_RootYaw("knife", 0.0f, &knifeYaw, &knifeLength);
+        s_leonKnifeOut = action == RT_ACTION_KNIFE && actionTime < knifeLength - 0.1f;
     }
     // the weapon whose motion set he moves with: the local player's predicted one, another player's from his entity
     unsigned int animWeapon = 0;
