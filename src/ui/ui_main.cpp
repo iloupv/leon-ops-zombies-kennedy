@@ -3868,6 +3868,26 @@ void __cdecl UI_DrawMapLevelshot(int localClientNum)
         {
             menua = 0;
         }
+        // mod: +set bo1_noloadhints 1 (PlayLeon.bat) - the loading screen without its INTEL panel (its header and the
+        // "did you know" line under it)
+        const dvar_s *noLoadHints = Dvar_FindVar("bo1_noloadhints");
+        if ( menua && menua->items && noLoadHints
+             && (noLoadHints->type == DVAR_TYPE_BOOL ? noLoadHints->current.enabled
+                 : noLoadHints->type == DVAR_TYPE_STRING && noLoadHints->current.string
+                       && atoi(noLoadHints->current.string)) )
+        {
+            int kept = 0;
+            for ( int i = 0; i < menua->itemCount; ++i )
+            {
+                itemDef_s *item = menua->items[i];
+                const textDef_s *text = item && (item->type == 1 || item->type == 3) ? item->typeData.textDef : 0;
+                const bool hint = item && ((item->dvar && !I_stricmp(item->dvar, "didyouknow"))
+                                           || (text && text->text && !I_stricmp(text->text, "@MENU_INTEL")));
+                if ( !hint )
+                    menua->items[kept++] = item;
+            }
+            menua->itemCount = kept;
+        }
         if ( menua )
         {
             if ( !Menus_MenuIsInStack(&uiInfo->uiDC, menua) )

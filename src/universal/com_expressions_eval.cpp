@@ -2999,7 +2999,9 @@ void __cdecl IsInGame(int localClientNum, itemDef_s *item, OperandStack *dataSta
     Operand result; // [esp+0h] [ebp-8h] BYREF
 
     result.dataType = VAL_INT;
-    result.internals.intVal = CL_AllLocalClientsDisconnected() == 0;
+    // BO1FIX: not on the SP front end - the main menu is a level there (connected), so every option locked "while in
+    // a game" (video mode, full screen, V-Sync, refresh rate, antialiasing, texture quality) was locked in the menus
+    result.internals.intVal = CL_AllLocalClientsDisconnected() == 0 && !Com_IsSPFrontEndRunning();
     AddOperandToStack(dataStack, &result);
 }
 
