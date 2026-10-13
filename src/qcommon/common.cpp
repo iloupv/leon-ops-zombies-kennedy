@@ -2932,9 +2932,10 @@ static void Com_StartMapLoadCinematic(const char *mapName)
     Com_sprintf(s_mapLoadCinematicName, sizeof(s_mapLoadCinematicName), "%s_load", mapName);
     s_mapLoadCinematicHandoffPending = true;
     s_mapLoadCinematicPlaying = true;
-    // 2: loop, so the art and music last through a load longer than the video; at half volume (-6 dB): at full scale
-    // its music played well over the level's own once it loaded (round music ~0.4 after the music group)
-    R_Cinematic_StartPlayback_SP(s_mapLoadCinematicName, 2, 0.5f);
+    // 2: loop, so the art and music last through a load longer than the video; at a quarter volume (-12 dB): at full
+    // scale (and at half) its music played well over the level's own once it loaded (round music ~0.4 after the
+    // music group)
+    R_Cinematic_StartPlayback_SP(s_mapLoadCinematicName, 2, 0.25f);
 }
 
 // BO1FIX: called before every screen draw (SCR_DrawScreenField, main or render thread).
