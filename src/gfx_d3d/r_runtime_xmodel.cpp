@@ -252,6 +252,7 @@ static void RtBuildSurface(RtReader &r, XSurface *surf, float *mins, float *maxs
     surf->vertCount = (unsigned __int16)vertCount;
     surf->triCount = (unsigned __int16)triCount;
     surf->verts0 = (GfxPackedVertex *)RtAlloc(sizeof(GfxPackedVertex) * vertCount);
+    Com_Printf(0, "runtime models: surface %u verts %u tris, transfer" "\n", vertCount, triCount);
     XSurfaceTransfer((const XVertexBuffer *)info, surf->verts0, surf->verts0, (int)vertCount);
     _aligned_free(info);
     surf->triIndices = (unsigned __int16 *)RtAlloc((int)triCount * 6);
@@ -262,7 +263,9 @@ static void RtBuildSurface(RtReader &r, XSurface *surf, float *mins, float *maxs
     surf->vertList->vertCount = (unsigned __int16)vertCount;
     surf->vertList->triOffset = 0;
     surf->vertList->triCount = (unsigned __int16)triCount;
+    Com_Printf(0, "runtime models: collision tree" "\n");
     XModelReadSurface_BuildCollisionTree(surf, 0, RtAlloc);
+    Com_Printf(0, "runtime models: surface done" "\n");
     surf->partBits[0] = (int)0x80000000; // bone 0
 }
 
@@ -291,6 +294,7 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
         GfxImage *image = RtCreateImage(r, name, zoneIndex, gpu);
     Com_Printf(0, "runtime models: image linked\n");
         materials.push_back(image ? RtCreateMaterial(templ, image, va("%s_mtl%u", name, t), zoneIndex) : 0);
+        Com_Printf(0, "runtime models: material linked" "\n");
     }
 
     XModel model;
