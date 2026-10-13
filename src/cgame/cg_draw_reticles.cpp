@@ -159,8 +159,7 @@ bool __cdecl ShouldDrawCrosshair(const cg_s *cgameGlob, const playerState_s *ps)
         return 0;
     if ( ps->weaponstate >= 47 && ps->weaponstate <= 49 )
         return 0;
-    if ( cgameGlob->renderingThirdPerson == TP_FOR_MODEL && (ps->eFlags & 0x4000) == 0
-         && !CG_ShoulderCameraActive(cgameGlob) ) // mod: the shoulder camera keeps the crosshair
+    if ( cgameGlob->renderingThirdPerson == TP_FOR_MODEL && (ps->eFlags & 0x4000) == 0 )
         return 0;
     if ( cgameGlob->renderingThirdPerson == TP_FOR_MODEL && CG_KillCamEntityEnabled(cgameGlob->localClientNum) )
         return 0;
@@ -219,8 +218,6 @@ void __cdecl CG_DrawCrosshair(int localClientNum)
     }
     drawHud = CG_ShouldDrawHud(localClientNum);
     posLerp = ps->fWeaponPosFrac;
-    if ( CG_ShoulderCameraActive(cgameGlob) )
-        posLerp = 0.0f; // mod: aiming over the shoulder sights down no barrel: the crosshair stays
     transScale = 1.0f;
     transShift = 0.0f;
     if ( (ps->eFlags & 0x300) == 0 )
