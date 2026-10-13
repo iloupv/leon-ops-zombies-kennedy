@@ -10,7 +10,7 @@
 //
 // Version 1 is rigid: one bone (tag_origin), every surface one vertex list on it. Materials are clones of a
 // template material from an always-loaded zombies model with the colour map replaced (normal map flat,
-// specular black).
+// specular black); a texture marked alpha masked clones an alpha-tested lit material instead, drawn two-sided.
 //
 // .rlm (little-endian; written by the converter): 'RLM1', u32 version 1, u32 texture count, u32 surface count;
 // texture: char name[32], u16 width, u16 height, u8 mip count, u8 alpha masked, u16 0, every mip's BGRA8
@@ -184,13 +184,14 @@ static Material *RtTemplateMaterial()
     return 0;
 }
 
-static GfxImage *RtCreateImage(RtReader &r, const char *modelName, int zoneIndex, bool gpu)
+// masked: the texture's alpha is a cut-out mask (hair strands, lashes)
+static GfxImage *RtCreateImage(RtReader &r, const char *modelName, int zoneIndex, bool gpu, bool *masked)
 {
     char texName[33] = {};
     if ( const void *n = r.take(32) )
         memcpy(texName, n, 32);
     unsigned int width = r.u16(), height = r.u16(), mips = r.u8();
-    r.u8(); // alpha masked: version 1 draws it opaque
+    *masked = r.u8() != 0;
     r.u16();
     size_t bytes = 0;
     for ( unsigned int m = 0; m < mips; ++m )
@@ -220,11 +221,54 @@ static GfxImage *RtCreateImage(RtReader &r, const char *modelName, int zoneIndex
     return pooled;
 }
 
-static Material *RtCreateMaterial(const Material *templ, GfxImage *colorMap, const char *name, int zoneIndex)
+// The alpha-tested template for masked textures: a loaded lit model material whose technique set tests the colour
+// map's alpha (the "t0" sets; the perk machines' mc_l_sm_t0c0n0s0 is in common_zombie, so on every zombies level).
+static const Material *s_alphaTestTemplate;
+
+static void RtFindAlphaTestTemplate(XAssetHeader header, void *)
+{
+    const Material *m = header.material;
+    if ( !m || !m->techniqueSet || !m->techniqueSet->name || !m->stateBitsTable )
+        return;
+    const char *techset = m->techniqueSet->name;
+    const bool exact = !strcmp(techset, "mc_l_sm_t0c0n0s0");
+    if ( !exact && (s_alphaTestTemplate || strncmp(techset, "mc_l_sm_t0c0", 12)) )
+        return;
+    for ( int i = 0; i < m->textureCount; ++i )
+    {
+        if ( m->textureTable[i].nameHash == R_HashString("colorMap") )
+        {
+            if ( exact || !s_alphaTestTemplate )
+                s_alphaTestTemplate = m;
+            return;
+        }
+    }
+}
+
+static const Material *RtAlphaTestTemplate()
+{
+    s_alphaTestTemplate = 0;
+    DB_EnumXAssets_FastFile(ASSET_TYPE_MATERIAL, RtFindAlphaTestTemplate, 0, false);
+    return s_alphaTestTemplate;
+}
+
+// masked: from the alpha-tested template, drawn two-sided (hair cards are single sheets)
+static Material *RtCreateMaterial(const Material *templ, GfxImage *colorMap, const char *name, int zoneIndex,
+                                  bool masked)
 {
     Material material;
     memcpy(&material, templ, sizeof(material));
     material.info.name = RtString(name);
+    if ( masked && templ->stateBitsTable && templ->stateBitsCount )
+    {
+        GfxStateBits *bits = (GfxStateBits *)RtAlloc(sizeof(GfxStateBits) * templ->stateBitsCount);
+        for ( int i = 0; i < templ->stateBitsCount; ++i )
+        {
+            bits[i] = templ->stateBitsTable[i];
+            bits[i].loadBits[0] = (bits[i].loadBits[0] & ~0xC000u) | 0x4000u; // GFXS0_CULL_NONE
+        }
+        material.stateBitsTable = bits;
+    }
     MaterialTextureDef *table = (MaterialTextureDef *)RtAlloc(sizeof(MaterialTextureDef) * (templ->textureCount ? templ->textureCount : 1));
     const unsigned int colorMapHash = R_HashString("colorMap");
     for ( int i = 0; i < templ->textureCount; ++i )
@@ -467,7 +511,7 @@ static void RtBuildSkinnedSurface(RtReader &r, XSurface *surf, int numBones, con
     surf->vertList = 0;
 }
 
-static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, bool gpu)
+static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, const Material *atestTempl, bool gpu)
 {
     void *file = 0;
     int size = FS_ReadFile(va("rtmodels/%s.rlm", name), &file);
@@ -491,8 +535,10 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
     std::vector<Material *> materials;
     for ( unsigned int t = 0; t < texCount && r.ok; ++t )
     {
-        GfxImage *image = RtCreateImage(r, name, zoneIndex, gpu);
-        materials.push_back(image ? RtCreateMaterial(templ, image, va("%s_mtl%u", name, t), zoneIndex) : 0);
+        bool masked = false;
+        GfxImage *image = RtCreateImage(r, name, zoneIndex, gpu, &masked);
+        const Material *from = masked && atestTempl ? atestTempl : templ;
+        materials.push_back(image ? RtCreateMaterial(from, image, va("%s_mtl%u", name, t), zoneIndex, masked) : 0);
     }
 
     // the skeleton (version 1: only tag_origin); roots first, parents before children
@@ -720,11 +766,17 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
         Com_PrintWarning(0, "runtime models: no template material on this level\n");
         return;
     }
+    const Material *atestTempl = RtAlphaTestTemplate();
+    if ( atestTempl )
+        Com_Printf(0, "runtime models: alpha-tested template '%s' (%s)\n", atestTempl->info.name,
+            atestTempl->techniqueSet->name);
+    else
+        Com_PrintWarning(0, "runtime models: no alpha-tested template material; masked textures draw opaque\n");
     RtFreeAll(); // the previous level's arrays; its zone (and the GPU side) is gone
     const bool gpu = !r_loadForRenderer || r_loadForRenderer->current.enabled;
     I_strncpyz(names, bo1_rtmodels->current.string, sizeof(names));
     for ( char *tok = strtok(names, " ,"); tok; tok = strtok(0, " ,") )
-        RtLoadModel(tok, zoneIndex, templ, gpu);
+        RtLoadModel(tok, zoneIndex, templ, atestTempl, gpu);
     if ( gpu )
         RB_Resource_Flush();
 }
