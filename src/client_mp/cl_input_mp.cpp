@@ -9,6 +9,7 @@
 #include <win32/win_input.h>
 #include <universal/mem_largelocal.h>
 #include <cgame_mp/cg_main_mp.h>
+#include <cgame_mp/cg_view_mp.h>
 #include <cgame/cg_weapons.h>
 #include <demo/demo_playback.h>
 #include <win32/win_shared.h>
@@ -617,6 +618,50 @@ float __cdecl CL_LeonQuickTurnTime()
     return (float)(int)(Sys_Milliseconds() - (unsigned int)cl_quickTurnStart) * 0.001f;
 }
 
+// mod (the Leon mod, player_tankControls): standing still (no move or turn key, not aiming, no quick turn) the mouse's
+// yaw orbits the shoulder camera round him - to look him over - instead of turning him; moving, turning or aiming, the
+// camera swings back behind him (~0.3 s) and the mouse turns him again. Taken out of the view's yaw here, after
+// CL_MouseMove, so the server and the prediction never see it; the camera adds it (CL_LeonCameraOrbit).
+static float cl_leonOrbit, cl_leonOrbitLastYaw;
+static int cl_leonOrbitTime = -1;
+
+float __cdecl CL_LeonCameraOrbit()
+{
+    return cl_leonOrbit;
+}
+
+static void CL_LeonOrbit(int localClientNum, usercmd_s *cmd)
+{
+    clientActive_t *cl = CL_GetLocalClientGlobals(localClientNum);
+    const int now = (int)Sys_Milliseconds();
+    if ( !player_tankControls || !player_tankControls->current.enabled || cl_leonOrbitTime < 0 )
+    {
+        cl_leonOrbit = 0.0f;
+        cl_leonOrbitLastYaw = cl->viewangles[1];
+        cl_leonOrbitTime = now;
+        return;
+    }
+    const float dt = now > cl_leonOrbitTime && now - cl_leonOrbitTime < 250 ? (float)(now - cl_leonOrbitTime) * 0.001f : 0.0f;
+    cl_leonOrbitTime = now;
+    const bool still = !cmd->forwardmove && !cmd->rightmove && !cmd->button_bits.testBit(0xBu) && cl_quickTurnStart < 0
+                       && !CG_ShoulderAimFrac(CG_GetLocalClientGlobals(localClientNum));
+    if ( still )
+    {
+        // the mouse's turn since the last command goes to the camera's orbit, the view keeps his facing
+        const float turn = AngleNormalize180(cl->viewangles[1] - cl_leonOrbitLastYaw);
+        cl->viewangles[1] = cl_leonOrbitLastYaw;
+        cmd->angles[1] = (unsigned __int16)(int)((cl->viewangles[1] + cl->cgameKickAngles[1]) * 182.04445f);
+        cl_leonOrbit = AngleNormalize180(cl_leonOrbit + turn);
+    }
+    else if ( cl_leonOrbit != 0.0f )
+    {
+        // back behind him, eased (most of the way in ~0.3 s)
+        const float keep = expf(-dt * 10.0f);
+        cl_leonOrbit = fabsf(cl_leonOrbit * keep) < 0.05f ? 0.0f : cl_leonOrbit * keep;
+    }
+    cl_leonOrbitLastYaw = cl->viewangles[1];
+}
+
 static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
 {
     // back pressed twice (its second press within 0.3 s of the first)
@@ -758,6 +803,7 @@ usercmd_s *__cdecl CL_CreateCmd(usercmd_s *result, int localClientNum)
     }
     if ( Sys_IsHeadlessClient() )
         CL_HeadlessKeys(localClientNum, &cmd);
+    CL_LeonOrbit(localClientNum, &cmd); // mod
     CL_LeonQuickTurn(localClientNum, &cmd); // mod
     memcpy(result, &cmd, sizeof(usercmd_s));
     return result;
