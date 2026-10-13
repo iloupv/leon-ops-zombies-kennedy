@@ -851,19 +851,16 @@ static const char *CG_RuntimeXModel_AnimSet(unsigned int weapon)
     case WEAPCLASS_ROCKETLAUNCHER:
         return "launcher";
     case WEAPCLASS_PISTOL:
-        // the Python: the Broken Butterfly (a revolver, round by round); the M1911: the Killer7 (RE4's Colt
-        // Government); the Ray Gun: the Killer7's two-handed stance and magazine; the others: the handgun
-        if ( strstr(name, "python") )
-            return "revolver";
-        if ( strstr(name, "m1911") || strstr(name, "ray_gun") )
-            return "government";
-        return 0;
+        // the Python: the Broken Butterfly (a revolver, round by round); the others (the M1911, the Ray Gun...): the
+        // handgun (the Killer7's heavy two-handed shot felt like a magnum on the starting pistol)
+        return strstr(name, "python") ? "revolver" : 0;
     case WEAPCLASS_RIFLE:
-        // bolt actions (Kar98k, L96, Scavenger): the rifle; the scoped and the single-shot semi-automatics (Dragunov,
-        // M14, FN FAL, M1 Garand, Gewehr 43): the semi-auto rifle; burst and automatic ones: the Chicago Typewriter
+        // bolt actions (Kar98k, L96, Scavenger): the rifle; the scoped semi-automatics (Dragunov): the semi-auto rifle
+        // (its shot has no recoil in the body: the scope's); the others (M14, FN FAL, M16, AUG...): the Chicago
+        // Typewriter, its shot with recoil
         if ( def->bBoltAction )
             return "rifle";
-        if ( def->overlayReticle != WEAPOVERLAYRETICLE_NONE || def->fireType == WEAPON_FIRETYPE_SINGLESHOT )
+        if ( def->overlayReticle != WEAPOVERLAYRETICLE_NONE )
             return "semi";
         return "smg";
     case WEAPCLASS_SMG:
