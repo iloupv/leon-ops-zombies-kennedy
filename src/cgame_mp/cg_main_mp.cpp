@@ -3713,6 +3713,18 @@ unsigned __int16 __cdecl CG_AttachWeapon(DObjModel_s *dobjModels, unsigned __int
             }
         }
     }
+    // mod: a runtime body's grenade while it is readied: then he holds no weapon (none drawn, iDObjWeapon 0), and the
+    // grenade only went into the hand above, with a weapon - after the release, once the gun was back up
+    else if ( runtimeBody && ci->usingGrenade && ci->iDObjOffhandWeapon && numModels < 0x20u )
+    {
+        const WeaponDef *offhandDef = BG_GetWeaponDef(ci->iDObjOffhandWeapon);
+        if ( offhandDef->worldModel[ci->offhandWeaponModel] )
+        {
+            dobjModels[numModels].model = offhandDef->worldModel[ci->offhandWeaponModel];
+            dobjModels[numModels].boneName = scr_const.tag_inhand;
+            dobjModels[numModels++].ignoreCollision = 0;
+        }
+    }
     return numModels;
 }
 
