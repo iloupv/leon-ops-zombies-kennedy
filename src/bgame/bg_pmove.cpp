@@ -1727,14 +1727,8 @@ static void PM_TankControls(pmove_t *pm, float frametime)
         ps->delta_angles[1] = AngleNormalize180(ps->delta_angles[1] - rate * frametime * ((float)cmd->rightmove / 127.0f));
         cmd->rightmove = 0;
     }
-    else if ( cmd->rightmove )
-    {
-        // aimed in, left / right strafe (the Leon mod's choice) at the walk's speed; the mouse turns him
-        float strafe = 127.0f * 68.0f / full;
-        if ( strafe > 127.0f )
-            strafe = 127.0f;
-        cmd->rightmove = (char)(cmd->rightmove < 0 ? -strafe : strafe);
-    }
+    else
+        cmd->rightmove = 0; // aimed in: no strafe (the player's choice, as RE4), the mouse turns him
     if ( !cmd->forwardmove ) // aimed in he still walks (the Leon mod's choice: RE4 stops him), never runs
     {
         cmd->forwardmove = 0;

@@ -95,4 +95,7 @@ leon_helmet_test()
 	wait 1;
 	player switchToWeapon( "equip_gasmask_zm" );
 	logPrint( "leon: helmet put on\n" );
+	wait 6;
+	player switchToWeapon( "equip_gasmask_zm" ); // again: off
+	logPrint( "leon: helmet taken off\n" );
 }
