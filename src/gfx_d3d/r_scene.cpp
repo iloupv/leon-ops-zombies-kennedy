@@ -54,6 +54,7 @@
 #include "r_draw_shadowablelight.h"
 #include <DynEntity/DynEntity_client.h>
 #include "r_primarylights.h"
+#include "r_runtime_xmodel.h"
 
 GfxScene scene;
 GfxViewParms lockPvsViewParms;
@@ -401,7 +402,9 @@ void __cdecl R_AddDObjToScene(
         {
             v15 = v16;
         }
-        if ( (renderFxFlags & 4) != 0 || DObjGetTree(obj) || DObjGetNumModels(obj) != 1 )
+        // mod: a runtime model with a baked animation needs the posed (scene DObj) path, as an animated DObj does
+        if ( (renderFxFlags & 4) != 0 || DObjGetTree(obj) || DObjGetNumModels(obj) != 1
+             || R_RuntimeXModel_IsAnimated(DObjGetModel(obj, 0)) )
         {
             sceneEntIndexa = R_AllocSceneDObj();
             if ( sceneEntIndexa < 0x400 )
