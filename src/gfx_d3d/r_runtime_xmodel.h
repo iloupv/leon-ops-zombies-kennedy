@@ -15,7 +15,8 @@ enum RtAction
     RT_ACTION_FIRE,
     RT_ACTION_RELOAD,
 };
-void __cdecl R_RuntimeXModel_PoseDObj(struct DObj *obj, const float *origin, const float *angles, int timeMs,
+// returns the shot's (recoil's) weight on the pose this frame, 0..1 (0: no shot playing)
+float __cdecl R_RuntimeXModel_PoseDObj(struct DObj *obj, const float *origin, const float *angles, int timeMs,
                                       bool isPlayer, float aimFrac, float aimPitch, RtAction action = RT_ACTION_NONE,
                                       float actionTime = 0.0f, float actionDuration = 0.0f,
                                       const float *aimCorrection = 0);

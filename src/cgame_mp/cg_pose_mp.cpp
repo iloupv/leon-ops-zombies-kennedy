@@ -906,8 +906,10 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             CG_ShoulderAimCorrectionDecay(0.9f);
         CG_ShoulderAimCorrection(aimCorrection);
     }
-    R_RuntimeXModel_PoseDObj(obj, origin, angles, cgameGlob->time, isPlayer, aimFrac, aimPitch, action, actionTime,
-                             actionDuration, aimCorrection);
+    const float recoil = R_RuntimeXModel_PoseDObj(obj, origin, angles, cgameGlob->time, isPlayer, aimFrac, aimPitch,
+                                                  action, actionTime, actionDuration, aimCorrection);
+    if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
+        CG_ShoulderRecoil(recoil);
 }
 
 DObjAnimMat *__cdecl CG_DObjCalcPose(const cpose_t *remote_pose, DObj *obj, int *partBits)

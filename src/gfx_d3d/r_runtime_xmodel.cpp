@@ -1134,18 +1134,18 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
 // whose model has baked animations gets every bone's local pose from its locomotion cycle (crossfaded from the
 // previous one), marked as animated so DObjCalcAnim leaves the bones alone; DObjCalcSkel then builds the skeleton as
 // for an XAnim pose (the rotation absolute, the translation added to the model's rest offset).
-void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const float *angles, int timeMs,
+float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const float *angles, int timeMs,
                                       bool isPlayer, float aimFrac, float aimPitch, RtAction action, float actionTime,
                                       float actionDuration, const float *aimCorrection)
 {
     if ( s_anims.empty() || !obj->numModels || !obj->skel.mat )
-        return;
+        return 0.0f;
     const XModel *model = obj->localModels[0];
     if ( RtFindAnim(model, 0) < 0 )
-        return;
+        return 0.0f;
     const RtAnimState st = RtUpdateAnimState(obj, model, origin, angles, timeMs);
     if ( st.cur < 0 )
-        return;
+        return 0.0f;
     const RtAnim &cur = s_anims[st.cur];
     const RtAnim *prev = st.prev >= 0 && st.blend < 1.0f ? &s_anims[st.prev] : 0;
     // aiming (a player's ADS): the upper body takes the aim pose, level blended toward up or down by the view pitch
@@ -1303,4 +1303,5 @@ void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const floa
         mat->transWeight = 2.0f;
         obj->skel.partBits.anim[b >> 5] |= 0x80000000 >> (b & 31);
     }
+    return action == RT_ACTION_FIRE && actionAnim >= 0 ? actionWeight : 0.0f;
 }

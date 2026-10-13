@@ -2767,6 +2767,14 @@ void __cdecl CG_ShoulderAimCorrectionDecay(float frac)
     s_shoulderAimCorrection[1] *= frac;
 }
 
+// mod: the shot's (recoil's) weight on the local player's pose this frame (CG_RuntimeXModel_Pose), 0..1
+static float s_shoulderRecoil;
+
+void __cdecl CG_ShoulderRecoil(float weight)
+{
+    s_shoulderRecoil = weight;
+}
+
 // mod: the local player's aim (ADS) fraction (cg_thirdPersonAimTest forces one for headless tests)
 float __cdecl CG_ShoulderAimFrac(const cg_s *cgameGlob)
 {
@@ -2813,7 +2821,8 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
     float eye[3], fwd[3], aim[3];
     CG_ShoulderAimPoint(cgameGlob, eye, fwd, aim);
     float want[3] = { aim[0] - orient.origin[0], aim[1] - orient.origin[1], aim[2] - orient.origin[2] };
-    if (Vec3Normalize(want) > 1.0f)
+    const bool wantValid = Vec3Normalize(want) > 1.0f;
+    if (wantValid && s_shoulderRecoil <= 0.0f) // the recoil's kick is not aim error: hold the correction
     {
         float wantAngles[3], barrelAngles[3];
         vectoangles(want, wantAngles);
@@ -2826,6 +2835,20 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
             float corr = s_shoulderAimCorrection[i] + error * k;
             s_shoulderAimCorrection[i] = corr > 45.0f ? 45.0f : (corr < -45.0f ? -45.0f : corr);
         }
+    }
+    // through a shot's recoil the line holds where the shots land instead of kicking with the gun (RE4's fire state
+    // draws the laser without recalculating it: drawLaserSight(1, 1)), still from the muzzle; it blends back onto
+    // the barrel as the recoil fades out (the aim correction has kept the barrel on that line)
+    if (wantValid && s_shoulderRecoil > 0.0f)
+    {
+        const float r = s_shoulderRecoil < 1.0f ? s_shoulderRecoil : 1.0f;
+        float dir[3];
+        for (int k = 0; k < 3; ++k)
+            dir[k] = orient.axis[0][k] + (want[k] - orient.axis[0][k]) * r;
+        Vec3Normalize(dir);
+        float angles[3];
+        vectoangles(dir, angles);
+        AnglesToAxis(angles, orient.axis);
     }
     // the beam: the laser models made with the runtime models (r_runtime_xmodel.cpp), segments end to end from the
     // muzzle to where the line hits, and the dot there (the engine's FX beam / sprite laser draws nothing here)
@@ -2844,13 +2867,13 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
     static unsigned __int16 lighting[130];
     GfxScaledPlacement placement;
     AxisToQuat(orient.axis, placement.base.quat);
-    // RE4's line (cObjWep::drawLaserSight, esp19's Draw_line3d_local_222): it starts 500 mm (19.7") past the muzzle
-    // once the hit is farther than that, and fades out over max_laser_dist (12000 mm: 472"), where it ends; here the
-    // fade thins the segments (each as long as it is wide), so they stay end to end
-    const float laserStart = length > 19.7f ? 19.7f : length, laserMax = 472.0f;
+    // RE4's line (esp19's Draw_line3d_local_222) fades out over max_laser_dist (12000 mm: 472"), where it ends; here
+    // the fade thins the segments (each as long as it is wide), so they stay end to end. It starts at the muzzle
+    // (RE4's starts 500 mm past it, which leaves a gap behind the shoulder camera)
+    const float laserMax = 472.0f;
     const float lineEnd = length < laserMax ? length : laserMax;
     int segment = 0;
-    for (float d = laserStart; d < lineEnd && segment < 128; ++segment)
+    for (float d = 0.0f; d < lineEnd && segment < 128; ++segment)
     {
         const float rate = 1.0f - d / laserMax;
         placement.scale = rate > 0.15f ? rate : 0.15f;
@@ -2860,8 +2883,8 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
         d += 16.0f * placement.scale;
     }
     // RE4's dot (drawPoint): where the line hits, facing the camera (round), sized with the camera's distance:
-    // 0.8 + dist / 8000 mm (315"), at most 3; RE4 draws it only past the line's 500 mm start
-    if (trace.fraction >= 1.0f || length <= 19.7f)
+    // 0.8 + dist / 8000 mm (315"), at most 3
+    if (trace.fraction >= 1.0f)
         return;
     float hit[3], toCamera[3];
     for (int k = 0; k < 3; ++k)
