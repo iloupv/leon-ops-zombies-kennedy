@@ -1104,6 +1104,8 @@ set(SRC_GFX_D3D
 	"${SRC_DIR}/gfx_d3d/r_rendertarget.h"
 	"${SRC_DIR}/gfx_d3d/r_mapkit_render.cpp"
 	"${SRC_DIR}/gfx_d3d/r_mapkit_render.h"
+	"${SRC_DIR}/gfx_d3d/r_runtime_xmodel.cpp"
+	"${SRC_DIR}/gfx_d3d/r_runtime_xmodel.h"
 	"${SRC_DIR}/gfx_d3d/r_rope_render.cpp"
 	"${SRC_DIR}/gfx_d3d/r_rope_render.h"
 	"${SRC_DIR}/gfx_d3d/r_scene.cpp"
