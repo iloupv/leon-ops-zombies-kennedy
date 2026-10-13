@@ -15,6 +15,7 @@ main_start()
 {
 	logPrint( "leon: main_start\n" );
 	precacheModel( "leon" );
+	precacheModel( "t5_weapon_m14_world" ); // the npc test's weapon (common_zombie: on every map)
 	level thread leon_spawn_test();
 }
 
@@ -42,6 +43,8 @@ leon_spawn_test()
 	logPrint( "leon: player model " + player.model + "\n" );
 	if ( getDvar( "leon_thirdperson" ) == "1" )
 		setDvar( "cg_thirdPerson", "1" );
+	if ( getDvar( "leon_tpangle" ) != "" )
+		setDvar( "cg_thirdPersonAngle", getDvar( "leon_tpangle" ) ); // tests: the camera around the player
 
 	test = getDvar( "leon_test" );
 	if ( test == "" )
@@ -73,6 +76,7 @@ leon_spawn( origin, yaw, role )
 	leon = spawn( "script_model", origin );
 	leon.angles = ( 0, yaw, 0 );
 	leon setModel( "leon" );
+	leon attach( "t5_weapon_m14_world", "tag_weapon_right" ); // checks the weapon tag
 	logPrint( "leon: " + role + " at " + leon.origin + " facing " + leon.angles + "\n" );
 	return leon;
 }

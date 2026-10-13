@@ -945,7 +945,8 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
 // whose model has baked animations gets every bone's local pose from its locomotion cycle (crossfaded from the
 // previous one), marked as animated so DObjCalcAnim leaves the bones alone; DObjCalcSkel then builds the skeleton as
 // for an XAnim pose (the rotation absolute, the translation added to the model's rest offset).
-void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const float *angles, int timeMs)
+void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const float *angles, int timeMs,
+                                      bool isPlayer)
 {
     if ( s_anims.empty() || !obj->numModels || !obj->skel.mat )
         return;
@@ -963,9 +964,11 @@ void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const floa
     for ( int b = 0; b < numBones; ++b )
     {
         DObjAnimMat *mat = &obj->skel.mat[b];
-        // the root: the body's turn toward the motion, in place of a player's CoD leg yaw (BG_Player_DoControllers
-        // sets tag_origin for CoD's own leg animations) unless the skeleton is built from it already
-        if ( b == 0 && !(obj->skel.partBits.skel[0] & 0x80000000) )
+        // the root: the body's turn toward the motion. A player's replaces CoD's leg yaw (BG_Player_DoControllers sets
+        // tag_origin for CoD's own leg animations); another entity keeps a controller's root (the base origin
+        // controller places script models by it). Not once the skeleton is built from it.
+        const bool rootSet = (obj->skel.partBits.anim[0] & 0x80000000) != 0;
+        if ( b == 0 && !(obj->skel.partBits.skel[0] & 0x80000000) && (isPlayer || !rootSet) )
         {
             const float half = st.bodyYaw * 0.5f * 0.017453292f;
             mat->quat[0] = mat->quat[1] = 0.0f;

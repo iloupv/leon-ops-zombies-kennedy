@@ -840,7 +840,7 @@ DObjAnimMat *__cdecl CG_DObjCalcPose(const cpose_t *remote_pose, DObj *obj, int 
         DObjCompleteHierarchyBits(obj, partBits);
         CG_DoControllers(pose, obj, partBits);
         R_RuntimeXModel_PoseDObj(obj, pose->origin, pose->angles,
-            CG_GetLocalClientGlobals(pose->localClientNum)->time); // mod: runtime model animation
+            CG_GetLocalClientGlobals(pose->localClientNum)->time, pose->eType == 1); // mod: runtime model animation
         DObjCalcSkel(obj, partBits);
     }
     DObjUnlock(obj);
