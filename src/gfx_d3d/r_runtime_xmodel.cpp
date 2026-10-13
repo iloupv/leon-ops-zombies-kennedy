@@ -289,6 +289,7 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
     for ( unsigned int t = 0; t < texCount && r.ok; ++t )
     {
         GfxImage *image = RtCreateImage(r, name, zoneIndex, gpu);
+    Com_Printf(0, "runtime models: image linked\n");
         materials.push_back(image ? RtCreateMaterial(templ, image, va("%s_mtl%u", name, t), zoneIndex) : 0);
     }
 
@@ -347,6 +348,7 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
     model.boneInfo->radiusSquared = radiusSq;
     model.radius = sqrtf(radiusSq);
     model.streamInfo.highMipBounds = (XModelHighMipBounds *)RtAlloc(sizeof(XModelHighMipBounds) * surfCount);
+    Com_Printf(0, "runtime models: linking model\n");
     RtLink(ASSET_TYPE_XMODEL, (XAssetHeader)&model, zoneIndex);
     Com_Printf(0, "runtime model '%s': %u surfaces, %d vertices, %d triangles, %u textures (level zone %d)\n",
         name, surfCount, baseVert, baseTri, texCount, zoneIndex);
@@ -360,6 +362,7 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
         return;
     Com_Printf(0, "runtime models: level '%s', building '%s'\n", mapName, bo1_rtmodels->current.string);
     DB_SyncXAssets();
+    Com_Printf(0, "runtime models: synced\n");
     const int zoneIndex = RtLevelZoneIndex(mapName);
     if ( !zoneIndex )
     {
@@ -381,6 +384,7 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
         return;
 
     const Material *templ = RtTemplateMaterial();
+    Com_Printf(0, "runtime models: template found\n");
     if ( !templ )
     {
         Com_PrintWarning(0, "runtime models: no template material on this level\n");
@@ -391,6 +395,8 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
     I_strncpyz(names, bo1_rtmodels->current.string, sizeof(names));
     for ( char *tok = strtok(names, " ,"); tok; tok = strtok(0, " ,") )
         RtLoadModel(tok, zoneIndex, templ, gpu);
+    Com_Printf(0, "runtime models: flushing\n");
     if ( gpu )
         RB_Resource_Flush();
+    Com_Printf(0, "runtime models: done\n");
 }
