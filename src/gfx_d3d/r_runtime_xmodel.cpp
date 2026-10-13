@@ -16,6 +16,11 @@
 // texture: char name[32], u16 width, u16 height, u8 mip count, u8 alpha masked, u16 0, every mip's BGRA8
 // pixels, largest first; surface: u32 texture, u32 vertex count, u32 triangle count, vertex count x {f32 pos[3]
 // (inches, Z up), f32 normal[3], f32 uv[2]}, triangle count x 3 u16 indices, zero pad to 4.
+//
+// Version 2 adds a skeleton and skinned vertices, and optionally, after the surfaces, baked animations: 'ANIM',
+// u32 count, per animation char name[32], u32 frame count, f32 frames per second, u32 bone count (the model's),
+// frame count x bone count x {f32 local rotation quaternion[4], f32 translation offset from the rest pose[3]}.
+// The first one loops on every DObj of the model (R_RuntimeXModel_PoseDObj), in place of an XAnim tree.
 
 #include "r_runtime_xmodel.h"
 #include "r_material.h"
@@ -56,6 +61,16 @@ static const char *const s_templateModels[] = { "t5_weapon_m14_world", "defaulta
 
 static std::vector<void *> s_allocs; // this level's runtime model memory
 
+struct RtAnim
+{
+    const XModel *model; // the DB pool copy DObjs point at
+    int frameCount;
+    float fps;
+    int boneCount;
+    const float *frames; // frameCount x boneCount x {quat[4], trans offset[3]}
+};
+static std::vector<RtAnim> s_anims; // this level's
+
 static void *RtAlloc(int size)
 {
     void *p = _aligned_malloc(size ? size : 16, 16);
@@ -66,6 +81,7 @@ static void *RtAlloc(int size)
 
 static void RtFreeAll()
 {
+    s_anims.clear();
     for ( void *p : s_allocs )
         _aligned_free(p);
     s_allocs.clear();
@@ -567,6 +583,34 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
             model.lodRampType = 1;
         model.materialHandles[s] = tex < materials.size() && materials[tex] ? materials[tex] : (Material *)templ;
     }
+    std::vector<RtAnim> anims;
+    if ( r.ok && version >= 2 && r.end - r.p >= 8 && !memcmp(r.p, "ANIM", 4) )
+    {
+        r.take(4);
+        const unsigned int animCount = r.u32();
+        for ( unsigned int a = 0; a < animCount && r.ok; ++a )
+        {
+            r.take(32);
+            RtAnim anim = {};
+            anim.frameCount = (int)r.u32();
+            const void *fps = r.take(4);
+            anim.fps = fps ? *(const float *)fps : 0.0f;
+            anim.boneCount = (int)r.u32();
+            if ( anim.frameCount <= 0 || anim.frameCount > 100000 || anim.boneCount != (int)boneCount || !(anim.fps > 0.0f) )
+            {
+                r.ok = false;
+                break;
+            }
+            const int size = anim.frameCount * anim.boneCount * 7 * (int)sizeof(float);
+            if ( const void *src = r.take(size) )
+            {
+                float *frames = (float *)RtAlloc(size);
+                memcpy(frames, src, size);
+                anim.frames = frames;
+                anims.push_back(anim);
+            }
+        }
+    }
     FS_FreeFile(file);
     if ( !r.ok )
     {
@@ -606,9 +650,14 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
     }
     model.radius = sqrtf(radiusSq);
     model.streamInfo.highMipBounds = (XModelHighMipBounds *)RtAlloc(sizeof(XModelHighMipBounds) * surfCount);
-    RtLink(ASSET_TYPE_XMODEL, (XAssetHeader)&model, zoneIndex);
-    Com_Printf(0, "runtime model '%s': %u surfaces, %d vertices, %d triangles, %u textures, %u bones (level zone %d)\n",
-        name, surfCount, baseVert, baseTri, texCount, boneCount, zoneIndex);
+    const XModel *linked = RtLink(ASSET_TYPE_XMODEL, (XAssetHeader)&model, zoneIndex).model;
+    for ( RtAnim &anim : anims )
+    {
+        anim.model = linked;
+        s_anims.push_back(anim);
+    }
+    Com_Printf(0, "runtime model '%s': %u surfaces, %d vertices, %d triangles, %u textures, %u bones, %u animations"
+        " (level zone %d)\n", name, surfCount, baseVert, baseTri, texCount, boneCount, (unsigned int)anims.size(), zoneIndex);
 }
 
 // Called by CL_InitCGame once the level's fastfiles are queued, before CG_Init registers the models.
@@ -651,4 +700,61 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
         RtLoadModel(tok, zoneIndex, templ, gpu);
     if ( gpu )
         RB_Resource_Flush();
+}
+
+// Called by CG_DObjCalcPose before DObjCalcSkel. A DObj whose model has a baked animation gets every bone's local
+// pose from it (the first animation, looping, neighbouring frames blended), marked as animated so DObjCalcAnim
+// leaves the bones alone; DObjCalcSkel then builds the skeleton as for an XAnim pose (the rotation absolute, the
+// translation added to the model's rest offset).
+void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, int timeMs)
+{
+    if ( s_anims.empty() || !obj->numModels || !obj->skel.mat )
+        return;
+    const XModel *model = obj->localModels[0];
+    const RtAnim *anim = 0;
+    for ( const RtAnim &a : s_anims )
+    {
+        if ( a.model == model )
+        {
+            anim = &a;
+            break;
+        }
+    }
+    if ( !anim )
+        return;
+    const float t = fmodf((float)(timeMs % 3600000) * 0.001f * anim->fps, (float)anim->frameCount);
+    const int f0 = (int)t < anim->frameCount ? (int)t : anim->frameCount - 1;
+    const int f1 = (f0 + 1) % anim->frameCount;
+    const float frac = t - (float)f0;
+    int numBones = anim->boneCount < model->numBones ? anim->boneCount : model->numBones;
+    if ( numBones > obj->numBones )
+        numBones = obj->numBones;
+    for ( int b = 0; b < numBones; ++b )
+    {
+        const float *a = &anim->frames[7 * (f0 * anim->boneCount + b)];
+        const float *c = &anim->frames[7 * (f1 * anim->boneCount + b)];
+        const float sign = a[0] * c[0] + a[1] * c[1] + a[2] * c[2] + a[3] * c[3] < 0.0f ? -1.0f : 1.0f;
+        DObjAnimMat *mat = &obj->skel.mat[b];
+        float lenSq = 0.0f;
+        for ( int k = 0; k < 4; ++k )
+        {
+            mat->quat[k] = a[k] + (sign * c[k] - a[k]) * frac;
+            lenSq += mat->quat[k] * mat->quat[k];
+        }
+        if ( lenSq > 0.0f )
+        {
+            const float inv = 1.0f / sqrtf(lenSq);
+            for ( int k = 0; k < 4; ++k )
+                mat->quat[k] *= inv;
+        }
+        else
+        {
+            mat->quat[0] = mat->quat[1] = mat->quat[2] = 0.0f;
+            mat->quat[3] = 1.0f;
+        }
+        mat->transWeight = 2.0f;
+        for ( int k = 0; k < 3; ++k )
+            mat->trans[k] = a[4 + k] + (c[4 + k] - a[4 + k]) * frac;
+        obj->skel.partBits.anim[b >> 5] |= 0x80000000 >> (b & 31);
+    }
 }
