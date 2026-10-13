@@ -3940,6 +3940,71 @@ static void UI_ModFov_PatchMenus(UiContext *dc)
     }
 }
 
+// BO1FIX: this build is zombies only, but the SP front end's main menu on the monitor ("main_text", frontend.ff)
+// offers Campaign (main_button1, spmode 1) and Multiplayer (main_button2, quit_to_mp_popmenu) above Zombies
+// (main_button3), Options and Quit. Drop those two rows - each button is a background item plus two button items
+// sharing one 80-unit row - and move the rows below them up, so Zombies is first. The menu's onOpen focuses
+// main_button1 by name; point it at Zombies. Menus are reloaded with their zone, so this runs on every load and
+// does nothing once main_button1 is gone.
+static void UI_SP_FrontEndZombiesOnly(UiContext *dc)
+{
+    menuDef_t *menu = Menus_FindByName(dc, "main_text");
+    if ( !menu || !menu->items )
+        return;
+
+    float removedTop = 0.0f;
+    float removedBottom = 0.0f;
+    bool found = false;
+    for ( int i = 0; i < menu->itemCount; ++i )
+    {
+        const itemDef_s *item = menu->items[i];
+        const char *name = item ? item->window.name : 0;
+        if ( name && (!I_stricmp(name, "main_button1") || !I_stricmp(name, "main_button2")) )
+        {
+            const rectDef_s *rect = &item->window.rect;
+            if ( !found || rect->y < removedTop )
+                removedTop = rect->y;
+            if ( !found || rect->y + rect->h > removedBottom )
+                removedBottom = rect->y + rect->h;
+            found = true;
+        }
+    }
+    if ( !found )
+        return;
+
+    // every item inside the removed rows goes (the row backgrounds have no name); the rest move up
+    const float shift = removedBottom - removedTop;
+    int kept = 0;
+    for ( int i = 0; i < menu->itemCount; ++i )
+    {
+        itemDef_s *item = menu->items[i];
+        if ( !item )
+            continue;
+        const float y = item->window.rect.y;
+        if ( y >= removedTop && y < removedBottom )
+            continue;
+        if ( y >= removedBottom )
+        {
+            item->window.rect.y -= shift;
+            item->window.rectClient.y -= shift;
+        }
+        menu->items[kept++] = item;
+    }
+    Com_Printf(13, "bo1_menu: main_text: removed Campaign and Multiplayer (%d items), %d left\n", menu->itemCount - kept, kept);
+    menu->itemCount = kept;
+
+    for ( GenericEventHandler *handler = menu->onEvent; handler; handler = handler->next )
+    {
+        if ( !handler->name || I_stricmp(handler->name, "onOpen") )
+            continue;
+        for ( GenericEventScript *script = handler->eventScript; script; script = script->next )
+        {
+            if ( script->action && I_stristr(script->action, "setFocus \"main_button1\"") )
+                script->action = "setFocus \"main_button3\" ;";
+        }
+    }
+}
+
 void __cdecl UI_LoadIngameMenus(int contextIndex)
 {
     const char *v1; // eax
@@ -3977,6 +4042,7 @@ void __cdecl UI_LoadIngameMenus(int contextIndex)
                 if ( menuList )
                     UI_AddMenuList(contextIndex, &uiInfo->uiDC, menuList, 1);
             }
+            UI_SP_FrontEndZombiesOnly(&uiInfo->uiDC);
             Menus_CloseAll(contextIndex, &uiInfo->uiDC);
         }
         if ( zombiemode && zombiemode->current.enabled )
