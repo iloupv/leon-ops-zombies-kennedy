@@ -393,8 +393,10 @@ void CG_SP_OpenMainMenuCommand(int localClientNum)
             && frontEndMenu->current.string[0])
         {
             Cbuf_AddText(localClientNum,
-                va("set ui_skipMainLockout 1; set zombiemode 1; set blackopsmode 0; set spmode 0; set onlinegame 0; "
-                   "set systemlink 0; closemenu main_lockout; closemenu main_text; openmenu main_online; "
+                // (Solo's own settings after main_online opens: its onOpen sets onlinegame 1, and a level started
+                // online spawned the player at the world's origin)
+                va("set ui_skipMainLockout 1; set blackopsmode 0; set spmode 0; closemenu main_lockout; "
+                   "closemenu main_text; openmenu main_online; set onlinegame 0; set systemlink 0; "
                    "set menu_parent_3d_tv_name main_online; set next_menu_name %s; openmenu blackout_3d_tv\n",
                    frontEndMenu->current.string));
         }
