@@ -5,3 +5,4 @@
 // r_runtime_xmodel.cpp). The model names come from the bo1_rtmodels dvar.
 void __cdecl R_RuntimeXModel_RegisterDvars();
 void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName);
+void __cdecl R_RuntimeXModel_DebugFrame(); // BO1DEBUG (temporary)
