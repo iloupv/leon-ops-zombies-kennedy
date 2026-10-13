@@ -881,6 +881,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
     {
         static int s_frame = -1, s_lastState, s_lastWeaponTime, s_fireStart = -100000, s_reloadStart = -100000;
+        static int s_knifeStart = -100000, s_throwStart = -100000;
         static int s_reloadLength = 1;
         const playerState_s *ps = &cgameGlob->predictedPlayerState;
         const int state = ps->weaponstate;
@@ -891,10 +892,18 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         if ( s_frame != cgameGlob->time )
         {
             if ( cgameGlob->time < s_frame )
-                s_fireStart = s_reloadStart = -100000; // a new level / restart
+                s_fireStart = s_reloadStart = s_knifeStart = s_throwStart = -100000; // a new level / restart
             s_frame = cgameGlob->time;
             if ( firing && (state != s_lastState || ps->weaponTime > s_lastWeaponTime + 1) )
                 s_fireStart = cgameGlob->time;
+            // a melee (Space under tank controls: CL_LeonQuickTurn) slashes the knife; a grenade's throw (its
+            // release: BO1's offhand start) throws
+            if ( (state == WEAPON_MELEE_INIT || state == WEAPON_MELEE_FIRE) && s_lastState != WEAPON_MELEE_INIT
+                 && s_lastState != WEAPON_MELEE_FIRE )
+                s_knifeStart = cgameGlob->time;
+            if ( (state == WEAPON_OFFHAND_START || state == WEAPON_OFFHAND) && s_lastState != WEAPON_OFFHAND_START
+                 && s_lastState != WEAPON_OFFHAND )
+                s_throwStart = cgameGlob->time;
             if ( reloading && !wasReloading )
             {
                 s_reloadStart = cgameGlob->time;
@@ -908,6 +917,16 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         {
             action = RT_ACTION_TURN; // RE4's quick turn (CL_LeonQuickTurn)
             actionTime = turnTime;
+        }
+        else if ( cgameGlob->time - s_knifeStart < 2000 )
+        {
+            action = RT_ACTION_KNIFE;
+            actionTime = (float)(cgameGlob->time - s_knifeStart) * 0.001f;
+        }
+        else if ( cgameGlob->time - s_throwStart < 2000 )
+        {
+            action = RT_ACTION_THROW;
+            actionTime = (float)(cgameGlob->time - s_throwStart) * 0.001f;
         }
         else if ( reloading && s_reloadStart > -100000 )
         {

@@ -1248,23 +1248,33 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     // shot at its own rate; a reload RE4's reload stretched over BO1's; both fade in and out on the upper body
     int actionAnim = -1, actionPitched = -1;
     float actionPhase = 0.0f, actionWeight = 0.0f, actionPitchBlend = 0.0f;
-    if ( action == RT_ACTION_FIRE )
+    if ( action == RT_ACTION_FIRE || action == RT_ACTION_KNIFE || action == RT_ACTION_THROW )
     {
-        actionAnim = RtFindSetAnim(model, animSet, "fire");
+        // a shot, a knife slash or a grenade throw, from its start at the motion's own rate; the shot and the slash
+        // blend toward their up / down versions by the pitch
+        const char *level = action == RT_ACTION_FIRE ? "fire" : (action == RT_ACTION_KNIFE ? "knife" : "throw");
+        actionAnim = RtFindSetAnim(model, animSet, level);
         if ( actionAnim >= 0 )
         {
-            const RtAnim &fire = s_anims[actionAnim];
-            actionPhase = actionTime * fire.fps;
-            if ( actionPhase >= (float)(fire.frameCount - 1) )
+            const RtAnim &motion = s_anims[actionAnim];
+            actionPhase = actionTime * motion.fps;
+            if ( actionPhase >= (float)(motion.frameCount - 1) )
                 actionAnim = -1;
             else
             {
-                const float left = (float)(fire.frameCount - 1) - actionPhase;
+                const float left = (float)(motion.frameCount - 1) - actionPhase;
                 actionWeight = left < 4.0f ? left / 4.0f : 1.0f; // the last frames blend back into the aim
-                float r = -aimPitch / 60.0f;
-                r = r > 1.0f ? 1.0f : (r < -1.0f ? -1.0f : r);
-                actionPitched = RtFindSetAnim(model, animSet, r >= 0.0f ? "fire_up" : "fire_down");
-                actionPitchBlend = fabsf(r);
+                if ( action != RT_ACTION_FIRE && actionPhase < 2.0f )
+                    actionWeight *= actionPhase / 2.0f; // the slash and the throw come in over 2 frames
+                if ( action != RT_ACTION_THROW )
+                {
+                    float r = -aimPitch / 60.0f;
+                    r = r > 1.0f ? 1.0f : (r < -1.0f ? -1.0f : r);
+                    const bool up = r >= 0.0f;
+                    actionPitched = RtFindSetAnim(model, animSet, action == RT_ACTION_FIRE ? (up ? "fire_up" : "fire_down")
+                                                                                           : (up ? "knife_up" : "knife_down"));
+                    actionPitchBlend = fabsf(r);
+                }
             }
         }
     }
