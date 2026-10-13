@@ -2868,6 +2868,26 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
     // none on a launcher (the aim correction above still points it)
     if (BG_GetWeaponDef(cgameGlob->predictedPlayerState.weapon)->weapClass == WEAPCLASS_ROCKETLAUNCHER)
         return;
+    // steadied: the barrel's direction followed within ~50 ms (the aim pose's sway and the correction's small jitter
+    // shook a long beam); from the muzzle as ever
+    static float s_laserDir[3];
+    static int s_laserTime = -100000;
+    const int laserGap = cgameGlob->time - s_laserTime;
+    if (laserGap < 0 || laserGap > 200)
+        Vec3Copy(orient.axis[0], s_laserDir);
+    else
+    {
+        const float k = laserGap * 0.02f < 1.0f ? laserGap * 0.02f : 1.0f;
+        for (int k3 = 0; k3 < 3; ++k3)
+            s_laserDir[k3] += (orient.axis[0][k3] - s_laserDir[k3]) * k;
+        Vec3Normalize(s_laserDir);
+    }
+    s_laserTime = cgameGlob->time;
+    {
+        float laserAngles[3];
+        vectoangles(s_laserDir, laserAngles);
+        AnglesToAxis(laserAngles, orient.axis);
+    }
     // the beam: the laser models made with the runtime models (r_runtime_xmodel.cpp), segments end to end from the
     // muzzle to where the line hits, and the dot there (the engine's FX beam / sprite laser draws nothing here)
     const XModel *beam = R_RuntimeXModel_Laser(false), *dot = R_RuntimeXModel_Laser(true);

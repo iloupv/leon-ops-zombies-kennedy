@@ -6,3 +6,6 @@
 void __cdecl SND_Runtime_LoadForLevel();
 // plays a runtime alias as the local player's 2D sound; false when there is none by that name
 bool __cdecl SND_Runtime_PlayLocal(int localClientNum, const char *alias);
+// true for an alias the runtime voice replaces: with Leon's voice loaded ("leon_pain"), the zombies characters' own
+// lines (vox_plr_*) play silent - dropped, a script waiting on their notify would wait forever
+bool __cdecl SND_Runtime_MutesVoice(unsigned int id);

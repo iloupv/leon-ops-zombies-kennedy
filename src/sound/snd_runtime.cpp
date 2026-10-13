@@ -255,6 +255,28 @@ void __cdecl SND_Runtime_LoadForLevel()
                    (unsigned int)alias->variants.size(), templ->name);
 }
 
+bool __cdecl SND_Runtime_MutesVoice(unsigned int id)
+{
+    static std::vector<unsigned int> s_muted, s_kept; // the answers so far, per alias id
+    if ( !id || !SND_Active() )
+        return false;
+    bool leon = false;
+    for ( const SndRuntimeAlias *a : s_runtimeAliases )
+        leon |= a->name == "leon_pain";
+    if ( !leon )
+        return false;
+    for ( unsigned int m : s_muted )
+        if ( m == id )
+            return true;
+    for ( unsigned int k : s_kept )
+        if ( k == id )
+            return false;
+    const snd_alias_list_t *list = SND_FindAliasFromId(id);
+    const bool mute = list && list->name && !_strnicmp(list->name, "vox_plr_", 8);
+    (mute ? s_muted : s_kept).push_back(id);
+    return mute;
+}
+
 bool __cdecl SND_Runtime_PlayLocal(int localClientNum, const char *alias)
 {
     bool found = false;
