@@ -301,6 +301,7 @@ const dvar_s *cg_thirdPerson;
 const dvar_s *cg_thirdPersonMode;
 const dvar_s *cg_thirdPersonShoulder; // mod: the over-the-shoulder camera (cg_view_mp.cpp)
 const dvar_s *cg_thirdPersonShoulderUp;
+const dvar_s *cg_thirdPersonAimTest;
 const dvar_s *cg_chatTime;
 const dvar_s *cg_chatHeight;
 const dvar_s *cg_predictItems;
@@ -1312,6 +1313,13 @@ void __cdecl CG_RegisterDvars()
                                                     64.0,
                                                     1u,
                                                     "Third person: the over-the-shoulder camera's offset above the view");
+    cg_thirdPersonAimTest = _Dvar_RegisterFloat( // mod: headless tests have no input to aim with
+                                                    "cg_thirdPersonAimTest",
+                                                    0.0,
+                                                    0.0,
+                                                    1.0,
+                                                    0x80u,
+                                                    "Test: the local player's aim (ADS) fraction for the shoulder camera and a runtime model's aim pose (0: the real one)");
     cg_chatTime = _Dvar_RegisterInt(
                                     "cg_chatTime",
                                     12000,

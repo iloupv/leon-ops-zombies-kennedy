@@ -7,4 +7,4 @@ void __cdecl R_RuntimeXModel_RegisterDvars();
 void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName);
 bool __cdecl R_RuntimeXModel_IsAnimated(const struct XModel *model);
 void __cdecl R_RuntimeXModel_PoseDObj(struct DObj *obj, const float *origin, const float *angles, int timeMs,
-                                      bool isPlayer);
+                                      bool isPlayer, float aimFrac, float aimPitch);

@@ -76,6 +76,7 @@ struct RtAnim
     int boneCount;
     float moveSpeed;     // inches per second at the cycle's own rate
     const float *frames; // frameCount x boneCount x {quat[4], trans offset[3]}
+    const unsigned char *upperBody; // per bone: 1 from j_spinelower up (the aim poses take these), 0 below
 };
 static std::vector<RtAnim> s_anims; // this level's
 
@@ -735,9 +736,17 @@ static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, 
     model.radius = sqrtf(radiusSq);
     model.streamInfo.highMipBounds = (XModelHighMipBounds *)RtAlloc(sizeof(XModelHighMipBounds) * surfCount);
     const XModel *linked = RtLink(ASSET_TYPE_XMODEL, (XAssetHeader)&model, zoneIndex).model;
+    // the upper body: j_spinelower and everything under it (the aim poses' bones; the legs keep the cycle)
+    unsigned char *upperBody = (unsigned char *)RtAlloc((int)boneCount);
+    for ( unsigned int b = 0; b < boneCount; ++b )
+    {
+        for ( int a = (int)b; a >= 0 && !upperBody[b]; a = parent[a] )
+            upperBody[b] = boneName[a] == "j_spinelower";
+    }
     for ( RtAnim &anim : anims )
     {
         anim.model = linked;
+        anim.upperBody = upperBody;
         s_anims.push_back(anim);
     }
     Com_Printf(0, "runtime model '%s': %u surfaces, %d vertices, %d triangles, %u textures, %u bones, %u animations"
@@ -831,6 +840,23 @@ static void RtSampleBone(const RtAnim &anim, float phase, int b, float *quat, fl
         quat[k] = a[k] + (sign * c[k] - a[k]) * frac;
     for ( int k = 0; k < 3; ++k )
         trans[k] = a[4 + k] + (c[4 + k] - a[4 + k]) * frac;
+}
+
+// a = a + (b - a) * t for a bone pose: the rotation by the shorter way (normalised later), the translation linearly
+static void RtBlendPose(float *quat, float *trans, const float *bq, const float *bt, float t)
+{
+    const float sign = quat[0] * bq[0] + quat[1] * bq[1] + quat[2] * bq[2] + quat[3] * bq[3] < 0.0f ? -1.0f : 1.0f;
+    float lenSq = 0.0f;
+    for ( int k = 0; k < 4; ++k )
+    {
+        quat[k] += (sign * bq[k] - quat[k]) * t;
+        lenSq += quat[k] * quat[k];
+    }
+    const float inv = lenSq > 0.0f ? 1.0f / sqrtf(lenSq) : 0.0f;
+    for ( int k = 0; k < 4; ++k )
+        quat[k] *= inv;
+    for ( int k = 0; k < 3; ++k )
+        trans[k] += (bt[k] - trans[k]) * t;
 }
 
 // playback rate of a cycle at a ground speed: a moving cycle's feet keep pace with the entity
@@ -948,7 +974,7 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
 // previous one), marked as animated so DObjCalcAnim leaves the bones alone; DObjCalcSkel then builds the skeleton as
 // for an XAnim pose (the rotation absolute, the translation added to the model's rest offset).
 void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const float *angles, int timeMs,
-                                      bool isPlayer)
+                                      bool isPlayer, float aimFrac, float aimPitch)
 {
     if ( s_anims.empty() || !obj->numModels || !obj->skel.mat )
         return;
@@ -960,6 +986,25 @@ void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const floa
         return;
     const RtAnim &cur = s_anims[st.cur];
     const RtAnim *prev = st.prev >= 0 && st.blend < 1.0f ? &s_anims[st.prev] : 0;
+    // aiming (a player's ADS): the upper body takes the aim pose, level blended toward up or down by the view pitch
+    // (RE4 blends its three by the aim pitch, cMot3), in by the ADS fraction
+    const int aimLevel = aimFrac > 0.0f ? RtFindAnim(model, "aim") : -1;
+    int aimPitched = -1;
+    float aimPitchBlend = 0.0f, aimPhase = 0.0f;
+    if ( aimLevel >= 0 )
+    {
+        aimPitchBlend = -aimPitch / 60.0f; // view pitch is positive looking down; the up / down poses are ~60 degrees
+        if ( aimPitchBlend > 1.0f )
+            aimPitchBlend = 1.0f;
+        if ( aimPitchBlend < -1.0f )
+            aimPitchBlend = -1.0f;
+        aimPitched = RtFindAnim(model, aimPitchBlend >= 0.0f ? "aim_up" : "aim_down");
+        aimPitchBlend = fabsf(aimPitchBlend);
+        const RtAnim &level = s_anims[aimLevel];
+        aimPhase = RtWrapPhase((float)(timeMs % 3600000) * 0.001f * level.fps, level.frameCount);
+        if ( aimFrac > 1.0f )
+            aimFrac = 1.0f;
+    }
     int numBones = cur.boneCount < model->numBones ? cur.boneCount : model->numBones;
     if ( numBones > obj->numBones )
         numBones = obj->numBones;
@@ -973,7 +1018,7 @@ void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const floa
         if ( b == 0 && !(obj->skel.partBits.skel[0] & 0x80000000)
              && (isPlayer || !(obj->skel.partBits.anim[0] & 0x80000000)) )
         {
-            const float half = st.bodyYaw * 0.5f * 0.017453292f;
+            const float half = st.bodyYaw * (aimLevel >= 0 ? 1.0f - aimFrac : 1.0f) * 0.5f * 0.017453292f; // aiming: facing the aim
             float quat[4] = { 0.0f, 0.0f, sinf(half), cosf(half) };
             if ( isPlayer )
             {
@@ -1002,6 +1047,19 @@ void __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const floa
                 mat->quat[k] = sign * quat[k] + (mat->quat[k] - sign * quat[k]) * st.blend;
             for ( int k = 0; k < 3; ++k )
                 mat->trans[k] = trans[k] + (mat->trans[k] - trans[k]) * st.blend;
+        }
+        if ( aimLevel >= 0 && cur.upperBody && cur.upperBody[b] )
+        {
+            float quat[4], trans[3];
+            RtSampleBone(s_anims[aimLevel], aimPhase, b, quat, trans);
+            if ( aimPitched >= 0 && aimPitchBlend > 0.0f )
+            {
+                float pq[4], pt[3];
+                const RtAnim &pitched = s_anims[aimPitched];
+                RtSampleBone(pitched, RtWrapPhase(aimPhase, pitched.frameCount), b, pq, pt);
+                RtBlendPose(quat, trans, pq, pt, aimPitchBlend);
+            }
+            RtBlendPose(mat->quat, mat->trans, quat, trans, aimFrac);
         }
         const float lenSq = mat->quat[0] * mat->quat[0] + mat->quat[1] * mat->quat[1] + mat->quat[2] * mat->quat[2]
             + mat->quat[3] * mat->quat[3];

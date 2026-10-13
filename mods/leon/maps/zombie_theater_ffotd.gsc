@@ -45,6 +45,10 @@ leon_spawn_test()
 		setDvar( "cg_thirdPerson", "1" );
 	if ( getDvar( "leon_tpangle" ) != "" )
 		setDvar( "cg_thirdPersonAngle", getDvar( "leon_tpangle" ) ); // tests: the camera around the player
+	if ( getDvar( "leon_aimtest" ) != "" )
+		setDvar( "cg_thirdPersonAimTest", getDvar( "leon_aimtest" ) ); // tests: aiming without input
+	if ( getDvar( "leon_aimpitch" ) != "" )
+		player setPlayerAngles( ( getDvarFloat( "leon_aimpitch" ), yaw, 0 ) ); // tests: the view pitch (+ down)
 
 	test = getDvar( "leon_test" );
 	if ( test == "" )
