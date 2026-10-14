@@ -86,9 +86,10 @@ BO1_BONE_NAMES = {
 # tuning pass (the pistol in the hands, the laser from its muzzle).
 TAGS = [
     ('tag_eye', 4, (0.0, 76.0, 85.0), None),
-    # (30 mm deeper than the first fit, -290, and 12 mm higher: the pistol sat short of the palm, below it)
-    ('tag_weapon_right', 10, (-320.0, -24.0, 66.0), ((-1.0, 0.0, 0.0), (0.0, 0.0, 1.0))),
-    ('tag_weapon_left', 16, (290.0, -24.0, 54.0), ((1.0, 0.0, 0.0), (0.0, 0.0, 1.0))),
+    # (30 mm deeper than the first fit, -290, and 12 mm higher: the pistol sat short of the palm, below it; then 20 mm
+    # further out along the forearm: the guns sat a little back in the hand)
+    ('tag_weapon_right', 10, (-340.0, -24.0, 66.0), ((-1.0, 0.0, 0.0), (0.0, 0.0, 1.0))),
+    ('tag_weapon_left', 16, (310.0, -24.0, 54.0), ((1.0, 0.0, 0.0), (0.0, 0.0, 1.0))),
     # BO1's thrown grenade (cg_main_mp's player DObj: the offhand's world model on tag_inhand) in the right hand, RE4's
     # throwing hand (pl_grenade.cpp), in the fist (at the gun's -290 it floated a hand's length ahead, at -185 still past the fingers)
     ('tag_inhand', 10, (-100.0, -24.0, 30.0), ((-1.0, 0.0, 0.0), (0.0, 0.0, 1.0))),
@@ -280,7 +281,10 @@ WEP01_MOTIONS = [('idle', 7), ('walk', 13), ('back', 15), ('run', 17),
                  # (wep02_r2_reload: 0x2D, the base reload speed)
                  ('fire', 37), ('fire_up', 38), ('fire_down', 39), ('reload', 41),
                  # the quick turn (pl_R1_Turn180: m_MotTbl[0xB] = 0x17), its root yaw kept (ROOT_YAW_MOTIONS)
-                 ('turn180', 19)]
+                 ('turn180', 19),
+                 # the turn in place (pl_R1_Turn: m_MotTbl[0xD] left = 0x0D, [0xF] right = 0x0F), looped while he turns
+                 # standing; its root yaw (175.6 degrees in 40 frames) left out: the engine turns him at that pace
+                 ('turn_left', 9), ('turn_right', 11)]
 # Motions whose root yaw (the root rotation keys about RE4's up axis) is baked into bone 0 (tag_origin), which the
 # others leave at identity: the engine reads it back to turn the player along it (R_RuntimeXModel_RootYaw)
 ROOT_YAW_MOTIONS = {'turn180'}
@@ -320,6 +324,7 @@ WEAPON_SETS = [
     # the Striker (wep08: cObjStriker::setMotion wep08/wep08.cpp, pl_shotgun.cpp's states; its shot ends at 32f): an
     # automatic shotgun loaded shell by shell - shells in at ~26, 31, 41 (start / one shell 30 to 41 / end)
     ('striker', 'wep08.udas', [('idle', 6), ('walk', 12), ('back', 14), ('run', 16), ('turn180', 18),
+                               ('turn_left', 8), ('turn_right', 10),
                                ('aim', 22), ('aim_up', 28), ('aim_down', 30),
                                ('fire', 26, 32), ('fire_up', 29, 32), ('fire_down', 31, 32), ('reload', 38),
                                ('reload_start', 38, (0, 31)), ('reload_loop', 38, (30, 41)),
@@ -327,42 +332,51 @@ WEAPON_SETS = [
     # the semi-auto rifle (wep10: cObjHkSniper::setMotion wep10/objHkSniper.cpp, pl_rifle.cpp's states: the scope idle
     # 0x15 for the aim, a shot restarts it; reload 0x17, a magazine)
     ('semi', 'wep10.udas', [('idle', 10), ('walk', 13), ('back', 14), ('run', 15), ('turn180', 20),
+                            ('turn_left', 11), ('turn_right', 12),
                             ('aim', 17), ('aim_up', 17), ('aim_down', 17),
                             ('fire', 17, 8), ('fire_up', 17, 8), ('fire_down', 17, 8), ('reload', 19)]),
     # the TMP (wep11: cObjMachinegun::setMotion wep/objMachinegun.cpp, pl_machine.cpp: aim 0x1B/0x1F/0x21, fire
     # 0x1C/0x20/0x22, reload 0x1E, a magazine)
     ('tmp', 'wep11.udas', [('idle', 9), ('walk', 14), ('back', 16), ('run', 18), ('turn180', 20),
+                           ('turn_left', 10), ('turn_right', 12),
                            ('aim', 23), ('aim_up', 27), ('aim_down', 29),
                            ('fire', 24), ('fire_up', 28), ('fire_down', 30), ('reload', 26)]),
     # the mine thrower (wep14: cObjMine::setMotion wep14/objMine.cpp, wep14/wep14.cpp: aim 0x13/0x17/0x19, fire
     # 0x14/0x18/0x1A with the left hand racking it, reload 0x16)
     ('mine', 'wep14.udas', [('idle', 7), ('walk', 10), ('back', 11), ('run', 12), ('turn180', 13),
+                            ('turn_left', 8), ('turn_right', 9),
                             ('aim', 15), ('aim_up', 19), ('aim_down', 21),
                             ('fire', 16), ('fire_up', 20), ('fire_down', 22), ('reload', 18)]),
     # the shotgun (cObjShotgun::setMotion, pl_shotgun.cpp: aim set00 0x1A/0x20/0x22, fire00 0x1E/0x21/0x23 - recoil and
     # pump in one - reload 0x2A)
     ('shotgun', 'wep07.udas', [('idle', 6), ('walk', 12), ('back', 14), ('run', 16), ('turn180', 18),
+                               ('turn_left', 8), ('turn_right', 10),
                                ('aim', 22), ('aim_up', 28), ('aim_down', 30),
                                ('fire', 26), ('fire_up', 29), ('fire_down', 31), ('reload', 38),
                                # its reload in BO1's stages (shell by shell: Stakeout, SPAS, HS10): the gun up and a
-                               # shell fetched and loaded (to 26), a shell fetched and loaded (26 to 44), the last one
-                               # loaded (68) and back to the hold
+                               # shell fetched and loaded (to 26), a shell fetched and loaded (26 to 44), then the
+                               # close: the left hand back on the fore-end (54 to 62), the pump - pulled 64 to 68,
+                               # pushed 68 to 74 (the hands' distance, measured in the motion) - and the hold. The
+                               # close started at 68 once: only the push showed, half a pump.
                                ('reload_start', 38, (0, 27)), ('reload_loop', 38, (26, 45)),
-                               ('reload_end', 38, (68, None))]),
+                               ('reload_end', 38, (54, None))]),
     # the bolt-action rifle (cObjSniper::setMotion, pl_rifle.cpp): its aim is the scope's single idle 0x15 (no pitch
     # blend: the aim correction turns it) and a shot only restarts it, so it stands for all of them; reload 0x17
     ('rifle', 'wep09.udas', [('idle', 10), ('walk', 13), ('back', 14), ('run', 15), ('turn180', 20),
+                             ('turn_left', 11), ('turn_right', 12),
                              ('aim', 17), ('aim_up', 17), ('aim_down', 17),
                              # (a shot: its first 8 frames, so the laser - off through a shot - is back soon)
                              ('fire', 17, 8), ('fire_up', 17, 8), ('fire_down', 17, 8), ('reload', 19)]),
     # the Chicago Typewriter (cObjTompson::setMotion, pl_machine.cpp as the TMP's: aim 0x1B/0x1F/0x21, fire - one
     # round - 0x1C/0x20/0x22, reload 0x1E)
     ('smg', 'wep12.udas', [('idle', 9), ('walk', 14), ('back', 16), ('run', 18), ('turn180', 20),
+                           ('turn_left', 10), ('turn_right', 12),
                            ('aim', 23), ('aim_up', 27), ('aim_down', 29),
                            ('fire', 24), ('fire_up', 28), ('fire_down', 30), ('reload', 26)]),
     # the rocket launcher (cObjLauncher::setMotion, pl_rocket.cpp: aim 0x0F/0x12/0x14, fire 0x11/0x13/0x15); single
     # shot in RE4, so no reload: shouldering it (0x18) stands in for BO1's
     ('launcher', 'wep13.udas', [('idle', 4), ('walk', 5), ('back', 6), ('run', 7), ('turn180', 8),
+                                ('turn_left', 9), ('turn_right', 10),
                                 ('aim', 11), ('aim_up', 14), ('aim_down', 16),
                                 ('fire', 13), ('fire_up', 15), ('fire_down', 17), ('reload', 20)]),
 ]

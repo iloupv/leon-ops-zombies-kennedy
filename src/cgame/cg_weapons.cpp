@@ -3579,6 +3579,12 @@ void __cdecl ProcessWeaponNoteTracks(int localClientNum, const playerState_s *pr
                 __debugbreak();
         }
         weapDef = BG_GetWeaponDef(weapIndex);
+        // mod: through Leon's kick (it drops a reload under way, PM_TankControls) the hidden viewmodel's reload blends
+        // out to idle, and its notetracks (mag out / in, gear) would still sound: none through the kick
+        const dvar_s *leonKicking = Dvar_FindVar("leon_kicking");
+        if ( leonKicking && leonKicking->type == DVAR_TYPE_STRING && leonKicking->current.string
+             && atoi(leonKicking->current.string) )
+            return;
         pNotifyList = (XAnimClientNotifyList *)DObjGetClientNotifies();
         if ( pNotifyList )
         {

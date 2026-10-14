@@ -10,8 +10,9 @@ own Black Ops. Nothing of either game is shipped; both installs are only read.
      into <out>/mods/leon/rtmodels/leon.rlm
   3. writes his voice (leon_sounds.py: BIO4/snd/pl00.xwb, core.xwb) into <out>/mods/leon/sound/rt
   4. extracts d3dx9_43.dll and xinput1_3.dll from Black Ops' Redist/DirectX next to the game's exe
-  5. writes <out>/mods/leon/rtmodels/leon_ready.txt (what Melty waits for); a later run with the same
-     SETUP_VERSION there does nothing (--force redoes it)
+  5. writes <out>/mods/leon/rtmodels/leon_ready_v<SETUP_VERSION>.txt (what Melty and the launcher wait for: a new
+     SETUP_VERSION - Leon converted differently - has them build him again); a later run finding it does nothing
+     (--force redoes it)
 
 Its log is <out>/leon_setup.log."""
 import argparse
@@ -22,7 +23,7 @@ import subprocess
 import sys
 import time
 
-SETUP_VERSION = '1'
+SETUP_VERSION = '2'  # 2: the guns 20 mm further out in his hand, the shotgun's close with its whole pump
 ARCHIVES = ['pl00', 'em10'] + [f'wep{n:02d}' for n in (0, 1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19)]
 REQUIRED = {'pl00', 'wep01'}
 DIRECTX = [('Jun2010_d3dx9_43_x86.cab', 'd3dx9_43.dll'), ('APR2007_xinput_x86.cab', 'xinput1_3.dll')]
@@ -76,8 +77,8 @@ def main():
     os.makedirs(out, exist_ok=True)
     log_file = open(os.path.join(out, 'leon_setup.log'), 'a', encoding='utf-8')
     rtmodels = os.path.join(out, 'mods', 'leon', 'rtmodels')
-    ready = os.path.join(rtmodels, 'leon_ready.txt')
-    if not args.force and os.path.isfile(ready) and open(ready).read().strip() == SETUP_VERSION:
+    ready = os.path.join(rtmodels, f'leon_ready_v{SETUP_VERSION}.txt')
+    if not args.force and os.path.isfile(ready):
         log('Leon is ready already')
         return
     log(f'setup {SETUP_VERSION}: RE4 {args.re4}, Black Ops {args.bo1}, out {out}')

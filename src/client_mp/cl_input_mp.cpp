@@ -500,9 +500,11 @@ void __cdecl CL_CreateNewCommands(int localClientNum)
 // weapon-key paths run (weapnext / weapprev / +actionslot 3 = the altMode toggle maps\_loadout sets, CG_ActionSlotDown_f
 // -> ToggleWeaponAltMode). "<start ms> <period ms>|<offset ms> <console command>|<offset ms> hold <bit> <ms> [fwd]|..."
 // runs every entry at start + k * period + offset (cgame time); "hold" ORs usercmd button <bit> (0 attack, 1 sprint,
-// 4 reload) into the commands for <ms>, "fwd" also moves forward (sprint needs it). Logs bo1_keys / bo1_weapsel.
+// 4 reload) into the commands for <ms>, "fwd" / "back" also move forward / back (sprint needs it), "left" / "right"
+// sideways (11 held too: a strafe aimed in under tank controls, else a turn). Logs bo1_keys / bo1_weapsel.
 static const dvar_t *cl_headlessKeys;
 static int cl_headlessHoldBit = -1, cl_headlessHoldEnd, cl_headlessHoldFwd; // fwd: 1 forward, -1 back
+static int cl_headlessHoldSide; // 1 right, -1 left
 
 static void CL_HeadlessKeys(int localClientNum, usercmd_s *cmd)
 {
@@ -566,6 +568,7 @@ static void CL_HeadlessKeys(int localClientNum, usercmd_s *cmd)
                 cl_headlessHoldBit = bit;
                 cl_headlessHoldEnd = now + ms;
                 cl_headlessHoldFwd = !strcmp(fwd, "fwd") ? 1 : (!strcmp(fwd, "back") ? -1 : 0);
+                cl_headlessHoldSide = !strcmp(fwd, "right") ? 1 : (!strcmp(fwd, "left") ? -1 : 0);
             }
             else
             {
@@ -584,6 +587,8 @@ static void CL_HeadlessKeys(int localClientNum, usercmd_s *cmd)
             cmd->button_bits.setBit(cl_headlessHoldBit);
         if (cl_headlessHoldFwd)
             cmd->forwardmove = cl_headlessHoldFwd > 0 ? 127 : -127;
+        if (cl_headlessHoldSide)
+            cmd->rightmove = cl_headlessHoldSide > 0 ? 127 : -127;
     }
 }
 
