@@ -278,6 +278,14 @@ void IN_GamepadsMove()
     }
     if (gpad_present && gpad_present->current.color[0] != gpadPresent)
         Dvar_SetBool((dvar_s*)gpad_present, gpadPresent);
+    // mod: under a mod with its own gamepad layout (the Leon mod: leon_gamepad 1) the pad is on while one is plugged in
+    // and off otherwise - BO1's hints show the pad's buttons while it is on, the keyboard's keys (F to buy) then
+    const dvar_s *modPad = Dvar_FindVar("leon_gamepad");
+    if (gpad_enabled && modPad && modPad->type == DVAR_TYPE_STRING && modPad->current.string
+        && atoi(modPad->current.string) && gpad_enabled->current.enabled != (gpadPresent != 0))
+    {
+        Dvar_SetBool((dvar_s*)gpad_enabled, gpadPresent != 0);
+    }
 }
 
 void IN_MouseMove()

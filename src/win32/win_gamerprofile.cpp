@@ -140,6 +140,22 @@ void __cdecl GamerProfile_SetPlaylistNum(int controllerIndex, int playlistNum)
     gamerSettings[controllerIndex].playlist = playlistNum;
 }
 
+// mod: a mod with its own gamepad layout (the Leon mod: leon_gamepad 1, its leon.cfg) - the pad on and the mod's own
+// presets (mods/leon/buttons_leon.cfg, thumbstick_leon.cfg) in the profile and its dvars, so every time BO1 runs the
+// profile's presets (a profile update, a game's end) it runs the mod's instead of putting buttons_default back
+static void GamerProfile_ModGamepad(int controllerIndex)
+{
+    const dvar_s *modPad = Dvar_FindVar("leon_gamepad");
+    if ( !modPad || modPad->type != DVAR_TYPE_STRING || !modPad->current.string || atoi(modPad->current.string) == 0 )
+        return;
+    gamerSettings[controllerIndex].gpadEnabled = true;
+    I_strncpyz(gamerSettings[controllerIndex].gpadButtonsConfig, "buttons_leon", 256);
+    I_strncpyz(gamerSettings[controllerIndex].gpadSticksConfig, "thumbstick_leon", 256);
+    Dvar_SetBool((dvar_s *)gpad_enabled, true);
+    Dvar_SetString((dvar_s *)gpad_buttonsConfig, "buttons_leon");
+    Dvar_SetString((dvar_s *)gpad_sticksConfig, "thumbstick_leon");
+}
+
 void __cdecl GamerProfile_ExecControllerBindings(int controllerIndex)
 {
     char *v1; // eax
@@ -160,6 +176,7 @@ void __cdecl GamerProfile_ExecControllerBindings(int controllerIndex)
         __debugbreak();
     }
     localClientNum = Com_ControllerIndex_GetLocalClientNum(controllerIndex);
+    GamerProfile_ModGamepad(controllerIndex); // mod
     if ( gamerSettings[controllerIndex].gpadEnabled )
     {
         if ( gamerSettings[controllerIndex].gpadButtonsConfig[0] )
@@ -241,6 +258,7 @@ void __cdecl GamerProfile_UpdateDvarsFromProfile(int controllerIndex)
         Dvar_SetString((dvar_s *)gpad_buttonsConfig, gamerSettings[controllerIndex].gpadButtonsConfig);
         if ( gamerSettings[controllerIndex].gpadSticksConfig[0] )
             Dvar_SetString((dvar_s *)gpad_sticksConfig, gamerSettings[controllerIndex].gpadSticksConfig);
+        GamerProfile_ModGamepad(controllerIndex); // mod
         Dvar_SetFloat((dvar_s *)gpad_button_lstick_deflect_max, gamerSettings[controllerIndex].gpadButtonLStickDeflect);
         Dvar_SetFloat((dvar_s *)gpad_button_rstick_deflect_max, gamerSettings[controllerIndex].gpadButtonRStickDeflect);
         Dvar_SetFloat((dvar_s *)r_gamma, gamerSettings[controllerIndex].gamma);

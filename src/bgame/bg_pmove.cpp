@@ -1746,9 +1746,9 @@ static void PM_TankControls(pmove_t *pm, float frametime)
     }
     else if ( cmd->rightmove )
     {
-        // aimed in he steps sideways at the walk's pace (the Leon mod's choice: RE4 stands), his legs turned toward
-        // the step and his torso held on the aim (R_RuntimeXModel_SetStrafeLegs); the mouse still turns him
-        strafe = 127.0f * 1.2f * 68.0f / full;
+        // aimed in he steps sideways at 80 % of the walk's pace (the Leon mod's choice: RE4 stands), his legs turned
+        // toward the step and his torso held on the aim (R_RuntimeXModel_SetPlayerMotion); the mouse still turns him
+        strafe = 127.0f * 0.8f * 1.2f * 68.0f / full;
         if ( player_strafeSpeedScale->current.value > 0.1f )
             strafe /= player_strafeSpeedScale->current.value; // PM_CmdScale slows a strafe by it
         if ( strafe > 127.0f )

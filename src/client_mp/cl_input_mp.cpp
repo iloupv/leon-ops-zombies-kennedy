@@ -28,6 +28,7 @@
 #include <cgame/cg_main.h>
 #include <bgame/bg_misc.h>
 #include <qcommon/cmd.h>
+#include <ui/keycodes.h>
 #include <universal/dvar.h>
 #include <gfx_d3d/r_runtime_xmodel.h>
 
@@ -747,18 +748,56 @@ static void CL_LeonSway(int localClientNum, usercmd_s *cmd)
     cl_swayLast[1] = cl->viewangles[1];
 }
 
+// mod (the Leon mod, player_tankControls): RE4's run - held on the pad's A (RE4's run button), latched by one press of
+// the other run keys (Shift, L3: held, they tired the finger) until he stops going forward, aims, or the key is pressed
+// again. The run key pressed going back is RE4's quick turn (back + run: CL_LeonQuickTurn). The run is BO1's sprint
+// key (KB_SPRINT, playersKb 30: +sprint / +breath_sprint), told apart by the keys holding it.
+static bool cl_leonRunLatched, cl_leonRunWasDown, cl_leonRunTurn;
+
+static void CL_LeonRun(int localClientNum, usercmd_s *cmd)
+{
+    const kbutton_t *run = &playersKb[localClientNum][30];
+    // (held back on the keyboard CL_KeyMove leaves the run bit alone: the key's own state)
+    const bool down = run->active || cmd->button_bits.testBit(1u);
+    const bool pressed = down && !cl_leonRunWasDown;
+    cl_leonRunWasDown = down;
+    cl_leonRunTurn = false;
+    if ( !player_tankControls || !player_tankControls->current.enabled )
+    {
+        cl_leonRunLatched = false;
+        return;
+    }
+    const bool held = run->active && (run->down[0] == K_BUTTON_A || run->down[1] == K_BUTTON_A);
+    const bool aiming = cmd->button_bits.testBit(0xBu);
+    if ( pressed && cmd->forwardmove < 0 && !aiming )
+    {
+        cl_leonRunTurn = true;
+        cl_leonRunLatched = false;
+    }
+    else if ( pressed && !held && cmd->forwardmove > 0 )
+        cl_leonRunLatched = !cl_leonRunLatched;
+    if ( cmd->forwardmove <= 0 || aiming )
+        cl_leonRunLatched = false;
+    if ( (held && cmd->forwardmove > 0) || cl_leonRunLatched )
+        cmd->button_bits.setBit(1u);
+    else
+        cmd->button_bits.resetBit(1u);
+}
+
 static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
 {
-    // back pressed twice (its second press within 0.3 s of the first)
-    const bool back = cmd->forwardmove < 0 && !cmd->button_bits.testBit(0xBu);
-    bool pressed = false;
+    // back pressed twice (its second press within 0.3 s of the first; a stick at least half way back), or the run key
+    // pressed going back (RE4's back + run: CL_LeonRun)
+    const bool back = cmd->forwardmove <= -64 && !cmd->button_bits.testBit(0xBu);
+    bool pressed = cl_leonRunTurn;
     if ( back && !cl_quickTurnBackHeld )
     {
         const int now = (int)Sys_Milliseconds();
-        pressed = now - cl_quickTurnBackTap < 300;
-        cl_quickTurnBackTap = pressed ? -100000 : now;
+        const bool tapped = now - cl_quickTurnBackTap < 300;
+        pressed |= tapped;
+        cl_quickTurnBackTap = tapped ? -100000 : now;
     }
-    cl_quickTurnBackHeld = back;
+    cl_quickTurnBackHeld = cmd->forwardmove < 0 && !cmd->button_bits.testBit(0xBu) && (back || cl_quickTurnBackHeld);
     float yaw, length;
     if ( !player_tankControls || !player_tankControls->current.enabled )
     {
@@ -776,6 +815,7 @@ static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
         if ( !pressed || !R_RuntimeXModel_RootYaw("turn180", 0.0f, &yaw, &length) )
             return;
         cl_quickTurnStart = (int)Sys_Milliseconds();
+        Com_Printf(0, "leon: quick turn (%s)\n", cl_leonRunTurn ? "back + run" : "back twice");
         cl_quickTurnYaw = yaw;
         cl_quickTurnTurned = 0.0f;
     }
@@ -889,6 +929,7 @@ usercmd_s *__cdecl CL_CreateCmd(usercmd_s *result, int localClientNum)
     if ( Sys_IsHeadlessClient() )
         CL_HeadlessKeys(localClientNum, &cmd);
     CL_LeonOrbit(localClientNum, &cmd); // mod
+    CL_LeonRun(localClientNum, &cmd); // mod
     CL_LeonQuickTurn(localClientNum, &cmd); // mod
     CL_LeonSway(localClientNum, &cmd); // mod
     memcpy(result, &cmd, sizeof(usercmd_s));
@@ -1164,6 +1205,17 @@ void __cdecl CL_GamepadMove(int localClientNum, usercmd_s *cmd)
                 yaw = -CL_GamepadAxisValue(localClientNum, 3u);
                 forward = CL_GamepadAxisValue(localClientNum, 1u);
                 side = CL_GamepadAxisValue(localClientNum, 0);
+                // mod: under RE4's tank controls the left stick's side turns him and only the sign of its forward counts
+                // (PM_TankControls): a little forward or back while turning walked him, and drifting below the centre
+                // tapped back (the quick turn's double tap). Forward under 0.3, or under half the side, is none; side
+                // under 0.15 is none.
+                if ( player_tankControls && player_tankControls->current.enabled )
+                {
+                    if ( fabsf(forward) < 0.3f || fabsf(forward) * 2.0f < fabsf(side) )
+                        forward = 0.0f;
+                    if ( fabsf(side) < 0.15f )
+                        side = 0.0f;
+                }
                 attack = CL_GamepadAxisValue(localClientNum, 5u);
                 moveScale = 127.0f;
                 if ( fabs(side) > 0.0
