@@ -47,6 +47,11 @@ textures, motions and voice from your Resident Evil 4 into `mods/leon/rtmodels/l
 3. `python -m venv build\melty\venv`, `build\melty\venv\Scripts\pip install pyinstaller pillow`, then
    `powershell -File tools\melty\build_leon_package.ps1 -Version <version>` writes `build\melty\LeonZombies-<version>.zip`.
 
+Not included here, though the decompilation project ships them: Valve's Steam client DLLs (the exe needs only the SDK's
+`steam_api.dll`), and the retail-derived files of its `mods/_stack` and `mods/zinfo` examples (copies of Treyarch's
+`maps/_zombiemode_ffotd.gsc` and entity placements from the retail maps). The Leon mod needs none of them; those two
+example mods do (`tools/leon-publish/publish_public.sh` filters them out of this repository).
+
 ## Credits
 
 - **Black Ops engine:** [MisaDev4/bo1-zombies-decompiled](https://github.com/MisaDev4/bo1-zombies-decompiled), the
