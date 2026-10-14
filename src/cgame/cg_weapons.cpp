@@ -3579,12 +3579,16 @@ void __cdecl ProcessWeaponNoteTracks(int localClientNum, const playerState_s *pr
                 __debugbreak();
         }
         weapDef = BG_GetWeaponDef(weapIndex);
-        // mod: through Leon's kick (it drops a reload under way, PM_TankControls) the hidden viewmodel's reload blends
-        // out to idle, and its notetracks (mag out / in, gear) would still sound: none through the kick
+        // mod: the hidden viewmodel's notetrack sounds, silent under the Leon mod's RE4 controls (its scripts' notifies
+        // still go) - through Leon's kick (it drops a reload under way, PM_TankControls: the reload blends out to idle
+        // and its mag out / in, gear still sounded), and while a weapon is raised or put away (a new gun's first
+        // raise racked and rattled over RE4's pickup sound; Leon's own model plays no such motion)
         const dvar_s *leonKicking = Dvar_FindVar("leon_kicking");
-        if ( leonKicking && leonKicking->type == DVAR_TYPE_STRING && leonKicking->current.string
-             && atoi(leonKicking->current.string) )
-            return;
+        const bool silent = (leonKicking && leonKicking->type == DVAR_TYPE_STRING && leonKicking->current.string
+                             && atoi(leonKicking->current.string))
+                            || (player_tankControls && player_tankControls->current.enabled
+                                && predictedPlayerState->weaponstate >= WEAPON_RAISING
+                                && predictedPlayerState->weaponstate <= WEAPON_DROPPING_ALTSWITCH);
         pNotifyList = (XAnimClientNotifyList *)DObjGetClientNotifies();
         if ( pNotifyList )
         {
@@ -3606,6 +3610,8 @@ void __cdecl ProcessWeaponNoteTracks(int localClientNum, const playerState_s *pr
                     Scr_FreeThread(t, SCRIPTINSTANCE_CLIENT);
                     //v5 = XAnimClientNotify::GetNotifyStringName(notify);
                     v5 = notify->GetNotifyStringName();
+                    if ( silent ) // mod
+                        continue;
                     PlayNoteMappedSoundAliases(localClientNum, v5, weapDef);
                     //v6 = XAnimClientNotify::GetNotifyStringName(notify);
                     v6 = notify->GetNotifyStringName();

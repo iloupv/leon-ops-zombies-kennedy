@@ -337,27 +337,47 @@ float __cdecl SND_Runtime_VoiceScale(unsigned int id)
     return scale;
 }
 
-// Under Leon, a gun bought off the wall sounds RE4's pickup only: BO1's purchase "cha-ching" (zmb_cha_ching) that
-// comes in the same moment, before or after it, is dropped. A perk's or a door's, with no pickup, still sounds.
+// Under Leon, a gun bought off the wall sounds RE4's pickup only: BO1's purchase sounds that come in the same moment,
+// before or after it, are dropped - the "cha-ching" (zmb_cha_ching) and the wall's own (zmb_weap_wall, ~70 ms after).
+// A perk's or a door's cha-ching, with no pickup, still sounds.
 float __cdecl SND_Runtime_PickupScale(unsigned int id, SndEntHandle ent)
 {
-    static unsigned int s_pickupTime, s_chingTime;
-    static SndEntHandle s_chingEnt;
+    struct Purchase
+    {
+        unsigned int id;
+        unsigned int time;
+        SndEntHandle ent;
+    };
+    static unsigned int s_pickupTime;
+    static Purchase s_purchases[2] = { { (unsigned int)SND_HashName("zmb_cha_ching") },
+                                       { (unsigned int)SND_HashName("zmb_weap_wall") } };
     static const unsigned int pickup = (unsigned int)SND_HashName("leon_pickup");
-    static const unsigned int ching = (unsigned int)SND_HashName("zmb_cha_ching");
-    if ( !id || (id != pickup && id != ching) )
+    if ( !id )
         return 1.0f;
     const unsigned int now = Sys_Milliseconds();
     if ( id == pickup )
     {
         s_pickupTime = now;
-        if ( s_chingTime && now - s_chingTime < 150 )
-            SND_StopSoundAliasOnEnt(s_chingEnt, ching);
+        for ( const Purchase &purchase : s_purchases )
+            if ( purchase.time && now - purchase.time < 300 )
+            {
+                SND_StopSoundAliasOnEnt(purchase.ent, purchase.id);
+                Com_Printf(9, "runtime sounds: RE4's pickup stops BO1's purchase sound %08x\n", purchase.id);
+            }
         return 1.0f;
     }
-    s_chingTime = now;
-    s_chingEnt = ent;
-    return s_pickupTime && now - s_pickupTime < 150 ? 0.0f : 1.0f;
+    for ( Purchase &purchase : s_purchases )
+    {
+        if ( purchase.id != id )
+            continue;
+        purchase.time = now;
+        purchase.ent = ent;
+        if ( !s_pickupTime || now - s_pickupTime >= 300 )
+            return 1.0f;
+        Com_Printf(9, "runtime sounds: RE4's pickup drops BO1's purchase sound %08x\n", id);
+        return 0.0f;
+    }
+    return 1.0f;
 }
 
 bool __cdecl SND_Runtime_PlayLocal(int localClientNum, const char *alias)
