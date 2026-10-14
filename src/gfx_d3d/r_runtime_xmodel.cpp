@@ -102,6 +102,8 @@ struct RtAnimState
     float prevRate;
     float blend;       // 0: prev only .. 1: cur only
     float slowTime;    // seconds the motion has been (nearly) still
+    float lastYaw;     // the facing at the last update, degrees
+    float yawRate;     // its smoothed turn, degrees a second (+: to his left)
 };
 static const int RT_MAX_ANIM_ENTS = 2048;
 static RtAnimState s_animStates[RT_MAX_ANIM_ENTS];
@@ -198,6 +200,35 @@ static Material *RtTemplateMaterial()
     }
     return 0;
 }
+
+// how strongly a shot plays RE4's fire motion on the body (1: fully; the light machine guns less: their recoil was
+// too big for a gun fired in bursts), set per frame by the player's weapon (CG_RuntimeXModel_Pose)
+static float s_fireWeight = 1.0f;
+
+void __cdecl R_RuntimeXModel_SetFireWeight(float weight)
+{
+    s_fireWeight = weight < 0.0f ? 0.0f : (weight > 1.0f ? 1.0f : weight);
+}
+
+// the local player's locomotion under RE4's tank controls, for the next R_RuntimeXModel_PoseDObj only: strafeLegs -
+// aimed in and stepping sideways (PM_TankControls), his legs turn toward the step and his torso stays on the aim;
+// turnInPlace - turning on the spot (A / D, the mouse) plays RE4's turn in place (pl_R1_Turn: turn_left / turn_right)
+static bool s_strafeLegs, s_turnInPlace;
+static int s_playerTurn; // the last such pose's turn in place: 1 left, -1 right, 0 none
+
+void __cdecl R_RuntimeXModel_SetPlayerMotion(bool strafeLegs, bool turnInPlace)
+{
+    s_strafeLegs = strafeLegs;
+    s_turnInPlace = turnInPlace;
+}
+
+int __cdecl R_RuntimeXModel_PlayerTurn()
+{
+    return s_playerTurn;
+}
+
+// RE4's turn in place turns him 175.6 degrees in its 40 frames at 30 Hz: the rate its steps match
+static const float RT_TURN_IN_PLACE_RATE = 175.6f / 40.0f * 30.0f;
 
 // masked: the texture's alpha is a cut-out mask (hair strands, lashes)
 static GfxImage *RtCreateImage(RtReader &r, const char *modelName, int zoneIndex, bool gpu, bool *masked)
@@ -1168,17 +1199,38 @@ static float RtCycleRate(const RtAnim &anim, float speed)
 
 // The cycle for the entity's motion: idle when (nearly) still, back when moving against its facing, run past the
 // geometric mean of the walk and run speeds, else walk; hysteresis keeps it from flickering at the thresholds.
+static bool RtIsTurnInPlace(int anim)
+{
+    if ( anim < 0 )
+        return false;
+    const char *name = RtAnimBaseName(s_anims[anim]);
+    return !strcmp(name, "turn_left") || !strcmp(name, "turn_right");
+}
+
 static int RtChooseCycle(const XModel *model, const RtAnimState &st, bool turnToMotion, const char *set)
 {
     const int idle = RtFindSetAnim(model, set, "idle"), walk = RtFindSetAnim(model, set, "walk");
     const int run = RtFindSetAnim(model, set, "run"), back = RtFindSetAnim(model, set, "back");
     const int still = idle >= 0 ? idle : RtFindAnim(model, 0);
-    const bool moving = st.cur >= 0 && strcmp(RtAnimBaseName(s_anims[st.cur]), "idle");
+    const bool moving = st.cur >= 0 && strcmp(RtAnimBaseName(s_anims[st.cur]), "idle") && !RtIsTurnInPlace(st.cur);
     if ( st.speed < (moving ? 6.0f : 12.0f) || (walk < 0 && run < 0) )
+    {
+        // standing and turning (the player's, s_turnInPlace): RE4's turn in place, to that side; in past 45 degrees
+        // a second, out under 20
+        if ( s_turnInPlace && fabsf(st.yawRate) > (RtIsTurnInPlace(st.cur) ? 20.0f : 45.0f) )
+        {
+            const int turn = RtFindSetAnim(model, set, st.yawRate > 0.0f ? "turn_left" : "turn_right");
+            if ( turn >= 0 )
+                return turn;
+        }
         return still;
+    }
     // under tank controls (no sideways motion) anything against the facing is the back step, with a wide margin: a
-    // turn while stepping back leaves the measured motion trailing the facing, and must not flip it to a walk
-    const float backIn = turnToMotion ? 115.0f : 90.0f, backOut = turnToMotion ? 100.0f : 45.0f;
+    // turn while stepping back leaves the measured motion trailing the facing, and must not flip it to a walk; a
+    // strafe (aimed in) goes sideways on the walk, past 110 degrees on the back step
+    const bool sideways = turnToMotion || s_strafeLegs;
+    const float backIn = sideways ? (turnToMotion ? 115.0f : 110.0f) : 90.0f;
+    const float backOut = sideways ? (turnToMotion ? 100.0f : 95.0f) : 45.0f;
     const bool backNow = st.cur >= 0 && !strcmp(RtAnimBaseName(s_anims[st.cur]), "back");
     if ( back >= 0 && fabsf(st.moveRel) > (backNow ? backOut : backIn) )
         return back;
@@ -1213,6 +1265,7 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
         st.cur = idle >= 0 ? idle : RtFindAnim(model, 0);
         st.prev = -1;
         st.blend = 1.0f;
+        st.lastYaw = angles[1];
     }
     else if ( timeMs != st.lastTime )
     {
@@ -1228,6 +1281,7 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
             st.speed = sqrtf(st.vel[0] * st.vel[0] + st.vel[1] * st.vel[1]);
             if ( st.speed > 1.0f )
                 st.moveRel = AngleNormalize180(atan2f(st.vel[1], st.vel[0]) * 57.29578f - angles[1]);
+            st.yawRate += (AngleNormalize180(angles[1] - st.lastYaw) / dt - st.yawRate) * k;
 
             int target = RtChooseCycle(model, st, turnToMotion, set);
             // a reversal (back step <-> walk) passes through standing still for a moment: the cycle goes to the
@@ -1239,6 +1293,9 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
             if ( target != st.cur && target >= 0 )
             {
                 const RtAnim &from = s_anims[st.cur], &to = s_anims[target];
+                if ( R_RuntimeXModel_DvarOn("leon_cyclelog") ) // tests: the cycles an entity goes through
+                    Com_Printf(0, "leon_cyclelog: ent %d t %d %s -> %s speed %.0f moveRel %.0f yawRate %.0f\n",
+                               obj->entnum, timeMs, from.name, to.name, st.speed, st.moveRel, st.yawRate);
                 st.prev = st.cur;
                 st.prevPhase = st.curPhase;
                 st.prevRate = RtCycleRate(from, st.speed);
@@ -1251,17 +1308,26 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
             // the body turns toward a sideways motion (backward: the back step, turned the other way); not for a
             // player under RE4's tank controls, who never moves sideways (the noise in his measured motion twisted
             // him on the back step)
+            // (aimed in, the player's legs alone turn toward his strafe, at most 60 degrees: the torso turned back
+            // onto the aim - R_RuntimeXModel_PoseDObj - twists no further than that)
             float bodyTarget = 0.0f;
-            if ( turnToMotion && s_anims[st.cur].moveSpeed > 0.0f )
+            if ( (turnToMotion || s_strafeLegs) && s_anims[st.cur].moveSpeed > 0.0f )
             {
                 const bool backStep = !strcmp(RtAnimBaseName(s_anims[st.cur]), "back");
                 bodyTarget = backStep ? AngleNormalize180(st.moveRel - 180.0f) : st.moveRel;
-                const float limit = backStep ? 70.0f : 100.0f;
+                const float limit = turnToMotion ? (backStep ? 70.0f : 100.0f) : 60.0f;
                 bodyTarget = bodyTarget > limit ? limit : (bodyTarget < -limit ? -limit : bodyTarget);
             }
             st.bodyYaw += (bodyTarget - st.bodyYaw) * (dt * 8.0f < 1.0f ? dt * 8.0f : 1.0f);
             const RtAnim &cur = s_anims[st.cur];
-            st.curPhase = RtWrapPhase(st.curPhase + dt * cur.fps * RtCycleRate(cur, st.speed), cur.frameCount);
+            // a turn in place steps at the pace of the turn (its own: RT_TURN_IN_PLACE_RATE)
+            float rate = RtCycleRate(cur, st.speed);
+            if ( RtIsTurnInPlace(st.cur) )
+            {
+                rate = fabsf(st.yawRate) / RT_TURN_IN_PLACE_RATE;
+                rate = rate < 0.5f ? 0.5f : (rate > 1.6f ? 1.6f : rate);
+            }
+            st.curPhase = RtWrapPhase(st.curPhase + dt * cur.fps * rate, cur.frameCount);
             if ( st.prev >= 0 )
             {
                 const RtAnim &prev = s_anims[st.prev];
@@ -1275,6 +1341,7 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
             }
         }
         st.lastTime = timeMs;
+        st.lastYaw = angles[1];
         for ( int k = 0; k < 3; ++k )
             st.lastOrigin[k] = origin[k];
     }
@@ -1295,6 +1362,11 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
 {
     const float lookYaw = s_lookYaw; // for this call only
     s_lookYaw = 0.0f;
+    struct PlayerMotionReset // (s_strafeLegs / s_turnInPlace: for this call only)
+    {
+        ~PlayerMotionReset() { s_strafeLegs = s_turnInPlace = false; }
+    } playerMotionReset;
+    const bool strafeLegs = s_strafeLegs, turnInPlace = s_turnInPlace;
     if ( s_anims.empty() || !obj->numModels || !obj->skel.mat )
         return 0.0f;
     const XModel *model = obj->localModels[0];
@@ -1303,6 +1375,8 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     const RtAnimState st = RtUpdateAnimState(obj, model, origin, angles, timeMs, turnToMotion, animSet);
     if ( st.cur < 0 )
         return 0.0f;
+    if ( turnInPlace )
+        s_playerTurn = RtIsTurnInPlace(st.cur) ? (!strcmp(RtAnimBaseName(s_anims[st.cur]), "turn_left") ? 1 : -1) : 0;
     const RtAnim &cur = s_anims[st.cur];
     const RtAnim *prev = st.prev >= 0 && st.blend < 1.0f ? &s_anims[st.prev] : 0;
     // aiming (a player's ADS): the upper body takes the aim pose, level blended toward up or down by the view pitch
@@ -1351,6 +1425,8 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
                 actionWeight = left < blendFrames ? left / blendFrames : 1.0f; // the last frames blend back into the aim
                 if ( action != RT_ACTION_FIRE && actionPhase < 2.0f )
                     actionWeight *= actionPhase / 2.0f; // the slash and the throw come in over 2 frames
+                if ( action == RT_ACTION_FIRE )
+                    actionWeight *= s_fireWeight; // the weapon's (R_RuntimeXModel_SetFireWeight)
                 if ( action != RT_ACTION_THROW && action != RT_ACTION_KICK )
                 {
                     float r = -aimPitch / 60.0f;
@@ -1468,7 +1544,8 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
         if ( b == 0 && !(obj->skel.partBits.skel[0] & 0x80000000)
              && (isPlayer || !(obj->skel.partBits.anim[0] & 0x80000000)) )
         {
-            const float half = st.bodyYaw * (aimLevel >= 0 ? 1.0f - aimFrac : 1.0f) * 0.5f * 0.017453292f; // aiming: facing the aim
+            // aiming: facing the aim (but for the strafing legs: the torso is turned back onto it at the spine)
+            const float half = st.bodyYaw * (aimLevel >= 0 && !strafeLegs ? 1.0f - aimFrac : 1.0f) * 0.5f * 0.017453292f;
             float quat[4] = { 0.0f, 0.0f, sinf(half), cosf(half) };
             if ( isPlayer )
             {
@@ -1538,6 +1615,32 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             RtQuatMul(qy, qp, qc);
             float out[4];
             RtQuatMul(qc, mat->quat, out);
+            for ( int k = 0; k < 4; ++k )
+                mat->quat[k] = out[k];
+        }
+        if ( b == cur.spineBone && isPlayer && strafeLegs && st.bodyYaw != 0.0f )
+        {
+            // the strafe: the hips turned toward the step (the root, above), the torso turned back onto the aim
+            const float yaw = -st.bodyYaw * 0.5f * 0.017453292f;
+            const float qy[4] = { 0.0f, 0.0f, sinf(yaw), cosf(yaw) };
+            float out[4];
+            RtQuatMul(qy, mat->quat, out);
+            for ( int k = 0; k < 4; ++k )
+                mat->quat[k] = out[k];
+        }
+        if ( b == cur.spineBone && isPlayer && action == RT_ACTION_KNIFE && actionAnim >= 0 && actionWeight > 0.0f )
+        {
+            // RE4's slash holds the torso ~17 degrees turned against the hips (its knife stance; the handgun's is
+            // square, measured from the shoulders against the hips in both motions): over the legs he already has, the
+            // slash swung the torso aside - taken back out, as the slash comes in
+            float twist = -17.0f;
+            const dvar_s *twistTest = Dvar_FindVar("leon_knifetwist"); // tests: another twist (degrees)
+            if ( twistTest && twistTest->type == DVAR_TYPE_STRING && twistTest->current.string && twistTest->current.string[0] )
+                twist = (float)atof(twistTest->current.string);
+            const float yaw = twist * actionWeight * 0.5f * 0.017453292f;
+            const float qy[4] = { 0.0f, 0.0f, sinf(yaw), cosf(yaw) };
+            float out[4];
+            RtQuatMul(qy, mat->quat, out);
             for ( int k = 0; k < 4; ++k )
                 mat->quat[k] = out[k];
         }

@@ -18,6 +18,17 @@ init()
 	level thread maps\leon\_kick::init(); // RE4's stagger and kick
 	level thread maps\leon\_helmet::init(); // Moon's astronaut helmet on him
 	maps\leon\_blood::init(); // more blood on his hits (its effects loaded now, with the level's)
+	level thread leon_game_over();
+}
+
+// The game lost (_zombiemode's end_game: solo with no Quick Revive he never dies - his health is put back and the game
+// ends): the client plays RE4's death and his scream at once (CG_RuntimeXModel_PlayerState), not 3 s later as the end
+// camera (pm_type 5) takes over.
+leon_game_over()
+{
+	setDvar( "leon_death_stamp", "0" );
+	level waittill( "end_game" );
+	setDvar( "leon_death_stamp", getTime() + 1 );
 }
 
 leon_spawn_test()

@@ -1,6 +1,7 @@
 #include <bgame/bg_weapons_def.h>
 #include "cg_pose_mp.h"
 #include "cg_view_mp.h"
+#include <bgame/bg_perks.h>
 #include <client_mp/cl_input_mp.h>
 #include <xanim/dobj_utils.h>
 #include <ragdoll/ragdoll_controller.h>
@@ -886,12 +887,15 @@ static const char *CG_RuntimeXModel_AnimSet(unsigned int weapon)
 static int s_leonHitStart = -100000;
 static bool s_leonHitBack;
 
-// mod: the local player going down (BO1's last stand) or dying, from his player state every frame (also while the
-// game's end camera looks elsewhere): RE4's death on him and his scream (the runtime sound "leon_death": SE 0xD), once.
-// Down: frozen at the game's end (pm_type 5: solo with no Quick Revive), last stand (6 / 7), dead (9 on), or a fall
-// from alive into spectating (4).
+// mod: the local player going down (BO1's last stand) or dying, from his player state every frame: RE4's death on him
+// and his scream (the runtime sound "leon_death": SE 0xD), once. Down: last stand (pm_type 6 / 7), dead (9 on), or the
+// game lost (maps\leon\_leon.gsc stamps leon_death_stamp at _zombiemode's end_game: solo with no Quick Revive he never
+// dies - his health is put back and the game ends, his player state alive until the end camera, 3 s on); he stays
+// down through the end camera (5) and spectating (4). A level's start (4 before he spawns) and the scoreboard (5) are
+// no death of their own.
 static int s_leonDownStart = -100000, s_leonLastPmType = -1;
 static bool s_leonDown;
+static float s_leonDownYaw; // his facing as he went down: he lies that way (the camera still turns)
 
 // mod: the local player's knife out: while RE4's slash plays on him (CG_RuntimeXModel_Pose), the gun put away and the
 // knife in his right hand (CG_UpdateWeaponVisibilityInternal, CG_AttachWeapon) - BO1's own knife flag follows its melee
@@ -912,18 +916,51 @@ bool __cdecl CG_RuntimeXModel_GrenadeOut()
     return s_leonGrenadeOut;
 }
 
+// mod: how long a reload's weapon time really lasts: Speed Cola (specialty_fastreload, perks[0] bit 0x40000) runs it
+// down faster by perk_weapReloadMultiplier (PM_Weapon's msec); RE4's reload stretched over the full time played at
+// the normal speed and was cut off when the quicker reload ended
+static int CG_RuntimeXModel_ReloadMsec(const playerState_s *ps, int weaponTime)
+{
+    if ( !(ps->perks[0] & 0x40000) || !perk_weapReloadMultiplier || perk_weapReloadMultiplier->current.value <= 0.0f )
+        return weaponTime;
+    const int msec = (int)((float)weaponTime * perk_weapReloadMultiplier->current.value);
+    return msec > 50 ? msec : 50;
+}
+
 void __cdecl CG_RuntimeXModel_PlayerState(int localClientNum, const playerState_s *ps)
 {
     const cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
-    const bool alive = ps->pm_type <= 3;
-    const bool wasAlive = s_leonLastPmType >= 0 && s_leonLastPmType <= 3;
+    // a new level (the client's time restarts): nothing of the last one's carries over - its last state, a death
+    static int s_lastTime = -1, s_deathStamp;
+    const dvar_s *deathStampDvar = Dvar_FindVar("leon_death_stamp");
+    const int deathStamp = deathStampDvar && deathStampDvar->type == DVAR_TYPE_STRING && deathStampDvar->current.string
+                               ? atoi(deathStampDvar->current.string) : 0;
+    if ( cgameGlob->time < s_lastTime )
+    {
+        s_leonLastPmType = -1;
+        s_leonDown = false;
+        s_leonDownStart = -100000;
+        s_deathStamp = deathStamp; // (the last game's, until this one's script clears it)
+    }
+    s_lastTime = cgameGlob->time;
+    if ( ps->pm_type != s_leonLastPmType )
+        Com_Printf(0, "leon: pm_type %d -> %d health %d t %d\n", s_leonLastPmType, ps->pm_type, ps->stats[0],
+                   cgameGlob->time);
     s_leonLastPmType = ps->pm_type;
-    const bool down = !alive && ps->pm_type != 8 && (ps->pm_type != 4 || wasAlive || s_leonDown);
+    const bool died = deathStamp && deathStamp != s_deathStamp && ps->pm_type <= 3; // the game lost, as it is
+    if ( !deathStamp )
+        s_deathStamp = 0;
+    const bool down = ps->pm_type == 6 || ps->pm_type == 7 || ps->pm_type >= 9 || died
+                      || (s_leonDown && (ps->pm_type == 4 || ps->pm_type == 5 || (ps->pm_type <= 3 && deathStamp)));
+    if ( died )
+        s_deathStamp = deathStamp;
     if ( down && !s_leonDown )
     {
         s_leonDownStart = cgameGlob->time;
+        s_leonDownYaw = CG_ShoulderCameraActive(cgameGlob) ? CG_ShoulderCameraYaw(cgameGlob) : cgameGlob->refdefViewAngles[1];
         const bool voiced = SND_Runtime_PlayLocal(localClientNum, "leon_death");
-        Com_Printf(0, "leon: down (pm_type %d)%s\n", ps->pm_type, voiced ? ", death scream" : "");
+        Com_Printf(0, "leon: down (pm_type %d%s)%s\n", ps->pm_type, died ? ", game over" : "",
+                   voiced ? ", death scream" : "");
     }
     s_leonDown = down;
 }
@@ -931,8 +968,16 @@ void __cdecl CG_RuntimeXModel_PlayerState(int localClientNum, const playerState_
 void __cdecl CG_RuntimeXModel_PlayerHit(int localClientNum, int yawByte, int pitchByte)
 {
     const cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
-    if ( cgameGlob->time - s_leonHitStart < 500 && cgameGlob->time >= s_leonHitStart )
+    static int s_leonPainTime = -100000;
+    if ( cgameGlob->time - s_leonPainTime < 500 && cgameGlob->time >= s_leonPainTime )
         return;
+    s_leonPainTime = cgameGlob->time;
+    // aimed in (or raising / lowering the aim) a hit is only his grunt: he keeps aiming, as RE4's Leon does
+    if ( CG_ShoulderAimFrac(cgameGlob) > 0.01f )
+    {
+        SND_Runtime_PlayLocal(localClientNum, "leon_pain");
+        return;
+    }
     s_leonHitStart = cgameGlob->time;
     s_leonHitBack = false;
     if ( yawByte != 255 || pitchByte != 255 )
@@ -965,6 +1010,8 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         // leads and shows; refdefViewAngles is the camera's, trailing)
         viewYaw[1] = CL_LeonQuickTurnTime() >= 0.0f ? cgameGlob->predictedPlayerState.viewangles[1]
                      : (CG_ShoulderCameraActive(cgameGlob) ? CG_ShoulderCameraYaw(cgameGlob) : cgameGlob->refdefViewAngles[1]);
+        if ( s_leonDown )
+            viewYaw[1] = s_leonDownYaw; // down he lies as he fell: the mouse turns the camera alone
         viewYaw[2] = 0.0f;
         angles = viewYaw;
         aimFrac = cg_thirdPersonAimTest->current.value > 0.0f ? cg_thirdPersonAimTest->current.value
@@ -1056,14 +1103,14 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             {
                 s_stage = stage;
                 s_stageStart = cgameGlob->time;
-                s_stageLength = ps->weaponTime > 50 ? ps->weaponTime : 50;
+                s_stageLength = CG_RuntimeXModel_ReloadMsec(ps, ps->weaponTime > 50 ? ps->weaponTime : 50);
             }
             if ( !reloading )
                 s_stage = 0;
             if ( reloading && !wasReloading )
             {
                 s_reloadStart = cgameGlob->time;
-                s_reloadLength = ps->weaponTime > 300 ? ps->weaponTime : 300;
+                s_reloadLength = CG_RuntimeXModel_ReloadMsec(ps, ps->weaponTime > 300 ? ps->weaponTime : 300);
                 s_leonHitStart = s_knifeStart = -100000;
             }
             s_lastState = state;
@@ -1103,7 +1150,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             }
         }
         // (a hit does not break a reload: the reload carried on under it and came back halfway)
-        else if ( !reloading && cgameGlob->time - s_leonHitStart < 2500 && cgameGlob->time >= s_leonHitStart )
+        else if ( !reloading && aimFrac < 0.01f && cgameGlob->time - s_leonHitStart < 2500 && cgameGlob->time >= s_leonHitStart )
         {
             action = s_leonHitBack ? RT_ACTION_HIT_BACK : RT_ACTION_HIT_FRONT;
             actionTime = (float)(cgameGlob->time - s_leonHitStart) * 0.001f;
@@ -1190,7 +1237,8 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         static int s_lookTime = -1;
         float want = 0.0f;
         // (not while aiming - nor raising the aim - or slashing: his head is on the aim / the slash then)
-        const bool free = aimFrac < 0.01f && action != RT_ACTION_TURN
+        // (nor through a shot's motion: lowering the aim in it, his head swung to the nearest zombie mid-recoil)
+        const bool free = aimFrac < 0.01f && action != RT_ACTION_TURN && action != RT_ACTION_FIRE
                           && action != RT_ACTION_KICK && action != RT_ACTION_KNIFE && action != RT_ACTION_DEATH
                           && action != RT_ACTION_HIT_FRONT && action != RT_ACTION_HIT_BACK;
         if ( free && cgameGlob->snap )
@@ -1210,6 +1258,9 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             }
             want = want > 45.0f ? 45.0f : (want < -45.0f ? -45.0f : want);
         }
+        // turning on the spot (RE4's turn in place playing) he looks into the turn
+        if ( free && R_RuntimeXModel_PlayerTurn() )
+            want = 30.0f * (float)R_RuntimeXModel_PlayerTurn();
         const dvar_s *lookTest = Dvar_FindVar("leon_looktest"); // tests: a fixed look (degrees, + to his left)
         if ( lookTest && lookTest->type == DVAR_TYPE_STRING && lookTest->current.string && lookTest->current.string[0] )
             want = (float)atof(lookTest->current.string);
@@ -1220,6 +1271,19 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         s_look = want > s_look ? (want - s_look > step ? s_look + step : want)
                                : (s_look - want > step ? s_look - step : want);
         R_RuntimeXModel_SetLookYaw(s_look);
+    }
+    // the light machine guns' shots play RE4's recoil at a little over half: theirs were too big for a gun fired in bursts
+    {
+        const WeaponDef *fireDef = isPlayer && animWeapon ? BG_GetWeaponDef(animWeapon) : 0;
+        R_RuntimeXModel_SetFireWeight(fireDef && fireDef->weapClass == WEAPCLASS_MG ? 0.55f : 1.0f);
+    }
+    // the local player under RE4's controls: aimed in, his legs follow a strafe (PM_TankControls); not aimed, a turn on
+    // the spot plays RE4's turn in place (not through the quick turn or down)
+    if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum && player_tankControls
+         && player_tankControls->current.enabled )
+    {
+        R_RuntimeXModel_SetPlayerMotion(aimFrac > 0.5f, aimFrac < 0.01f && action != RT_ACTION_TURN
+                                                            && action != RT_ACTION_DEATH);
     }
     const float recoil = R_RuntimeXModel_PoseDObj(obj, origin, angles, cgameGlob->time, isPlayer, aimFrac, aimPitch,
                                                   action, actionTime, actionDuration, aimCorrection,

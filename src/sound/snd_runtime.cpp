@@ -11,6 +11,8 @@
 #include <cgame/cg_sound.h>
 #include <cgame_mp/cg_main_mp.h>
 #include <qcommon/common.h>
+#include <win32/win_shared.h>
+#include "snd_public_async.h"
 
 #include <string>
 #include <vector>
@@ -321,6 +323,10 @@ float __cdecl SND_Runtime_VoiceScale(unsigned int id)
         scale = 0.0f;
     else if ( list && list->name && !_strnicmp(list->name, "chr_breathing", 13) )
         scale = 0.32f;
+    // a gun's first raise (wpn_<gun>_1straise_plr, BO1's handling on a new gun): RE4's pickup sounds in its place
+    // (maps\leon\_pickup)
+    else if ( list && list->name && !_strnicmp(list->name, "wpn_", 4) && I_stristr(list->name, "_1straise") )
+        scale = 0.0f;
     // George Romero (Call of the Dead's boss, "the director"): his effects and voice at a quarter (-12 dB; at half he
     // still drowned everything) - every one at volume 1 in the voice / event group, full out to 800 / 1000 units
     else if ( list && list->name
@@ -329,6 +335,29 @@ float __cdecl SND_Runtime_VoiceScale(unsigned int id)
         scale = 0.25f;
     s_answers.push_back({ id, scale });
     return scale;
+}
+
+// Under Leon, a gun bought off the wall sounds RE4's pickup only: BO1's purchase "cha-ching" (zmb_cha_ching) that
+// comes in the same moment, before or after it, is dropped. A perk's or a door's, with no pickup, still sounds.
+float __cdecl SND_Runtime_PickupScale(unsigned int id, SndEntHandle ent)
+{
+    static unsigned int s_pickupTime, s_chingTime;
+    static SndEntHandle s_chingEnt;
+    static const unsigned int pickup = (unsigned int)SND_HashName("leon_pickup");
+    static const unsigned int ching = (unsigned int)SND_HashName("zmb_cha_ching");
+    if ( !id || (id != pickup && id != ching) )
+        return 1.0f;
+    const unsigned int now = Sys_Milliseconds();
+    if ( id == pickup )
+    {
+        s_pickupTime = now;
+        if ( s_chingTime && now - s_chingTime < 150 )
+            SND_StopSoundAliasOnEnt(s_chingEnt, ching);
+        return 1.0f;
+    }
+    s_chingTime = now;
+    s_chingEnt = ent;
+    return s_pickupTime && now - s_pickupTime < 150 ? 0.0f : 1.0f;
 }
 
 bool __cdecl SND_Runtime_PlayLocal(int localClientNum, const char *alias)

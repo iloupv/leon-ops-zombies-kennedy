@@ -125,7 +125,7 @@ void __cdecl SND_PlayInternal(
     }
     // zombies (a1): bo1_audio - the request, before the SND_Active gate (a headless run has no device)
     SND_BO1Trace("cl", playback ? "playback" : "play", id, entHandle.field.entIndex, position, notify ? "notify" : 0);
-    attenuation *= SND_Runtime_VoiceScale(id); // mod: the zombies characters' voice under Leon (snd_runtime.cpp); its notifies still come
+    attenuation *= SND_Runtime_VoiceScale(id) * SND_Runtime_PickupScale(id, entHandle); // mod: the zombies characters' voice under Leon (snd_runtime.cpp); its notifies still come
     if ( !SND_Active() && id && notify && SND_BO1NoDeviceLengthEnabled() )
         SND_BO1NoDeviceLength(id, entHandle, position); // zombies (a1): headless measurement switch, off by default
     if ( SND_Active() && id )

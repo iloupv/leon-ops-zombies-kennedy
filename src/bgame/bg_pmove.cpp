@@ -1681,20 +1681,25 @@ void __cdecl Pmove_1(pmove_t *pm)
 }
 
 // mod: Resident Evil 4's controls (player_tankControls, the Leon mod), from the RE4 player code (game/player.cpp):
-// forward / back move along the facing only (no strafing) and left / right turn the player (pl_R1_Walk / pl_R1_Back:
-// SPEED_WALK_TURN, 0.0418879 rad a 30 Hz frame; pl_R1_Run 10 % faster); he walks, and runs only while the run key
-// (BO1's sprint key) is held moving forward, at the speeds of RE4's own cycles (the root motion of the handgun set:
-// walk 68, run 167, back step 77 inches a second); aimed in he walks (RE4's joyKamae stops him: the mod lets him
-// walk) and fires only then; no jump, crouch or prone (dropped from the commands: CL_LeonQuickTurn). Back + run
+// forward / back move along the facing only and left / right turn the player (pl_R1_Walk / pl_R1_Back:
+// SPEED_WALK_TURN, 0.0418879 rad a 30 Hz frame; pl_R1_Run 10 % faster; standing, pl_R1_Turn's pace); he walks, and
+// runs only while the run key (BO1's sprint key) is held moving forward, at the speeds of RE4's own cycles (the root
+// motion of the handgun set: walk 68, run 167, back step 77 inches a second); aimed in he walks and steps sideways
+// (RE4's joyKamae stops him: the mod lets him move) and fires only then; no jump, crouch or prone (dropped from the commands: CL_LeonQuickTurn). Back + run
 // turns him around (pl_R1_Turn180) on the client: CL_LeonQuickTurn. The mouse still turns him too. Runs in Pmove on the server and in the client's prediction alike:
 // the turns go through delta_angles, as script view changes do.
 static void PM_TankControls(pmove_t *pm, float frametime)
 {
     playerState_s *ps = pm->ps;
     usercmd_s *cmd = &pm->cmd;
-    const bool aiming = cmd->button_bits.testBit(0xBu) || ps->fWeaponPosFrac > 0.0f;
-    if ( !cmd->button_bits.testBit(0xBu) || ps->fWeaponPosFrac < 0.98f ) // aimed in: the laser on (CG_ShoulderLaser)
-        cmd->button_bits.resetBit(0); // RE4 fires only aimed in (the laser on)
+    // RE4 fires only aimed in (the laser on: CG_ShoulderLaser) - except a weapon with no aim (aimDownSight off: the
+    // dual wields, whose right click fires the left gun, the ballistic knife...), which fires as in BO1: it could
+    // not be aimed in, so it never fired. Its right click is no aim either: he still turns and runs.
+    const WeaponDef *tankWeapDef = ps->weapon ? BG_GetWeaponDef(ps->weapon) : 0;
+    const bool canAim = !tankWeapDef || tankWeapDef->aimDownSight;
+    const bool aiming = canAim && (cmd->button_bits.testBit(0xBu) || ps->fWeaponPosFrac > 0.0f);
+    if ( canAim && (!cmd->button_bits.testBit(0xBu) || ps->fWeaponPosFrac < 0.98f) )
+        cmd->button_bits.resetBit(0);
     // no reload (bits 4: reload, 5: use / reload) while the mod's kick (maps\leon\_kick.gsc) is offered or plays: F (use)
     // kicks, and a use / reload bind would reload instead
     static const char *const s_kickDvars[] = { "leon_kick_ready", "leon_kicking" };
@@ -1713,7 +1718,11 @@ static void PM_TankControls(pmove_t *pm, float frametime)
                 cmd->button_bits.resetBit(0);
                 cmd->button_bits.resetBit(2u);
                 if ( ps->weaponstate >= WEAPON_RELOADING_RIGHT && ps->weaponstate <= WEAPON_RELOAD_QUICK_EMPTY )
+                {
+                    // its sound stopped as well (as BO1 drops a reload: EV_STOP_WEAPON_SOUND, then idle)
+                    BG_AddPredictableEventToPlayerstate(EV_STOP_WEAPON_SOUND, ps->weaponstate, ps);
                     PM_Weapon_Idle(ps);
+                }
             }
         }
     }
@@ -1721,20 +1730,37 @@ static void PM_TankControls(pmove_t *pm, float frametime)
     cmd->button_bits.resetBit(1u); // no BO1 sprint (stamina, lowered weapon): RE4's run instead
     const bool running = runKey && cmd->forwardmove > 0 && !aiming;
     const float full = ps->speed > 0 ? (float)ps->speed : 190.0f;
+    // down (last stand: 6) he lies in RE4's death and does not turn
+    if ( ps->pm_type == 6 )
+        cmd->rightmove = 0;
+    float strafe = 0.0f;
     if ( cmd->rightmove && !aiming )
     {
-        const float rate = 0.0418879f * 57.29578f * 30.0f * (running ? 1.1f : 1.0f); // degrees a second
+        // walking or stepping back he turns at RE4's walk turn (SPEED_WALK_TURN); standing, at the pace of RE4's turn
+        // in place (pl_R1_Turn: its motions turn him 175.6 degrees in 40 frames at 30 Hz), which plays on him
+        // (R_RuntimeXModel_PoseDObj: turn_left / turn_right)
+        const float rate = cmd->forwardmove ? 0.0418879f * 57.29578f * 30.0f * (running ? 1.1f : 1.0f) // degrees a second
+                                            : 175.6f / 40.0f * 30.0f;
         ps->delta_angles[1] = AngleNormalize180(ps->delta_angles[1] - rate * frametime * ((float)cmd->rightmove / 127.0f));
         cmd->rightmove = 0;
     }
-    else
-        cmd->rightmove = 0; // aimed in: no strafe (the player's choice, as RE4), the mouse turns him
-    if ( !cmd->forwardmove ) // aimed in he still walks (the Leon mod's choice: RE4 stops him), never runs
+    else if ( cmd->rightmove )
     {
-        cmd->forwardmove = 0;
-        return;
+        // aimed in he steps sideways at the walk's pace (the Leon mod's choice: RE4 stands), his legs turned toward
+        // the step and his torso held on the aim (R_RuntimeXModel_SetStrafeLegs); the mouse still turns him
+        strafe = 127.0f * 1.2f * 68.0f / full;
+        if ( player_strafeSpeedScale->current.value > 0.1f )
+            strafe /= player_strafeSpeedScale->current.value; // PM_CmdScale slows a strafe by it
+        if ( strafe > 127.0f )
+            strafe = 127.0f;
+        strafe = cmd->rightmove < 0 ? -strafe : strafe;
     }
-    const float speed = cmd->forwardmove < 0 ? 77.0f : (running ? 167.0f : 68.0f);
+    cmd->rightmove = (char)strafe;
+    if ( !cmd->forwardmove ) // aimed in he still walks (the Leon mod's choice: RE4 stops him), never runs
+        return;
+    // RE4's speeds, 20 % faster (the zombies keep up with RE4's own pace); the run reaches the player's top speed
+    // (ps->speed) at ~14 % and stays there. The cycles play at the rate that matches (R_RuntimeXModel_PoseDObj).
+    const float speed = 1.2f * (cmd->forwardmove < 0 ? 77.0f : (running ? 167.0f : 68.0f));
     float move = 127.0f * speed / full;
     if ( cmd->forwardmove < 0 && player_backSpeedScale->current.value > 0.1f )
         move /= player_backSpeedScale->current.value; // PM_CmdScale slows a backpedal by it: RE4's back step is 77
