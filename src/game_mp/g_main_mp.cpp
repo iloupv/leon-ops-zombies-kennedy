@@ -550,7 +550,11 @@ MatchState *__cdecl G_GetMatchState()
 
 clientState_s *__cdecl G_GetClientState(unsigned int clientNum)
 {
+    // BO1FIX: no level yet (maxclients 0: a level whose scripts failed to compile, shut down by Com_ErrorCleanup):
+    // SV_SetServerStaticHeader still takes client 0's address, never read then; the assert crashed the error's way
+    // back to the menu (G_GetPlayerState too)
     if ( !Demo_IsPlaying()
+        && level.maxclients
         && clientNum >= level.maxclients
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp",
@@ -568,6 +572,7 @@ clientState_s *__cdecl G_GetClientState(unsigned int clientNum)
 gclient_s *__cdecl G_GetPlayerState(unsigned int clientNum)
 {
     if ( !Demo_IsPlaying()
+        && level.maxclients // BO1FIX: no level yet (G_GetClientState)
         && clientNum >= level.maxclients
         && !Assert_MyHandler(
                     "C:\\projects_pc\\cod\\codsrc\\src\\game_mp\\g_main_mp.cpp",
