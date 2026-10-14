@@ -1302,10 +1302,19 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                                : (s_look - want > step ? s_look - step : want);
         R_RuntimeXModel_SetLookYaw(s_look);
     }
-    // the light machine guns' shots play RE4's recoil at a little over half: theirs were too big for a gun fired in bursts
+    // an automatic's shots play RE4's recoil at a third (the light machine guns, the assault rifles, the SMGs: RE4's
+    // recoil, made for one shot at a time, restarted shot after shot and shook him), a burst's at half; one shot at a
+    // time keeps it whole
     {
         const WeaponDef *fireDef = isPlayer && animWeapon ? BG_GetWeaponDef(animWeapon) : 0;
-        R_RuntimeXModel_SetFireWeight(fireDef && fireDef->weapClass == WEAPCLASS_MG ? 0.55f : 1.0f);
+        float fireWeight = 1.0f;
+        if ( fireDef && (fireDef->weapClass == WEAPCLASS_MG || fireDef->fireType == WEAPON_FIRETYPE_FULLAUTO
+                         || fireDef->fireType == WEAPON_FIRETYPE_MINIGUN) )
+            fireWeight = 0.35f;
+        else if ( fireDef && fireDef->fireType >= WEAPON_FIRETYPE_BURSTFIRE2
+                  && fireDef->fireType <= WEAPON_FIRETYPE_BURSTFIRE4 )
+            fireWeight = 0.5f;
+        R_RuntimeXModel_SetFireWeight(fireWeight);
     }
     // the local player under RE4's controls: aimed in, his legs follow a strafe (PM_TankControls); not aimed, a turn on
     // the spot plays RE4's turn in place (not through the quick turn or down, nor 0.35 s after a quick turn: its turn
