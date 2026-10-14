@@ -6,6 +6,8 @@ Pl_R0_Die SE 0xD (game/pl_dmg.cpp); pl00.xsb's cues 9 / 10 / 11 / 13 play waves 
 
 usage: python -I leon_sounds.py <pl00.xwb> <out dir>   (writes leon_pain_1..3.wav, leon_death.wav, the kick's; with
 core.xwb next to pl00.xwb also leon_pickup.wav, with bio4evt.xwb the Merchant's lines: merchant_*.wav)"""
+import array
+import math
 import mmap
 import os
 import struct
@@ -23,7 +25,8 @@ CORE_SOUNDS = [('leon_pickup.wav', 20)]
 # The Merchant's shop lines, for the Mystery Box (maps/leon/_merchant.gsc), by the weapon's tier: RE4's shop
 # (Sscrn/ss_shop.cpp shop_msg[]: shopStrPlay -> SndStrReq(1, n), the event stream block; on PC bio4evt.xsb cue n, named
 # by the decimal n) plays streams 0xB4..0xC2 = cues 180..194 = bio4evt.xwb waves 5..19 (16-bit stereo 32 kHz); the
-# lines are the shop's subtitles (SS/eng/ss_cmmn.dat). A tier's lines are one alias's variants (picked at random).
+# lines are the shop's subtitles (SS/eng/ss_cmmn.dat). A tier's lines are one alias's variants (picked at random);
+# written mono, as loud as Leon's voice (loud).
 EVT_SOUNDS = [('merchant_amazing_1.wav', 14),  # 0xBD "Stranger, stranger, now that's a weapon!"
               ('merchant_strong_1.wav', 15),   # 0xBE "Not only will you need cash but you'll need guts to buy that weapon."
               ('merchant_strong_2.wav', 16),   # 0xBF "Stranger... What you need that for? Going huntin' an elephant?"
@@ -54,6 +57,22 @@ def waves(data):
     return out
 
 
+def loud(pcm, target_db=-12.0, knee=0.7):
+    """16-bit PCM brought to target_db RMS (the Merchant's lines sit ~9 dB under Leon's voice, mastered for RE4's
+    quiet shop: in the game they were lost under the box's music), its peaks over the knee bent under full scale."""
+    samples = array.array('h', bytes(pcm))
+    rms = math.sqrt(sum(x * x for x in samples) / max(1, len(samples))) / 32768.0
+    gain = 10.0 ** (target_db / 20.0) / rms if rms > 0 else 1.0
+    out = array.array('h')
+    for x in samples:
+        y = x / 32768.0 * gain
+        a = abs(y)
+        if a > knee:
+            a = knee + (1.0 - knee) * math.tanh((a - knee) / (1.0 - knee))
+        out.append(int(math.copysign(a, y) * 32767.0))
+    return out.tobytes()
+
+
 def wav(channels, rate, bits, pcm):
     align = channels * bits // 8
     return (b'RIFF' + struct.pack('<I', 36 + len(pcm)) + b'WAVE'
@@ -81,5 +100,13 @@ if __name__ == '__main__':
                 banks[path] = waves(mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ))
         channels, rate, bits, pcm = banks[path][index]
         assert bits == 16, f'{name}: {bits}-bit'
+        if channels == 2:
+            # mono, as every other runtime sound (the Merchant's lines are stereo: the engine's loaded 2D voices
+            # played them silent)
+            frames = array.array('h', bytes(pcm))
+            pcm = array.array('h', [(frames[i] + frames[i + 1]) // 2 for i in range(0, len(frames) - 1, 2)]).tobytes()
+            channels = 1
+        if name.startswith('merchant_'):
+            pcm = loud(pcm)
         open(os.path.join(sys.argv[2], name), 'wb').write(wav(channels, rate, bits, pcm))
         print(f'{name}: wave {index}, {channels} ch, {rate} Hz, {len(pcm) / (2 * channels * rate):.2f} s')
