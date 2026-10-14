@@ -605,6 +605,39 @@ void __cdecl Com_Shutdown(const char *finalmsg)
     }
 }
 
+// BO1FIX (mods): the launch's own values of the dvars the server shares with the client (flag 0x100): fs_game from
+// the command line, a mod's settings from the cfg its launch execs (the Leon mod's player_tankControls, leon.cfg).
+// Com_ShutdownInternal resets every 0x100 dvar - retail's way to drop what a server pushed - so on the way back to the
+// menu the mod went off (fs_game "") and the next level loaded without its files: the Leon mod's runtime model was
+// not found, its laser models linked again into the level zone, and DB_LinkXAssetEntry asserted (the players' crash
+// in 0.1.1). Saved once the startup commands have run, put back after each reset; what a level sets still resets.
+struct ComLaunchDvar
+{
+    char name[64];
+    char value[256];
+};
+static ComLaunchDvar s_launchDvars[32];
+static int s_launchDvarCount;
+
+static void __cdecl Com_SaveLaunchDvar(const dvar_s *dvar, void *)
+{
+    if ( !(dvar->flags & 0x100) || s_launchDvarCount >= ARRAYSIZE(s_launchDvars) )
+        return;
+    const char *value = Dvar_DisplayableValue(dvar);
+    if ( !strcmp(value, Dvar_DisplayableResetValue(dvar)) )
+        return;
+    I_strncpyz(s_launchDvars[s_launchDvarCount].name, dvar->name, sizeof(s_launchDvars[0].name));
+    I_strncpyz(s_launchDvars[s_launchDvarCount].value, value, sizeof(s_launchDvars[0].value));
+    Com_Printf(16, "launch keeps %s \"%s\"\n", dvar->name, value);
+    ++s_launchDvarCount;
+}
+
+static void Com_RestoreLaunchDvars()
+{
+    for ( int i = 0; i < s_launchDvarCount; ++i )
+        Dvar_SetFromStringByName(s_launchDvars[i].name, s_launchDvars[i].value);
+}
+
 void __cdecl Com_ShutdownInternal(const char *finalmsg)
 {
     int localClientNum; // [esp+0h] [ebp-4h]
@@ -617,6 +650,7 @@ void __cdecl Com_ShutdownInternal(const char *finalmsg)
     SV_Shutdown(finalmsg);
     Dvar_ResetDvars(8u, DVAR_SOURCE_INTERNAL);
     Dvar_ResetDvars(0x100u, DVAR_SOURCE_INTERNAL);
+    Com_RestoreLaunchDvars(); // BO1FIX (mods): the launch's fs_game and mod settings stay (see above)
     Com_Restart();
     Com_UnloadFrontEnd();
     CL_FreePerLocalClientMemory();
@@ -1743,6 +1777,7 @@ void __cdecl Com_Init(char *commandLine)
 
     if ( !_setjmp((int*)Sys_GetValue(2)) )
         Com_AddStartupCommands();
+    Dvar_ForEach(Com_SaveLaunchDvar, 0); // BO1FIX (mods): the launch's shared dvars (Com_RestoreLaunchDvars)
 
     if ( !I_strcmp(sv_mapname->current.string, "") )
         Com_InitUIAndCommonXAssets();
@@ -3442,6 +3477,114 @@ void __cdecl Com_Frame()
     FrameMark;
 }
 
+// mod (the Leon mod's Melty test mode): while %LOCALAPPDATA%\Melty\test\leon-zombies-kennedy.json exists (Melty's
+// test of a release on the creator's PC), the game plays its main path by itself and reports to the file the JSON's
+// "checks" names: from the menu into Kino der Toten (the base game's map), "pass leon-spawns" once Leon has spawned
+// (maps\leon\_leon.gsc sets leon_spawned); back to the menu and into Kino again, "pass leon-after-menu" (0.1.1
+// crashed there: the trip to the menu turned the mod off). It never quits: Melty closes the game when the run ends.
+static int s_meltyTestState = -1; // -1 not read yet, 0 off or done, 1..4 the steps
+static int s_meltyTestStepTime;
+static char s_meltyTestChecks[MAX_PATH];
+
+static bool Com_MeltyTestRead()
+{
+    char path[MAX_PATH];
+    const DWORD n = GetEnvironmentVariableA("LOCALAPPDATA", path, MAX_PATH);
+    if ( !n || n >= MAX_PATH - 48 )
+        return false;
+    I_strncat(path, MAX_PATH, "\\Melty\\test\\leon-zombies-kennedy.json");
+    FILE *f = fopen(path, "rb");
+    if ( !f )
+        return false;
+    char json[4096];
+    const size_t len = fread(json, 1, sizeof(json) - 1, f);
+    fclose(f);
+    json[len] = 0;
+    // "checks": "<path>" (a JSON string: backslashes escaped)
+    const char *p = strstr(json, "\"checks\"");
+    p = p ? strchr(p + 8, ':') : 0;
+    p = p ? strchr(p, '"') : 0;
+    if ( !p )
+        return false;
+    int o = 0;
+    for ( ++p; *p && *p != '"' && o < MAX_PATH - 1; ++p )
+    {
+        if ( *p == '\\' && p[1] )
+            ++p;
+        s_meltyTestChecks[o++] = *p;
+    }
+    s_meltyTestChecks[o] = 0;
+    return o > 0;
+}
+
+static void Com_MeltyTestReport(const char *line)
+{
+    if ( FILE *f = fopen(s_meltyTestChecks, "a") )
+    {
+        fprintf(f, "%s\n", line);
+        fclose(f);
+    }
+    Com_Printf(16, "melty test: %s\n", line);
+}
+
+static void Com_MeltyTestFrame()
+{
+    if ( !s_meltyTestState )
+        return;
+    const int now = Sys_Milliseconds();
+    if ( s_meltyTestState < 0 )
+    {
+        s_meltyTestState = !IsDedicatedServer() && Com_MeltyTestRead() ? 1 : 0;
+        if ( s_meltyTestState )
+            Com_Printf(16, "melty test: on, checks to %s\n", s_meltyTestChecks);
+        s_meltyTestStepTime = now;
+        return;
+    }
+    const bool active = CL_GetLocalClientConnectionState(0) == CA_ACTIVE;
+    const bool frontEnd = active && !I_stricmp(Dvar_GetString("mapname"), "frontend");
+    const bool inKino = active && !I_stricmp(Dvar_GetString("mapname"), "zombie_theater");
+    const dvar_s *spawned = Dvar_FindVar("leon_spawned");
+    const bool leon = inKino && spawned && atoi(Dvar_DisplayableValue(spawned)) != 0;
+    switch ( s_meltyTestState )
+    {
+    case 1: // the menu (front end) up and settled: into Kino
+    case 3:
+        if ( !frontEnd )
+            s_meltyTestStepTime = now;
+        else if ( now - s_meltyTestStepTime > 5000 )
+        {
+            Cbuf_AddText(0, "set leon_spawned 0\ndevmap zombie_theater\n");
+            ++s_meltyTestState;
+            s_meltyTestStepTime = now;
+        }
+        break;
+    case 2: // Leon in Kino for 5 s: reported, then back to the menu
+    case 4:
+        if ( leon && now - s_meltyTestStepTime > 5000 ) // (counted from the map command: the load included)
+        {
+            if ( s_meltyTestState == 2 )
+            {
+                Com_MeltyTestReport("pass leon-spawns");
+                Cbuf_AddText(0, "disconnect\n");
+                s_meltyTestState = 3;
+            }
+            else
+            {
+                Com_MeltyTestReport("pass leon-after-menu");
+                s_meltyTestState = 0; // done: the game plays on
+            }
+            s_meltyTestStepTime = now;
+        }
+        else if ( !leon && now - s_meltyTestStepTime > 240000 )
+        {
+            Com_MeltyTestReport(s_meltyTestState == 2 ? "fail leon-spawns: Leon did not spawn in Kino der Toten"
+                                                      : "fail leon-after-menu: Leon did not spawn after the menu");
+            s_meltyTestState = 0;
+        }
+        break;
+    }
+}
+
 unsigned int Com_Frame_Try_Block_Function()
 {
     CmdArgs *v0; // eax
@@ -3460,6 +3603,7 @@ unsigned int Com_Frame_Try_Block_Function()
     PROF_SCOPED("Com_Frame");
 
     Com_WriteConfiguration(0);
+    Com_MeltyTestFrame(); // mod: the Leon mod's Melty test mode
     Sys_UpdateHotkeyBlock();
     SetAnimCheck(com_animCheck->current.color[0], SCRIPTINSTANCE_SERVER);
 
