@@ -895,7 +895,7 @@ static void RtLaserTexel(RtGlowKind kind, float u, float v, unsigned char *bgra)
         bgra[0] = 50;  // B
         bgra[1] = 200; // G
         bgra[2] = 255; // R
-        bgra[3] = (unsigned char)(255.0f * 0.7f * glow);
+        bgra[3] = (unsigned char)(255.0f * 0.4f * glow);
         return;
     }
     const bool radial = kind == RT_GLOW_DOT;
@@ -1006,8 +1006,8 @@ static void RtBuildLaserModels(int zoneIndex, bool gpu)
     s_laserModels[0] = RtBuildModel("leon_laser", data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
     data = RtMakeQuadModel(&dot[0][0], 1, RT_GLOW_DOT);
     s_laserModels[1] = RtBuildModel("leon_laser_dot", data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
-    // the kick's halo: one quad facing +X, 32 units across (CG_LeonKickHalos turns it to the camera and scales it)
-    const float h = 16.0f;
+    // the kick's halo: one quad facing +X, 20 units across (CG_LeonKickHalos turns it to the camera and scales it)
+    const float h = 10.0f;
     const float halo[1][4][3] = { { { 0, -h, -h }, { 0, h, -h }, { 0, h, h }, { 0, -h, h } } };
     data = RtMakeQuadModel(&halo[0][0], 1, RT_GLOW_HALO);
     s_haloModel = RtBuildModel("leon_kick_halo", data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
@@ -1020,7 +1020,7 @@ const XModel *__cdecl R_RuntimeXModel_Laser(bool dot)
     return s_laserModels[dot ? 1 : 0];
 }
 
-// the kick's halo on a staggered zombie (a dull yellow glow quad facing +X, 32 units across), or 0
+// the kick's halo on a staggered zombie (a dull yellow glow quad facing +X, 20 units across), or 0
 const XModel *__cdecl R_RuntimeXModel_Halo()
 {
     return s_haloModel;

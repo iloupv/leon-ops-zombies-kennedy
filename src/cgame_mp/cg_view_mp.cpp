@@ -2855,7 +2855,7 @@ static void CG_ShoulderAimPoint(cg_s *cgameGlob, float *eye, float *fwd, float *
 // mod (the Leon mod): the kick's cue from afar - a dull yellow halo on every staggered zombie (maps\leon\_kick.gsc lists
 // their entity numbers in leon_staggered: the script and this client share the process's dvars), the runtime halo
 // (R_RuntimeXModel_Halo) at its chest facing the camera, a little toward it (in front of the body), drawn larger with
-// the distance (from 200" on, up to 6x) so it still reads far off; walls hide it as they hide him
+// the distance (from 250" on, up to 4x) so it still reads far off; walls hide it as they hide him
 static void CG_LeonKickHalos(int localClientNum)
 {
     const XModel *halo = R_RuntimeXModel_Halo();
@@ -2887,8 +2887,8 @@ static void CG_LeonKickHalos(int localClientNum)
         Vec3Cross(axis[0], axis[1], axis[2]);
         GfxScaledPlacement placement;
         AxisToQuat(axis, placement.base.quat);
-        const float mul = dist / 200.0f;
-        placement.scale = mul > 1.0f ? (mul < 6.0f ? mul : 6.0f) : 1.0f;
+        const float mul = dist / 250.0f;
+        placement.scale = mul > 1.0f ? (mul < 4.0f ? mul : 4.0f) : 1.0f;
         for (int k = 0; k < 3; ++k)
             placement.base.origin[k] = chest[k] + toCamera[k] * 16.0f;
         R_FilterXModelIntoScene(halo, &placement, 0, &lighting[count], 0.0f);
