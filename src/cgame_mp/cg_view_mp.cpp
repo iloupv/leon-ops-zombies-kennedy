@@ -1,5 +1,6 @@
 #include <cgame_mp/cg_anim_commands.h>
 #include "cg_view_mp.h"
+#include <qcommon/cm_trace.h>
 #include <sound/snd_bo1_trace.h>
 #include <cgame/cg_sp_feeltrace.h>
 #include <cgame/cg_sp_nettrace.h>
@@ -2834,10 +2835,18 @@ static void CG_ShoulderAimPoint(cg_s *cgameGlob, float *eye, float *fwd, float *
         farPoint[k] = eye[k] + fwd[k] * 8192.0f;
     CG_TraceCapsule(&trace, eye, zero, zero, farPoint, cgameGlob->predictedPlayerState.clientNum, 0x2806831, &context);
     // at least 150" out on a wall: a wall right in front put the hit at the eye, behind the muzzle, and the aim correction
-    // chasing it flipped the torso from side to side every frame. On a zombie (an entity) its own distance, down to 32":
-    // at 150" past a close one the barrel (beside the eye) crossed the view line behind it, the laser's dot sat ~10"
-    // to the side of where the shots went, and a dot on the zombie missed it
-    const float minDist = trace.hitType == TRACE_HITTYPE_ENTITY ? 32.0f : 150.0f;
+    // chasing it flipped the torso from side to side every frame. On a zombie (an AI actor) its own distance, down to
+    // 48" (past the muzzle): at 150" past a close one the barrel (beside the eye) crossed the view line behind it, the
+    // laser's dot sat ~10" to the side of where the shots went, and a dot on the zombie missed it. Not on any other
+    // entity: a boarded window or a door is a wall too (at 32" off one the torso flipped again)
+    bool onZombie = false;
+    if (trace.hitType == TRACE_HITTYPE_ENTITY)
+    {
+        const unsigned int hit = Trace_GetEntityHitId(&trace);
+        onZombie = hit < 1022 /* ENTITYNUM_WORLD */
+                   && CG_GetEntity(cgameGlob->localClientNum, hit)->nextState.eType == ET_ACTOR;
+    }
+    const float minDist = onZombie ? 48.0f : 150.0f;
     const float dist = 8192.0f * trace.fraction;
     for (int k = 0; k < 3; ++k)
         aim[k] = eye[k] + fwd[k] * (dist > minDist ? dist : minDist);
