@@ -1225,11 +1225,11 @@ static int RtChooseCycle(const XModel *model, const RtAnimState &st, bool turnTo
         }
         return still;
     }
-    // under tank controls (no sideways motion) anything against the facing is the back step, with a wide margin: a
-    // turn while stepping back leaves the measured motion trailing the facing, and must not flip it to a walk; a
-    // strafe (aimed in) goes sideways on the walk, past 110 degrees on the back step
+    // under tank controls (no sideways motion but an aimed strafe) the back step is past 110 degrees from the facing,
+    // kept down to 45: a turn while stepping back leaves the measured motion trailing the facing, and must not flip it
+    // to a walk; a strafe goes sideways on the walk (also as it slows down, the aim let go: at 90 it flickered)
     const bool sideways = turnToMotion || s_strafeLegs;
-    const float backIn = sideways ? (turnToMotion ? 115.0f : 110.0f) : 90.0f;
+    const float backIn = turnToMotion ? 115.0f : 110.0f;
     const float backOut = sideways ? (turnToMotion ? 100.0f : 95.0f) : 45.0f;
     const bool backNow = st.cur >= 0 && !strcmp(RtAnimBaseName(s_anims[st.cur]), "back");
     if ( back >= 0 && fabsf(st.moveRel) > (backNow ? backOut : backIn) )

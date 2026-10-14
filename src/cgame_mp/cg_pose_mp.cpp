@@ -1278,12 +1278,17 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         R_RuntimeXModel_SetFireWeight(fireDef && fireDef->weapClass == WEAPCLASS_MG ? 0.55f : 1.0f);
     }
     // the local player under RE4's controls: aimed in, his legs follow a strafe (PM_TankControls); not aimed, a turn on
-    // the spot plays RE4's turn in place (not through the quick turn or down)
+    // the spot plays RE4's turn in place (not through the quick turn or down, nor 0.35 s after a quick turn: its turn
+    // still shows in the measured turn rate)
     if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum && player_tankControls
          && player_tankControls->current.enabled )
     {
+        static int s_quickTurnTime = -100000;
+        if ( action == RT_ACTION_TURN || cgameGlob->time < s_quickTurnTime )
+            s_quickTurnTime = cgameGlob->time;
         R_RuntimeXModel_SetPlayerMotion(aimFrac > 0.5f, aimFrac < 0.01f && action != RT_ACTION_TURN
-                                                            && action != RT_ACTION_DEATH);
+                                                            && action != RT_ACTION_DEATH
+                                                            && cgameGlob->time - s_quickTurnTime > 350);
     }
     const float recoil = R_RuntimeXModel_PoseDObj(obj, origin, angles, cgameGlob->time, isPlayer, aimFrac, aimPitch,
                                                   action, actionTime, actionDuration, aimCorrection,
