@@ -16,6 +16,7 @@ init()
 	precacheModel( "t5_weapon_m14_world" ); // the npc test's weapon (common_zombie: on every map)
 	level thread leon_spawn_test();
 	level thread maps\leon\_kick::init(); // RE4's stagger and kick
+	level thread maps\leon\_merchant::init(); // RE4's Merchant at the Mystery Box
 	level thread maps\leon\_helmet::init(); // Moon's astronaut helmet on him
 	maps\leon\_blood::init(); // more blood on his hits (its effects loaded now, with the level's)
 	level thread leon_game_over();

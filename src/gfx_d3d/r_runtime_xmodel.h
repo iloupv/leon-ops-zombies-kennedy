@@ -7,6 +7,8 @@ void __cdecl R_RuntimeXModel_RegisterDvars();
 void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName);
 bool __cdecl R_RuntimeXModel_IsAnimated(const struct XModel *model);
 const struct XModel *__cdecl R_RuntimeXModel_Laser(bool dot);
+// mod: the kick's halo on a staggered zombie (cg_view_mp.cpp CG_LeonKickHalos), or 0
+const struct XModel *__cdecl R_RuntimeXModel_Halo();
 // an upper-body action over the locomotion / aim (the local player's weapon): a shot, timed from it, or a reload,
 // stretched over its duration
 enum RtAction
