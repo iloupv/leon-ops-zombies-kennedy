@@ -137,12 +137,10 @@ static bool SP_IsFrontendMap()
 // zombies: getnumexpectedplayers (SP 0x005e6b20).
 static void G_f_getnumexpectedplayers()
 {
+    // SP takes max(Party_CountMembers(&g_partyData), 1) online / system link; KB has no party, so the clients that are
+    // here count then too (a script error there left the player unspawned at the world's origin)
     if (!SP_IsFrontendMap() && (Dvar_GetBool("onlinegame") || Dvar_GetBool("systemlink")))
-    {
-        // SP uses max(Party_CountMembers(&g_partyData), 1) here. KB has no party implementation.
-        Scr_Error("getnumexpectedplayers: SP party count is not ported (SP 0x005ae190)", false);
-        return;
-    }
+        Com_Printf(15, "getnumexpectedplayers: online / system link without a party (not ported): the connected clients\n");
     int count = 0;
     for (int i = 0; i < sv_maxclients->current.integer; ++i)
     {

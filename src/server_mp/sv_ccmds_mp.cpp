@@ -382,6 +382,16 @@ void __cdecl SV_Map_f()
     // So retail SP's plain 'map' (the boot's "map frontend", ChangeLevel) runs with sv_cheats 1. With KB's
     // MP rule (0) G_InitGame's Dvar_SetCheatState ran on the front end and the player never spawned. Only
     // for SP levels loaded with bo1_zombies; MP maps keep the MP rule.
+    // zombies: this engine has no online or system-link play (no party behind getnumexpectedplayers), so a zombies map
+    // always starts offline. The front end's main menu sets onlinegame (its online lobby) and the solo start clears it,
+    // but a trip to the options and back to the map list set it again with nothing clearing it: the map started
+    // "online" - its player spawn script failed on the party count (the player stood at the world's origin) and the
+    // pause menu no longer paused (the game pauses under it offline only).
+    if (bo1_zombies && bo1_zombies->current.enabled && Com_IsZombieMap(mapname))
+    {
+        Dvar_SetBoolByName("onlinegame", 0);
+        Dvar_SetBoolByName("systemlink", 0);
+    }
     if (Com_IsSPFrontEndLevel(mapname) || (bo1_zombies && bo1_zombies->current.enabled && Com_IsZombieMap(mapname)))
     {
         const dvar_s *onlinegame = Dvar_FindVar("onlinegame");
