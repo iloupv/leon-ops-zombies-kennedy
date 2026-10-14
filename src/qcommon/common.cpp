@@ -673,6 +673,7 @@ void __cdecl Com_InitDynamicRender()
     // square so the client script's windows keep their aspect. ~8 MB with its depth surface, front end only.
     const unsigned __int16 ui3dSize = Com_IsSPFrontEndLevel(sv_mapname->current.string) ? 1024 : 0x80;
     R_UI3D_OnetimeInit(ui3dSize, ui3dSize, 0, v2, 0);
+    R_UI3D_KeepWindowPlacement(ui3dSize == 1024); // its TV's menu keeps its own scale through vid_restart (r_ui3d.cpp)
 }
 
 void __cdecl Com_InitDynamicMemorySystems()
