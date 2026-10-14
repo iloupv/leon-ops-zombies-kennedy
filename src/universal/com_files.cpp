@@ -2470,7 +2470,11 @@ void __cdecl FS_Startup(const char *gameName, bool allow_devraw)
     FS_RegisterDvars();
     if ( fs_usedevdir->current.enabled )
     {
-        if ( *(_BYTE *)fs_basepath->current.integer )
+        // mod: not in the player's Black Ops folder for an installed mod (Sys_GameDirOverride: Melty, the Leon
+        // launcher): its raw / raw_shared are the Black Ops Mod Tools' loose scripts, another version than the game's
+        // zones, and loaded over them every zombie map failed to compile (maps/_zombiemode_equipment.gsc: "far function
+        // 'is_player_equipment' is not defined") - the Leon mod's players back at the menu. Retail reads no dev dirs.
+        if ( *(_BYTE *)fs_basepath->current.integer && !Sys_GameDirOverride() )
             FS_AddDevGameDirs((char *)fs_basepath->current.integer, allow_devraw);
         if ( *(_BYTE *)fs_homepath->current.integer && I_stricmp(fs_basepath->current.string, fs_homepath->current.string) )
             FS_AddDevGameDirs((char *)fs_homepath->current.integer, allow_devraw);
