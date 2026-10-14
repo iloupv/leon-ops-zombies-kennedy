@@ -4,16 +4,33 @@ Resident Evil 4's Leon S. Kennedy in Call of Duty: Black Ops Zombies, played the
 own copies of both games, and Leon is built from your Resident Evil 4 on your own PC. Nothing from either game is in
 this repository or its releases.
 
-- Over-the-shoulder camera, RE4 tank controls and the double-tap quick 180 turn
+- Over-the-shoulder camera, RE4 tank controls (turning on the spot with RE4's own step-turn), the quick 180 turn,
+  and a sidestep while aiming
 - Laser sight with RE4's own aim sway (from RE4's aiming code); standing still, the mouse swings the camera around
   Leon, and aiming turns him to where it looks
 - RE4's animations for every kind of gun (handgun, Broken Butterfly, shotgun / Striker reloaded shell by shell,
   rifle, Chicago Typewriter, TMP, rocket launcher, the mine thrower for the wonder weapons), played with RE4's own
-  motion code
-- Knife slash and grenades the RE4 way; stagger a zombie with a head or leg shot, then roundhouse kick it
+  motion code; a new gun from the wall or the box is loaded on the spot
+- Knife slash and grenades the RE4 way; stagger a zombie with a head or leg shot (it glows faintly yellow), then
+  roundhouse kick it - every zombie the kick catches is a knife kill
+- RE4's Merchant at the Mystery Box: "What're ya buyin'?", and a line for the weapon it gives you ("Stranger,
+  stranger, now that's a weapon!" for the wonder weapons)
 - Leon's hit reactions, death, pain grunts and voice; his head tracks nearby zombies; RE4's pickup sound; more blood
+- Gamepad support with RE4's layout
 - The astronaut helmet on Moon; boots straight to the zombies map list
 - Single player
+
+**Controls**
+
+| | Keyboard / mouse | Gamepad |
+| --- | --- | --- |
+| Walk / turn | W S / A D | Left stick |
+| Run | Shift (press once) | Hold A, or press L3 once |
+| Quick 180 turn | Back + Shift, or back twice | Back + A |
+| Aim / fire | Right / left mouse | LT / RT |
+| Sidestep (aimed) | A D | Left stick |
+| Knife | Space | B or R3 |
+| Kick (staggered zombie), use, reload | F / R | X |
 
 ## Play it
 
