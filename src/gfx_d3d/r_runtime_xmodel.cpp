@@ -812,17 +812,19 @@ static const XModel *RtBuildModel(const char *name, const void *data, int size, 
     return linked;
 }
 
-static void RtLoadModel(const char *name, int zoneIndex, const Material *templ, const Material *atestTempl, bool gpu)
+// false: no rtmodels/<name>.rlm
+static bool RtLoadModel(const char *name, int zoneIndex, const Material *templ, const Material *atestTempl, bool gpu)
 {
     void *file = 0;
     int size = FS_ReadFile(va("rtmodels/%s.rlm", name), &file);
     if ( size <= 0 || !file )
     {
         Com_PrintWarning(0, "runtime model '%s': rtmodels/%s.rlm not found\n", name, name);
-        return;
+        return false;
     }
     RtBuildModel(name, file, size, zoneIndex, templ, atestTempl, gpu);
     FS_FreeFile(file);
+    return true;
 }
 
 // ---- the laser sight's models (the over-the-shoulder aim, cg_view_mp.cpp) ---------------------------------------
@@ -1054,9 +1056,15 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
     RtFreeAll(); // the previous level's arrays; its zone (and the GPU side) is gone
     const bool gpu = !r_loadForRenderer || r_loadForRenderer->current.enabled;
     I_strncpyz(names, bo1_rtmodels->current.string, sizeof(names));
+    bool loaded = false;
     for ( char *tok = strtok(names, " ,"); tok; tok = strtok(0, " ,") )
-        RtLoadModel(tok, zoneIndex, templ, atestTempl, gpu);
-    RtBuildLaserModels(zoneIndex, gpu);
+        loaded |= RtLoadModel(tok, zoneIndex, templ, atestTempl, gpu);
+    // the laser sight only with a model to hold it, and once per level zone: linking its assets into the zone again
+    // asserted in DB_LinkXAssetEntry (0.1.1's crash, after a trip to the menu had turned the mod off - fs_game - so
+    // the model was not found and only the lasers were made again)
+    const XAssetEntryPoolEntry *laser = DB_FindXAssetEntry(ASSET_TYPE_XMODEL, "leon_laser");
+    if ( loaded && !(laser && laser->entry.zoneIndex == zoneIndex) )
+        RtBuildLaserModels(zoneIndex, gpu);
     if ( gpu )
         RB_Resource_Flush();
 }

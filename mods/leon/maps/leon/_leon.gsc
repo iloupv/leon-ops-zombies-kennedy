@@ -47,6 +47,8 @@ leon_spawn_test()
 	player thread leon_down_no_weapons();
 	level thread maps\leon\_pickup::init( player ); // RE4's pickup sound on a gun or ammo
 	logPrint( "leon: player model " + player.model + "\n" );
+	if ( player.model == "leon" )
+		setDvar( "leon_spawned", "1" ); // Melty's test mode (the engine's Com_MeltyTestFrame): Leon is in
 	if ( getDvar( "leon_thirdperson" ) == "1" )
 		setDvar( "cg_thirdPerson", "1" );
 	if ( getDvar( "leon_tpangle" ) != "" )
