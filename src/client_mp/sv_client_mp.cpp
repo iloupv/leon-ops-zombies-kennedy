@@ -1268,7 +1268,9 @@ void __cdecl SV_DropClient(client_t *drop, const char *reason, bool tellThem, bo
 
         I_strncpyz(droppedClientName, Com_DisplayName(drop->name, drop->clanAbbrev, 3), 32);
         clientNum = drop - svs.clients;
-        if ((unsigned int)clientNum >= level.maxclients
+        // BO1FIX: no level yet (maxclients 0: a level whose scripts failed to compile, shut down by Com_ErrorCleanup) -
+        // the assert crashed the error's way back to the menu (G_GetClientState too)
+        if (level.maxclients && (unsigned int)clientNum >= level.maxclients
             && !Assert_MyHandler(
                 "C:\\projects_pc\\cod\\codsrc\\src\\server_mp\\sv_client_mp.cpp",
                 2360,
