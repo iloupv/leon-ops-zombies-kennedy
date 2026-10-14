@@ -86,6 +86,7 @@ struct RtAnim
 static float s_lookYaw;
 static std::vector<RtAnim> s_anims; // this level's
 static const XModel *s_laserModels[2]; // this level's laser sight beam segment and dot (R_RuntimeXModel_Laser)
+static const XModel *s_haloModel;      // the kick's halo on a staggered zombie (R_RuntimeXModel_Halo)
 
 // Per entity locomotion state (by DObj entnum): the measured ground speed and the playing / fading-out cycles.
 struct RtAnimState
@@ -123,6 +124,7 @@ static void RtFreeAll()
     s_anims.clear();
     memset(s_animStates, 0, sizeof(s_animStates));
     s_laserModels[0] = s_laserModels[1] = 0;
+    s_haloModel = 0;
     for ( void *p : s_allocs )
         _aligned_free(p);
     s_allocs.clear();
@@ -874,10 +876,29 @@ static void RtPutU32(std::vector<unsigned char> &out, unsigned int v)
     RtPut(out, &v, 4);
 }
 
-// the laser's glow at texture coordinates (u, v) in 0..1: radial (the dot: a white-hot core, a red bloom fading
-// out) or across v (the beam: bright along its middle, soft at its edges); BGRA
-static void RtLaserTexel(bool radial, float u, float v, unsigned char *bgra)
+enum RtGlowKind
 {
+    RT_GLOW_BEAM, // the laser's beam
+    RT_GLOW_DOT,  // the laser's dot
+    RT_GLOW_HALO, // the kick's halo: a dull yellow, soft all the way, no core
+};
+
+// the laser's glow at texture coordinates (u, v) in 0..1: radial (the dot: a white-hot core, a red bloom fading
+// out) or across v (the beam: bright along its middle, soft at its edges); the halo's dull yellow; BGRA
+static void RtLaserTexel(RtGlowKind kind, float u, float v, unsigned char *bgra)
+{
+    if ( kind == RT_GLOW_HALO )
+    {
+        float d = sqrtf((u - 0.5f) * (u - 0.5f) + (v - 0.5f) * (v - 0.5f)) * 2.0f;
+        d = d > 1.0f ? 1.0f : d;
+        const float glow = (1.0f - d) * sqrtf(1.0f - d); // soft out to its edge
+        bgra[0] = 50;  // B
+        bgra[1] = 200; // G
+        bgra[2] = 255; // R
+        bgra[3] = (unsigned char)(255.0f * 0.7f * glow);
+        return;
+    }
+    const bool radial = kind == RT_GLOW_DOT;
     float d = radial ? sqrtf((u - 0.5f) * (u - 0.5f) + (v - 0.5f) * (v - 0.5f)) * 2.0f : fabsf(v - 0.5f) * 2.0f;
     d = d > 1.0f ? 1.0f : d;
     const float core = radial ? (d < 0.18f ? 1.0f - d / 0.18f : 0.0f) : (d < 0.35f ? 1.0f - d / 0.35f : 0.0f);
@@ -891,9 +912,8 @@ static void RtLaserTexel(bool radial, float u, float v, unsigned char *bgra)
     bgra[3] = (unsigned char)(255.0f * a * (radial ? 1.0f : 0.25f)); // the beam dull, the dot bright
 }
 
-// a version 1 .rlm with one glow texture (radial: the dot's, else the beam's) and one surface of quads (4 corners
-// each, drawn both ways)
-static std::vector<unsigned char> RtMakeQuadModel(const float (*corners)[3], int quadCount, bool radial)
+// a version 1 .rlm with one glow texture (the kind's) and one surface of quads (4 corners each, drawn both ways)
+static std::vector<unsigned char> RtMakeQuadModel(const float (*corners)[3], int quadCount, RtGlowKind kind)
 {
     std::vector<unsigned char> out;
     RtPut(out, "RLM1", 4);
@@ -901,7 +921,7 @@ static std::vector<unsigned char> RtMakeQuadModel(const float (*corners)[3], int
     RtPutU32(out, 1);
     RtPutU32(out, 1);
     char texName[32] = {};
-    strcpy(texName, radial ? "laser_dot" : "laser_beam");
+    strcpy(texName, kind == RT_GLOW_DOT ? "laser_dot" : (kind == RT_GLOW_HALO ? "kick_halo" : "laser_beam"));
     RtPut(out, texName, 32);
     const unsigned short size = 32;
     RtPut(out, &size, 2);
@@ -918,7 +938,7 @@ static std::vector<unsigned char> RtMakeQuadModel(const float (*corners)[3], int
             for ( int x = 0; x < w; ++x )
             {
                 unsigned char bgra[4];
-                RtLaserTexel(radial, ((float)x + 0.5f) / (float)w, ((float)y + 0.5f) / (float)w, bgra);
+                RtLaserTexel(kind, ((float)x + 0.5f) / (float)w, ((float)y + 0.5f) / (float)w, bgra);
                 RtPut(out, bgra, 4);
             }
         }
@@ -966,6 +986,7 @@ static std::vector<unsigned char> RtMakeQuadModel(const float (*corners)[3], int
 static void RtBuildLaserModels(int zoneIndex, bool gpu)
 {
     s_laserModels[0] = s_laserModels[1] = 0;
+    s_haloModel = 0;
     const Material *effect = RtFindTemplateMaterial(s_effectTechsets, ARRAYSIZE(s_effectTechsets));
     if ( !effect )
     {
@@ -981,10 +1002,15 @@ static void RtBuildLaserModels(int zoneIndex, bool gpu)
         { { 0, -w * 0.5f, -w * 0.5f }, { L, -w * 0.5f, -w * 0.5f }, { L, w * 0.5f, w * 0.5f }, { 0, w * 0.5f, w * 0.5f } },
         { { 0, -w * 0.5f, w * 0.5f }, { L, -w * 0.5f, w * 0.5f }, { L, w * 0.5f, -w * 0.5f }, { 0, w * 0.5f, -w * 0.5f } } };
     const float dot[1][4][3] = { { { 0, -d, -d }, { 0, d, -d }, { 0, d, d }, { 0, -d, d } } };
-    std::vector<unsigned char> data = RtMakeQuadModel(&beam[0][0], 4, false);
+    std::vector<unsigned char> data = RtMakeQuadModel(&beam[0][0], 4, RT_GLOW_BEAM);
     s_laserModels[0] = RtBuildModel("leon_laser", data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
-    data = RtMakeQuadModel(&dot[0][0], 1, true);
+    data = RtMakeQuadModel(&dot[0][0], 1, RT_GLOW_DOT);
     s_laserModels[1] = RtBuildModel("leon_laser_dot", data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
+    // the kick's halo: one quad facing +X, 32 units across (CG_LeonKickHalos turns it to the camera and scales it)
+    const float h = 16.0f;
+    const float halo[1][4][3] = { { { 0, -h, -h }, { 0, h, -h }, { 0, h, h }, { 0, -h, h } } };
+    data = RtMakeQuadModel(&halo[0][0], 1, RT_GLOW_HALO);
+    s_haloModel = RtBuildModel("leon_kick_halo", data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
     Com_Printf(0, "runtime models: laser sight on '%s' (%s)\n", effect->info.name, effect->techniqueSet->name);
 }
 
@@ -992,6 +1018,12 @@ static void RtBuildLaserModels(int zoneIndex, bool gpu)
 const XModel *__cdecl R_RuntimeXModel_Laser(bool dot)
 {
     return s_laserModels[dot ? 1 : 0];
+}
+
+// the kick's halo on a staggered zombie (a dull yellow glow quad facing +X, 32 units across), or 0
+const XModel *__cdecl R_RuntimeXModel_Halo()
+{
+    return s_haloModel;
 }
 
 bool __cdecl R_RuntimeXModel_DvarOn(const char *name)

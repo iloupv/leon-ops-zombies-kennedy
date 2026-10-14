@@ -8,11 +8,11 @@
 // after it recovers; while one is staggered in reach in front of Leon, the engine shows RE4's
 // action prompt (leon_kick_ready: this script and the client share the process's dvars) and the use key (F) kicks:
 // RE4's kick on him (the client's pose, from leon_kick_stamp), and every zombie its sweep catches dies at once and is
-// sent flying (a launched ragdoll). The zombie that would be kicked glows a dim yellow (BO1's theater-mode marker glow)
-// while the prompt is up.
+// sent flying (a launched ragdoll). A staggered zombie wears a dull yellow halo through its stagger, seen from afar
+// (it can be kicked): leon_staggered lists them for the client (CG_LeonKickHalos).
 //   leon_kick 0      off
 //   leon_kicktest 1  test: every 3 s the nearest zombie is put in front of the player and staggered (2: another
-//                    one beside it too, for the sweep)
+//                    one beside it too, for the sweep; 3: 400" ahead instead)
 
 init()
 {
@@ -21,12 +21,8 @@ init()
 	setDvar( "leon_kick_ready", "0" );
 	setDvar( "leon_kick_stamp", "0" );
 	setDvar( "leon_kicking", "0" );
-	// (loaded with the level's: before the first wait)
-	glowFx = getDvar( "leon_kickglow_fx" ); // tests: another effect
-	if ( glowFx == "" )
-		glowFx = "misc/fx_zombie_cola_dtap_on";
-	level._effect[ "leon_kick_glow" ] = loadfx( glowFx );
-	precacheModel( "tag_origin" );
+	setDvar( "leon_staggered", "" );
+	level.leon_staggered = [];
 	level thread leon_zombie_watch();
 	players = getEntArray( "player", "classname" );
 	while ( players.size == 0 )
@@ -35,7 +31,7 @@ init()
 		players = getEntArray( "player", "classname" );
 	}
 	array_thread( players, ::leon_kick_watch );
-	if ( getDvar( "leon_kicktest" ) == "1" || getDvar( "leon_kicktest" ) == "2" )
+	if ( getDvar( "leon_kicktest" ) == "1" || getDvar( "leon_kicktest" ) == "2" || getDvar( "leon_kicktest" ) == "3" )
 		players[0] thread leon_kick_test();
 }
 
@@ -52,7 +48,10 @@ leon_kick_test()
 			continue;
 		z = getClosest( self.origin, zombies );
 		forward = anglesToForward( ( 0, self.angles[1], 0 ) );
-		z forceTeleport( self.origin + forward * 40, ( 0, self.angles[1] + 180, 0 ) );
+		reach = 40;
+		if ( getDvar( "leon_kicktest" ) == "3" )
+			reach = 400; // (3: far ahead - the glow seen from afar)
+		z forceTeleport( self.origin + forward * reach, ( 0, self.angles[1] + 180, 0 ) );
 		if ( getDvar( "leon_kicktest" ) == "2" && zombies.size > 1 )
 		{
 			// (2: another one beside it, not staggered - the kick's sweep kills it too)
@@ -137,6 +136,7 @@ leon_stagger()
 		reel = %ai_zombie_shot_arm_right;
 	length = getAnimLength( reel );
 	self.leon_stagger_end = getTime() + int( length * 1000 ) + 400;
+	self thread leon_stagger_glow();
 	// through his own animscript (animScripted moved him by the reel's root with no collision but the ground: through
 	// stairs, out of the playable area): the AI's "gravity" mode steps him with physics
 	self.leon_reel = reel;
@@ -152,6 +152,31 @@ leon_stagger_anim()
 	self ClearAnim( %body, 0.2 );
 	self SetFlaggedAnimKnobAllRestart( "leon_stagger", self.leon_reel, %body, 1, 0.2, 1 );
 	self waittillmatch( "leon_stagger", "end" );
+}
+
+// The halo through a stagger: its entity number in leon_staggered (CG_LeonKickHalos draws it) until the stagger ends
+// or it dies (a kick's ragdoll flies without it)
+leon_stagger_glow()
+{
+	entnum = self getEntityNumber();
+	level.leon_staggered[ level.leon_staggered.size ] = entnum;
+	leon_staggered_publish();
+	while ( isDefined( self ) && isAlive( self ) && self leon_staggered() )
+		wait 0.05;
+	kept = [];
+	for ( i = 0; i < level.leon_staggered.size; i++ )
+		if ( level.leon_staggered[i] != entnum )
+			kept[ kept.size ] = level.leon_staggered[i];
+	level.leon_staggered = kept;
+	leon_staggered_publish();
+}
+
+leon_staggered_publish()
+{
+	list = "";
+	for ( i = 0; i < level.leon_staggered.size; i++ )
+		list = list + level.leon_staggered[i] + " ";
+	setDvar( "leon_staggered", list );
 }
 
 leon_staggered()
@@ -198,31 +223,9 @@ leon_kick_watch()
 			setDvar( "leon_kick_ready", "1" );
 		else
 			setDvar( "leon_kick_ready", "0" );
-		self leon_kick_glow( target );
 		if ( isDefined( target ) && self useButtonPressed() )
 			self leon_kick();
 	}
-}
-
-// The glow on the zombie the prompt is for: an effect on a tag_origin model linked to its chest, deleted (the effect
-// with it) as soon as that zombie is no longer the one - out of reach, recovered, kicked or dead.
-leon_kick_glow( target )
-{
-	if ( isDefined( self.leon_glow ) && ( !isDefined( target ) || !isDefined( self.leon_glow_target )
-	                                       || self.leon_glow_target != target ) )
-	{
-		self.leon_glow delete();
-		self.leon_glow = undefined;
-		self.leon_glow_target = undefined;
-	}
-	if ( !isDefined( target ) || isDefined( self.leon_glow ) || !isDefined( level._effect[ "leon_kick_glow" ] ) )
-		return;
-	glow = spawn( "script_model", target getTagOrigin( "j_spinelower" ) );
-	glow setModel( "tag_origin" );
-	glow linkTo( target, "j_spinelower" );
-	playFxOnTag( level._effect[ "leon_kick_glow" ], glow, "tag_origin" );
-	self.leon_glow = glow;
-	self.leon_glow_target = target;
 }
 
 // The kick: RE4's (em10.cpp plem10Kick) lands at its frame 16 (0.53 s) on every enemy within 1.2 m (47") of a point
@@ -232,7 +235,6 @@ leon_kick()
 {
 	self endon( "disconnect" );
 	self.leon_kicking = true;
-	self leon_kick_glow( undefined ); // (the kicked zombie flies without it)
 	setDvar( "leon_kick_stamp", getTime() ); // the client starts Leon's kick on it
 	setDvar( "leon_kick_ready", "0" ); // no prompt through the kick
 	setDvar( "leon_kicking", "1" ); // no reload through it (PM_TankControls)

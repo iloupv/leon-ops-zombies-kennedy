@@ -2852,11 +2852,57 @@ static void CG_ShoulderAimPoint(cg_s *cgameGlob, float *eye, float *fwd, float *
         aim[k] = eye[k] + fwd[k] * (dist > minDist ? dist : minDist);
 }
 
+// mod (the Leon mod): the kick's cue from afar - a dull yellow halo on every staggered zombie (maps\leon\_kick.gsc lists
+// their entity numbers in leon_staggered: the script and this client share the process's dvars), the runtime halo
+// (R_RuntimeXModel_Halo) at its chest facing the camera, a little toward it (in front of the body), drawn larger with
+// the distance (from 200" on, up to 6x) so it still reads far off; walls hide it as they hide him
+static void CG_LeonKickHalos(int localClientNum)
+{
+    const XModel *halo = R_RuntimeXModel_Halo();
+    const dvar_s *list = Dvar_FindVar("leon_staggered");
+    if (!halo || !list || list->type != DVAR_TYPE_STRING || !list->current.string || !list->current.string[0])
+        return;
+    const cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+    static unsigned __int16 lighting[16];
+    int count = 0;
+    for (const char *p = list->current.string; *p && count < 16;)
+    {
+        char *end;
+        const long entnum = strtol(p, &end, 10);
+        if (end == p)
+            break;
+        p = end;
+        if (entnum < 0 || entnum >= 1022 /* ENTITYNUM_WORLD */)
+            continue;
+        const centity_s *cent = CG_GetEntity(localClientNum, (int)entnum);
+        if (!cent->nextValid || cent->nextState.eType != ET_ACTOR || (cent->nextState.lerp.eFlags & 0x40000))
+            continue; // (in this snapshot, alive)
+        const float chest[3] = { cent->pose.origin[0], cent->pose.origin[1], cent->pose.origin[2] + 44.0f };
+        float toCamera[3];
+        Vec3Sub(cgameGlob->refdef.vieworg, chest, toCamera);
+        const float dist = Vec3Normalize(toCamera);
+        float axis[3][3];
+        Vec3Copy(toCamera, axis[0]);
+        PerpendicularVector(axis[0], axis[1]);
+        Vec3Cross(axis[0], axis[1], axis[2]);
+        GfxScaledPlacement placement;
+        AxisToQuat(axis, placement.base.quat);
+        const float mul = dist / 200.0f;
+        placement.scale = mul > 1.0f ? (mul < 6.0f ? mul : 6.0f) : 1.0f;
+        for (int k = 0; k < 3; ++k)
+            placement.base.origin[k] = chest[k] + toCamera[k] * 16.0f;
+        R_FilterXModelIntoScene(halo, &placement, 0, &lighting[count], 0.0f);
+        ++count;
+    }
+}
+
 // mod: Resident Evil 4's laser sight: while the local player aims over the shoulder, a laser from the muzzle of the
 // weapon in his hand (its tag_flash) to the point the view line hits - where the shots land
 void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
 {
     cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+    if (cent->nextState.number == cgameGlob->predictedPlayerState.clientNum)
+        CG_LeonKickHalos(localClientNum); // (once a frame: with the local player's own model)
     if (!CG_ShoulderCameraActive(cgameGlob) || cent->nextState.number != cgameGlob->predictedPlayerState.clientNum
         || CG_ShoulderAimFrac(cgameGlob) < 0.98f // on once the aim is raised (firing too: PM_TankControls)
         || cgameGlob->predictedPlayerState.pm_type == 6 || cgameGlob->predictedPlayerState.pm_type == 7) // not down
