@@ -1229,16 +1229,21 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             CG_ShoulderAimCorrectionDecay(0.9f);
         CG_ShoulderAimCorrection(aimCorrection);
     }
-    // the head's look (RE4's cPlNeck::move): toward the nearest live enemy within 5 m (197"), +-45 degrees of his
-    // facing, 6 degrees a 30 Hz frame (180 a second) there and back; not while aiming or in a whole-body motion
+    // the head's look (RE4's cPlNeck::move): toward the nearest live enemy within 5 m (197"), +-30 degrees of his
+    // facing (RE4's 45 swung his head round too far over the shoulder camera), 6 degrees a 30 Hz frame (180 a second)
+    // there and back; not while aiming or in a whole-body motion, nor for 1.5 s after the aim is let go (his head
+    // swung off the aim at once)
     if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
     {
         static float s_look;
-        static int s_lookTime = -1;
+        static int s_lookTime = -1, s_aimTime = -100000;
         float want = 0.0f;
+        if ( aimFrac >= 0.01f || cgameGlob->time < s_aimTime )
+            s_aimTime = cgameGlob->time;
         // (not while aiming - nor raising the aim - or slashing: his head is on the aim / the slash then)
         // (nor through a shot's motion: lowering the aim in it, his head swung to the nearest zombie mid-recoil)
-        const bool free = aimFrac < 0.01f && action != RT_ACTION_TURN && action != RT_ACTION_FIRE
+        const bool free = aimFrac < 0.01f && cgameGlob->time - s_aimTime > 1500 && action != RT_ACTION_TURN
+                          && action != RT_ACTION_FIRE
                           && action != RT_ACTION_KICK && action != RT_ACTION_KNIFE && action != RT_ACTION_DEATH
                           && action != RT_ACTION_HIT_FRONT && action != RT_ACTION_HIT_BACK;
         if ( free && cgameGlob->snap )
@@ -1256,11 +1261,11 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                 best = d2;
                 want = AngleNormalize180(atan2f(dy, dx) * 57.29578f - angles[1]);
             }
-            want = want > 45.0f ? 45.0f : (want < -45.0f ? -45.0f : want);
+            want = want > 30.0f ? 30.0f : (want < -30.0f ? -30.0f : want);
         }
         // turning on the spot (RE4's turn in place playing) he looks into the turn
         if ( free && R_RuntimeXModel_PlayerTurn() )
-            want = 30.0f * (float)R_RuntimeXModel_PlayerTurn();
+            want = 20.0f * (float)R_RuntimeXModel_PlayerTurn();
         const dvar_s *lookTest = Dvar_FindVar("leon_looktest"); // tests: a fixed look (degrees, + to his left)
         if ( lookTest && lookTest->type == DVAR_TYPE_STRING && lookTest->current.string && lookTest->current.string[0] )
             want = (float)atof(lookTest->current.string);
