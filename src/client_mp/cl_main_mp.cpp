@@ -3397,8 +3397,11 @@ void __cdecl CL_SetupViewport()
         ScrPlace_SetupViewport(&scrPlaceFull, 0, 0, displayWidth, displayHeight);
         for ( localClientNum = 0; localClientNum < 1; ++localClientNum )
             ScrPlace_SetupViewport(&scrPlaceView[localClientNum], 0, 0, displayWidth, displayHeight);
-        scrPlace = R_UI3D_ScrPlaceFromTextureWindow(0);
-        ScrPlace_SetupUI3DForFullscreen(scrPlace, &scrPlaceFull);
+        if ( !R_UI3D_KeepsWindowPlacement() ) // BO1FIX: not over the front end TV's own (r_ui3d.cpp)
+        {
+            scrPlace = R_UI3D_ScrPlaceFromTextureWindow(0);
+            ScrPlace_SetupUI3DForFullscreen(scrPlace, &scrPlaceFull);
+        }
     }
 }
 

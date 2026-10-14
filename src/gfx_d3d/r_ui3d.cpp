@@ -67,6 +67,22 @@ void __cdecl R_UI3D_SetBlurRadius(float blurRadius)
     g_ui3dStatus.blurRadius = blurRadius;
 }
 
+// BO1FIX: the SP front end's TV target (1024x1024, Com_InitDynamicRender) keeps window 0's own placement, built from
+// its pixel size by R_UI3D_SetupTextureWindow: the full display's (scrPlaceFull), copied over it here after a device
+// reset and by CL_SetupViewport after vid_restart, drew the TV's menu several times too large - a resolution or
+// graphics change left only part of its first item on the screen. A display-sized target still takes the copy.
+static bool s_ui3dKeepWindowPlacement;
+
+void __cdecl R_UI3D_KeepWindowPlacement(bool keep)
+{
+    s_ui3dKeepWindowPlacement = keep;
+}
+
+bool __cdecl R_UI3D_KeepsWindowPlacement()
+{
+    return s_ui3dKeepWindowPlacement && !g_ui3dStatus.useDisplaySize;
+}
+
 void __cdecl R_UI3D_CheckRenderTarget()
 {
     ScreenPlacement *scrPlace; // [esp+10h] [ebp-Ch]
@@ -91,7 +107,7 @@ void __cdecl R_UI3D_CheckRenderTarget()
                 g_ui3d_windows[i].normY,
                 g_ui3d_windows[i].normW,
                 g_ui3d_windows[i].normH);
-        if (r_glob.isMultiplayer)
+        if (r_glob.isMultiplayer && !R_UI3D_KeepsWindowPlacement())
         {
             scrPlace = R_UI3D_ScrPlaceFromTextureWindow(0);
             ScrPlace_SetupUI3DForFullscreen(scrPlace, &scrPlaceFull);

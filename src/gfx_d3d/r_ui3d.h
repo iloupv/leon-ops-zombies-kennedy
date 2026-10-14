@@ -91,3 +91,6 @@ void __cdecl RB_SetUI3DSamplerAndConstants(GfxCmdBufSourceState *cmdBufSrcState,
 void __cdecl RB_UI3D_RenderToTexture(const void *cmds, const GfxUI3DBackend *rbUI3D, const GfxCmdBufInput *input);
 int __cdecl RB_UI3D_GetValidWindows(const GfxUI3DBackend *rbUI3D, int *validWindowsArray);
 bool __cdecl RB_UI3D_ViewportIsValid(const GfxViewport *vp);
+
+void __cdecl R_UI3D_KeepWindowPlacement(bool keep); // BO1FIX: the front end's TV keeps its window 0 placement
+bool __cdecl R_UI3D_KeepsWindowPlacement();
