@@ -104,6 +104,7 @@ struct RtAnimState
     float slowTime;    // seconds the motion has been (nearly) still
     float lastYaw;     // the facing at the last update, degrees
     float yawRate;     // its smoothed turn, degrees a second (+: to his left)
+    float turnStill;   // seconds a turn in place has been (nearly) not turning
 };
 static const int RT_MAX_ANIM_ENTS = 2048;
 static RtAnimState s_animStates[RT_MAX_ANIM_ENTS];
@@ -1216,7 +1217,10 @@ static int RtChooseCycle(const XModel *model, const RtAnimState &st, bool turnTo
     if ( st.speed < (moving ? 6.0f : 12.0f) || (walk < 0 && run < 0) )
     {
         // standing and turning (the player's, s_turnInPlace): RE4's turn in place, to that side; in past 45 degrees
-        // a second, out under 20
+        // a second, out under 20 held 0.12 s - a turn the other way passes through 0 and goes straight from one turn
+        // to the other (through the idle, two crossfades and a restart hitched in the middle of it)
+        if ( s_turnInPlace && RtIsTurnInPlace(st.cur) && fabsf(st.yawRate) <= 20.0f && st.turnStill < 0.12f )
+            return st.cur;
         if ( s_turnInPlace && fabsf(st.yawRate) > (RtIsTurnInPlace(st.cur) ? 20.0f : 45.0f) )
         {
             const int turn = RtFindSetAnim(model, set, st.yawRate > 0.0f ? "turn_left" : "turn_right");
@@ -1282,6 +1286,7 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
             if ( st.speed > 1.0f )
                 st.moveRel = AngleNormalize180(atan2f(st.vel[1], st.vel[0]) * 57.29578f - angles[1]);
             st.yawRate += (AngleNormalize180(angles[1] - st.lastYaw) / dt - st.yawRate) * k;
+            st.turnStill = fabsf(st.yawRate) <= 20.0f ? st.turnStill + dt : 0.0f;
 
             int target = RtChooseCycle(model, st, turnToMotion, set);
             // a reversal (back step <-> walk) passes through standing still for a moment: the cycle goes to the

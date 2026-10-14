@@ -383,6 +383,26 @@ const char *__cdecl Gamepad_InputTypeName(GamepadMapping mapType)
     return inputTypeNames[mapType];
 }
 
+// mod: BO1's PC menus move their focus on the arrow keys only (Menu_HandleKey; the D-pad scrolled a list box at most),
+// which no pad button sends, so in a menu the pad did nothing but accept (A / START) and go back (B / BACK): the
+// D-pad and the left stick are the arrows there
+static int CL_GamepadMenuKey(int key)
+{
+    switch ( key )
+    {
+    case K_DPAD_UP:
+        return K_UPARROW;
+    case K_DPAD_DOWN:
+        return K_DOWNARROW;
+    case K_DPAD_LEFT:
+        return K_LEFTARROW;
+    case K_DPAD_RIGHT:
+        return K_RIGHTARROW;
+    default:
+        return key;
+    }
+}
+
 void __cdecl CL_GamepadEvent(int portIndex, unsigned int physicalAxis, int value)
 {
     int v3; // [esp+0h] [ebp-14h]
@@ -459,6 +479,21 @@ void __cdecl CL_GamepadGenerateAPad(int localClientNum, int portIndex, unsigned 
         if ( GPad_IsStickReleased(portIndex, stick, GPAD_STICK_POS) || GPad_IsStickReleased(portIndex, stick, GPAD_STICK_NEG) )
         {
             //BLOPS_NULLSUB();
+        }
+        // mod: in a menu the left stick pushed is an arrow key (CL_GamepadMenuKey), once a push - up is its Y positive
+        if ( (stick == GPAD_LX || stick == GPAD_LY) && cls.uiStarted
+             && (CL_GetLocalClientUIGlobals(localClientNum)->keyCatchers & 0x10) != 0 )
+        {
+            const int pos = stick == GPAD_LY ? K_UPARROW : K_RIGHTARROW;
+            const int neg = stick == GPAD_LY ? K_DOWNARROW : K_LEFTARROW;
+            if ( GPad_IsStickPressed(portIndex, stick, GPAD_STICK_POS) )
+                UI_KeyEvent(localClientNum, pos, 1);
+            if ( GPad_IsStickPressed(portIndex, stick, GPAD_STICK_NEG) )
+                UI_KeyEvent(localClientNum, neg, 1);
+            if ( GPad_IsStickReleased(portIndex, stick, GPAD_STICK_POS) )
+                UI_KeyEvent(localClientNum, pos, 0);
+            if ( GPad_IsStickReleased(portIndex, stick, GPAD_STICK_NEG) )
+                UI_KeyEvent(localClientNum, neg, 0);
         }
     }
 }
@@ -786,7 +821,7 @@ void __cdecl CL_GamepadButtonEvent(
                                     else if ( cls.uiStarted && !i )
                                     {
                                         //BLOPS_NULLSUB();
-                                        UI_KeyEvent(localClientNum, key, v15);
+                                        UI_KeyEvent(localClientNum, CL_GamepadMenuKey(key), v15); // mod: the arrows
                                     }
                                 }
                                 else
@@ -805,7 +840,7 @@ void __cdecl CL_GamepadButtonEvent(
                                         Cbuf_AddText(localClientNum, cmd);
                                     }
                                     if ( (LocalClientUIGlobals->keyCatchers & 0x10) != 0 && cls.uiStarted && !i )
-                                        UI_KeyEvent(localClientNum, key, 0);
+                                        UI_KeyEvent(localClientNum, CL_GamepadMenuKey(key), 0); // mod: the arrows
                                     if ( i == 1 )
                                         return;
                                 }

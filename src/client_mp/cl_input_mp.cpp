@@ -502,7 +502,8 @@ void __cdecl CL_CreateNewCommands(int localClientNum)
 // -> ToggleWeaponAltMode). "<start ms> <period ms>|<offset ms> <console command>|<offset ms> hold <bit> <ms> [fwd]|..."
 // runs every entry at start + k * period + offset (cgame time); "hold" ORs usercmd button <bit> (0 attack, 1 sprint,
 // 4 reload) into the commands for <ms>, "fwd" / "back" also move forward / back (sprint needs it), "left" / "right"
-// sideways (11 held too: a strafe aimed in under tank controls, else a turn). Logs bo1_keys / bo1_weapsel.
+// sideways (11 held too: a strafe aimed in under tank controls, else a turn); "key <keynum>" presses a key and lets it
+// go (CL_KeyEvent). Logs bo1_keys / bo1_weapsel.
 static const dvar_t *cl_headlessKeys;
 static int cl_headlessHoldBit = -1, cl_headlessHoldEnd, cl_headlessHoldFwd; // fwd: 1 forward, -1 back
 static int cl_headlessHoldSide; // 1 right, -1 left
@@ -564,7 +565,15 @@ static void CL_HeadlessKeys(int localClientNum, usercmd_s *cmd)
                 continue;
             int bit = 0, ms = 0;
             char fwd[8] = {};
-            if (sscanf(text, "hold %d %d %7s", &bit, &ms, fwd) >= 2)
+            int keyNum = 0;
+            if (sscanf(text, "key %d", &keyNum) == 1)
+            {
+                // "key <keynum>": a key pressed and let go through the keyboard's own path (menus: 27 Escape, 13
+                // Enter, 154 / 155 up / down)
+                CL_KeyEvent(localClientNum, keyNum, 1, Sys_Milliseconds());
+                CL_KeyEvent(localClientNum, keyNum, 0, Sys_Milliseconds());
+            }
+            else if (sscanf(text, "hold %d %d %7s", &bit, &ms, fwd) >= 2)
             {
                 cl_headlessHoldBit = bit;
                 cl_headlessHoldEnd = now + ms;
