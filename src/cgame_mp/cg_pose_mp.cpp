@@ -1029,6 +1029,10 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         static int s_knifeStart = -100000, s_throwStart = -100000, s_readyStart = -100000;
         static int s_kickStart = -100000, s_kickStamp; // the script's kick (leon_kick_stamp: its time at the kick)
         static int s_reloadLength = 1;
+        // a new gun's first raise (bought off the wall, from the box, Pack-a-Punched: BO1's first raise, weapon anim
+        // 14, its iFirstRaiseTime): RE4's reload on him over it - BO1 racks the gun then
+        static int s_raiseStart = -100000, s_raiseLength = 1;
+        static bool s_wasFirstRaise;
         // a round-by-round reload's stage (bSegmentedReload): 1 the open, 2 a round, 3 the close; its start and length
         static int s_stage, s_stageStart = -100000, s_stageLength = 1;
         const playerState_s *ps = &cgameGlob->predictedPlayerState;
@@ -1113,6 +1117,19 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                 s_reloadLength = CG_RuntimeXModel_ReloadMsec(ps, ps->weaponTime > 300 ? ps->weaponTime : 300);
                 s_leonHitStart = s_knifeStart = -100000;
             }
+            const WeaponDef *raiseDef = ps->weapon ? BG_GetWeaponDef(ps->weapon) : 0;
+            const char *raiseName = ps->weapon ? BG_WeaponName(ps->weapon) : "";
+            // (a gun: not the perk bottles, the knuckle crack, the syrette - zombie_*, syrette_*: no reload of theirs)
+            const bool firstRaise = state == WEAPON_RAISING && (ps->weapAnim & ~0x400) == 14 && raiseDef
+                                    && _strnicmp(raiseName, "zombie_", 7) && _strnicmp(raiseName, "syrette", 7);
+            if ( firstRaise && !s_wasFirstRaise )
+            {
+                s_raiseStart = cgameGlob->time;
+                s_raiseLength = ps->weaponTime > 300 ? ps->weaponTime : 300;
+            }
+            if ( !firstRaise )
+                s_raiseStart = -100000;
+            s_wasFirstRaise = firstRaise;
             s_lastState = state;
             s_lastWeaponTime = ps->weaponTime;
         }
@@ -1183,6 +1200,14 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             action = RT_ACTION_RELOAD;
             actionTime = (float)(cgameGlob->time - s_reloadStart) * 0.001f;
             actionDuration = (float)s_reloadLength * 0.001f;
+        }
+        else if ( s_raiseStart > -100000 )
+        {
+            // a new gun's first raise: its reload over BO1's raise time - a round-by-round one's close alone (the
+            // shotgun's pump, the revolver's cylinder shut), its whole reload too long for the raise
+            action = segmentedReload ? RT_ACTION_RELOAD_END : RT_ACTION_RELOAD;
+            actionTime = (float)(cgameGlob->time - s_raiseStart) * 0.001f;
+            actionDuration = (float)s_raiseLength * 0.001f;
         }
         else if ( cgameGlob->time - s_fireStart < 3000 ) // the motion ends itself (the shotgun's, with its pump: 1.3 s)
         {

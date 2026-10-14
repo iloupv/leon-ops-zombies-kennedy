@@ -12,6 +12,6 @@ bool __cdecl SND_Runtime_PlayLocal(int localClientNum, const char *alias);
 // own lines (vox_plr_*) play silent (0: dropped, a script waiting on their notify would wait forever) and their
 // breathing (chr_breathing*) at Leon's level; 1 for every other alias
 float __cdecl SND_Runtime_VoiceScale(unsigned int id);
-// the volume scale of a sound against RE4's pickup: BO1's purchase sound (zmb_cha_ching) within 150 ms of "leon_pickup"
-// is dropped (0, or stopped on its entity when it came first); 1 for every other alias
+// the volume scale of a sound against RE4's pickup: BO1's purchase sounds (zmb_cha_ching, zmb_weap_wall) within 300 ms
+// of "leon_pickup" are dropped (0, or stopped on their entity when they came first); 1 for every other alias
 float __cdecl SND_Runtime_PickupScale(unsigned int id, SndEntHandle ent);
