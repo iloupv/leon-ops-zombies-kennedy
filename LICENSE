@@ -1,0 +1,37 @@
+MIT License
+
+Copyright (c) 2026 Imanol (iloupv)
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---------------------------------------------------------------------------------
+
+Scope: this license covers the Leon Ops: Zombies Kennedy project's own work - its
+changes to the engine, the mod's scripts (mods/leon), the converter
+(tools/leon-converter), the launcher (tools/leon-launcher) and the Melty packaging
+(tools/melty, melty.json).
+
+It does not cover:
+- the Call of Duty: Black Ops engine decompilation this project is built on
+  (https://github.com/MisaDev4/bo1-zombies-decompiled), which stays under its
+  authors' terms, nor Activision's game it reconstructs;
+- the third-party code and tools it uses or credits (see README.md), each under
+  its own license;
+- Call of Duty: Black Ops (Activision) or Resident Evil 4 and Leon S. Kennedy
+  (Capcom). No file from either game is in this repository or its releases.

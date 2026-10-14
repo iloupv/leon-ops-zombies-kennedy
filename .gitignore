@@ -428,3 +428,7 @@ Debug/*
 __BO1Zombies
 # runtime models converted on the player's PC from games they own (never committed)
 mods/*/rtmodels/
+
+# Leon converter: Python caches
+tools/leon-converter/__pycache__/
+tools/leon-launcher/__pycache__/
