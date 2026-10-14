@@ -8,9 +8,11 @@
 // after it recovers; while one is staggered in reach in front of Leon, the engine shows RE4's
 // action prompt (leon_kick_ready: this script and the client share the process's dvars) and the use key (F) kicks:
 // RE4's kick on him (the client's pose, from leon_kick_stamp), and every zombie its sweep catches dies at once and is
-// sent flying (a launched ragdoll).
+// sent flying (a launched ragdoll). The zombie that would be kicked glows a dim yellow (BO1's theater-mode marker glow)
+// while the prompt is up.
 //   leon_kick 0      off
-//   leon_kicktest 1  test: every 3 s the nearest zombie is put in front of the player and staggered
+//   leon_kicktest 1  test: every 3 s the nearest zombie is put in front of the player and staggered (2: another
+//                    one beside it too, for the sweep)
 
 init()
 {
@@ -19,6 +21,12 @@ init()
 	setDvar( "leon_kick_ready", "0" );
 	setDvar( "leon_kick_stamp", "0" );
 	setDvar( "leon_kicking", "0" );
+	// (loaded with the level's: before the first wait)
+	glowFx = getDvar( "leon_kickglow_fx" ); // tests: another effect
+	if ( glowFx == "" )
+		glowFx = "misc/fx_zombie_cola_dtap_on";
+	level._effect[ "leon_kick_glow" ] = loadfx( glowFx );
+	precacheModel( "tag_origin" );
 	level thread leon_zombie_watch();
 	players = getEntArray( "player", "classname" );
 	while ( players.size == 0 )
@@ -27,7 +35,7 @@ init()
 		players = getEntArray( "player", "classname" );
 	}
 	array_thread( players, ::leon_kick_watch );
-	if ( getDvar( "leon_kicktest" ) == "1" )
+	if ( getDvar( "leon_kicktest" ) == "1" || getDvar( "leon_kicktest" ) == "2" )
 		players[0] thread leon_kick_test();
 }
 
@@ -45,6 +53,14 @@ leon_kick_test()
 		z = getClosest( self.origin, zombies );
 		forward = anglesToForward( ( 0, self.angles[1], 0 ) );
 		z forceTeleport( self.origin + forward * 40, ( 0, self.angles[1] + 180, 0 ) );
+		if ( getDvar( "leon_kicktest" ) == "2" && zombies.size > 1 )
+		{
+			// (2: another one beside it, not staggered - the kick's sweep kills it too)
+			others = array_remove( zombies, z );
+			other = getClosest( self.origin, others );
+			right = anglesToRight( ( 0, self.angles[1], 0 ) );
+			other forceTeleport( self.origin + forward * 45 + right * 30, ( 0, self.angles[1] + 180, 0 ) );
+		}
 		wait 0.1; // (the teleport lands first: the reel plays where he stands)
 		z thread leon_stagger();
 		logPrint( "leon: kicktest staggered a zombie at " + getTime() + "\n" );
@@ -182,9 +198,31 @@ leon_kick_watch()
 			setDvar( "leon_kick_ready", "1" );
 		else
 			setDvar( "leon_kick_ready", "0" );
+		self leon_kick_glow( target );
 		if ( isDefined( target ) && self useButtonPressed() )
 			self leon_kick();
 	}
+}
+
+// The glow on the zombie the prompt is for: an effect on a tag_origin model linked to its chest, deleted (the effect
+// with it) as soon as that zombie is no longer the one - out of reach, recovered, kicked or dead.
+leon_kick_glow( target )
+{
+	if ( isDefined( self.leon_glow ) && ( !isDefined( target ) || !isDefined( self.leon_glow_target )
+	                                       || self.leon_glow_target != target ) )
+	{
+		self.leon_glow delete();
+		self.leon_glow = undefined;
+		self.leon_glow_target = undefined;
+	}
+	if ( !isDefined( target ) || isDefined( self.leon_glow ) || !isDefined( level._effect[ "leon_kick_glow" ] ) )
+		return;
+	glow = spawn( "script_model", target getTagOrigin( "j_spinelower" ) );
+	glow setModel( "tag_origin" );
+	glow linkTo( target, "j_spinelower" );
+	playFxOnTag( level._effect[ "leon_kick_glow" ], glow, "tag_origin" );
+	self.leon_glow = glow;
+	self.leon_glow_target = target;
 }
 
 // The kick: RE4's (em10.cpp plem10Kick) lands at its frame 16 (0.53 s) on every enemy within 1.2 m (47") of a point
@@ -194,6 +232,7 @@ leon_kick()
 {
 	self endon( "disconnect" );
 	self.leon_kicking = true;
+	self leon_kick_glow( undefined ); // (the kicked zombie flies without it)
 	setDvar( "leon_kick_stamp", getTime() ); // the client starts Leon's kick on it
 	setDvar( "leon_kick_ready", "0" ); // no prompt through the kick
 	setDvar( "leon_kicking", "1" ); // no reload through it (PM_TankControls)
@@ -202,7 +241,7 @@ leon_kick()
 	forward = anglesToForward( ( 0, self.angles[1], 0 ) );
 	center = self.origin + forward * 30;
 	zombies = getAiArray( "axis" );
-	hit = false;
+	hits = 0;
 	for ( i = 0; i < zombies.size; i++ )
 	{
 		z = zombies[i];
@@ -210,21 +249,24 @@ leon_kick()
 		if ( length( ( offset[0], offset[1], 0 ) ) > 82 || abs( offset[2] ) > 60 )
 			continue;
 		z thread leon_kicked( self, forward );
-		hit = true;
+		hits++;
 	}
+	hit = hits > 0;
 	if ( hit )
 		self playLocalSound( "leon_kickhit" );
 	if ( hit )
-		logPrint( "leon: kick at " + getTime() + " hit\n" );
+		logPrint( "leon: kick at " + getTime() + " hit " + hits + ", score " + self.score + "\n" );
 	else if ( zombies.size )
 	{
 		near = getClosest( center, zombies );
 		logPrint( "leon: kick at " + getTime() + " missed, nearest " + distance( near.origin, center ) + " off " + ( near.origin - self.origin ) + " alive " + isAlive( near ) + "\n" );
 	}
 	wait 1.25; // to the motion's end (50 frames: 1.67 s) and its blend out
+	if ( hit )
+		logPrint( "leon: kick's kills scored, score " + self.score + "\n" );
 	setDvar( "leon_kick_ready", "0" );
 	setDvar( "leon_kicking", "0" );
-	if ( getDvar( "leon_test" ) == "" && getDvar( "leon_kicktest" ) != "1" ) // (the tests keep him invulnerable)
+	if ( getDvar( "leon_test" ) == "" && getDvar( "leon_kicktest" ) == "" ) // (the tests keep him invulnerable)
 		self disableInvulnerability();
 	while ( self useButtonPressed() )
 		wait 0.05;
@@ -238,7 +280,9 @@ leon_kicked( player, forward )
 	gibs = array( "right_arm", "left_arm", "right_leg", "left_leg", "no_legs" );
 	self.a.gib_ref = gibs[ randomInt( gibs.size ) ];
 	self thread animscripts\zombie_death::do_gib();
-	self DoDamage( self.health + 666, player.origin, player );
+	// a melee kill (SP DoDamage: damage, origin, attacker, piece, means of death - SP's names: "melee" - hit location):
+	// it scores as a knife kill (_zombiemode_score: the melee bonus); with none it scored a plain kill's 50
+	self DoDamage( self.health + 666, player.origin, player, -1, "melee", "torso_upper" );
 	if ( self.health <= 0 || !isAlive( self ) )
 	{
 		self StartRagdoll();
