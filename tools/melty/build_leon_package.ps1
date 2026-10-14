@@ -9,7 +9,7 @@
 # videos, binkw32's install copy, DirectX cabs stay in the player's install) and nothing converted from RE4 (the
 # setup writes mods\leon\rtmodels and mods\leon\sound on the player's PC).
 param(
-    [string]$Version = '0.1.1',
+    [string]$Version = '0.1.2',
     [string]$ToolsDir = 'C:\dev\refs\leon-tools',
     [string]$Re4Decomp = 'C:\dev\refs\re4'
 )
@@ -56,7 +56,7 @@ try {
     }
 } finally { Pop-Location }
 Copy-Item -Recurse (Join-Path $stage 'dist\leon_setup') (Join-Path $pkg 'leon_setup')
-Copy-Item (Join-Path $PSScriptRoot 'LEON_README.txt') $pkg
+Copy-Item (Join-Path $PSScriptRoot 'LEON_README.txt') (Join-Path $pkg 'README.txt') # (the name Melty reads as the readme)
 
 $zip = Join-Path $M "LeonZombies-$Version.zip"
 Remove-Item $zip -ErrorAction SilentlyContinue
