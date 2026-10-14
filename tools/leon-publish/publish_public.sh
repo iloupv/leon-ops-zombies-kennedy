@@ -16,7 +16,7 @@ WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 git clone --quiet --no-local --single-branch --branch local/play "$REPO" "$WORK/public"
 cd "$WORK/public"
-FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --quiet --prune-empty --index-filter '
+FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --prune-empty --index-filter '
   git rm -q --cached --ignore-unmatch \
     src/steam/redistributable_bin/steamclient.dll src/steam/redistributable_bin/tier0_s.dll \
     src/steam/redistributable_bin/vstdlib_s.dll src/steam/redistributable_bin/Steam.dll \
