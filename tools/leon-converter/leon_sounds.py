@@ -2,7 +2,8 @@
 from RE4's player sound bank (BIO4/snd/pl00.xwb, an XACT3 wave bank of 16-bit mono PCM), written as WAV files.
 
 RE4 plays them with SndCall(1, n) (the player block): PlSetDamageSe picks pain SE 9, 10 or 11 (game/pl_sub.cpp),
-Pl_R0_Die SE 0xD (game/pl_dmg.cpp); pl00.xsb's cues 9 / 10 / 11 / 13 play waves 39 / 38 / 37 / 33.
+Pl_R0_Die SE 0xD (game/pl_dmg.cpp); pl00.xsb's cues 9 / 10 / 11 / 13 play waves 39 / 38 / 37 / 33. And the gun raised to
+aim: leon_aim.wav.
 
 usage: python -I leon_sounds.py <pl00.xwb> <out dir>   (writes leon_pain_1..3.wav, leon_death.wav, the kick's; with
 core.xwb next to pl00.xwb also leon_pickup.wav, with bio4evt.xwb the Merchant's lines: merchant_*.wav, and Leon's
@@ -17,8 +18,13 @@ import sys
 # (output file, wave index in pl00.xwb)
 # and the kick's (em10.cpp plem10Kick: SE 0x11 + 0x10 when the wind-up ends, 0xF on a hit; cues 0x11 / 0x10 / 0xF play waves
 # 28 / 29 / 41)
+# and the gun raised to aim (every weapon's ready motion: SE 0x28 two 30 Hz frames in, wep/pl_handgun.cpp
+# wep02_r3_ready10; cue 0x28 plays wave 46)
 LEON_SOUNDS = [('leon_pain_1.wav', 39), ('leon_pain_2.wav', 38), ('leon_pain_3.wav', 37), ('leon_death.wav', 33),
-               ('leon_kicka.wav', 28), ('leon_kickb.wav', 29), ('leon_kickhit.wav', 41)]
+               ('leon_kicka.wav', 28), ('leon_kickb.wav', 29), ('leon_kickhit.wav', 41), ('leon_aim.wav', 46)]
+# the levels some are brought to (loud: dB RMS): the aim's soft rustle is mastered ~24 dB under his voice, for RE4's quiet
+# - lost under BO1's fight, it is brought up ~15 dB, still well under his voice
+LEVELS = {'leon_aim.wav': -22.0}
 # From RE4's core bank (BIO4/snd/core.xwb, block 0: SndCall(0, n), the cue index n), read from next to pl00.xwb when
 # it is there: the pickup - taking ammo (game/mes.cpp: the message's "take" choice, attr 0x200: SE 0x11) or a weapon
 # (attr 0x100: SE 0xF), both core.xsb cues playing wave 20
@@ -216,5 +222,7 @@ if __name__ == '__main__':
             channels = 1
         if name.startswith('merchant_'):
             pcm = loud(pcm)
+        elif name in LEVELS:
+            pcm = loud(pcm, LEVELS[name])
         open(os.path.join(sys.argv[2], name), 'wb').write(wav(channels, rate, bits, pcm))
         print(f'{name}: wave {index}, {channels} ch, {rate} Hz, {len(pcm) / (2 * channels * rate):.2f} s')
