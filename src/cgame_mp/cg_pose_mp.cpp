@@ -907,6 +907,35 @@ bool __cdecl CG_RuntimeXModel_KnifeOut()
     return s_leonKnifeOut;
 }
 
+// the local player's gun has its magazine out, through RE4's reload (CG_LeonReloadClip hides it)
+static bool s_leonClipOut;
+
+bool __cdecl CG_RuntimeXModel_ClipOut()
+{
+    return s_leonClipOut;
+}
+
+// RE4's reload motion of a magazine gun's set: the frame its magazine comes out (the release, its drop) and the frame
+// the new one is in (the weapon object's ItemMgr.reload frame at RE4's slowest reload level, whose motions we play:
+// objFn57 31, wep06 44, objMachinegun 40, objTompson 40, objHkSniper 34); false for the round-by-round ones (the
+// shotguns, the revolvers, the magnum), the bolt rifle, the launchers
+static bool CG_RuntimeXModel_ClipFrames(const char *set, float *outFrame, float *inFrame)
+{
+    struct ClipFrames { const char *set; float out, in; };
+    static const ClipFrames s_clipFrames[] = { { "", 6.0f, 31.0f }, { "government", 6.0f, 44.0f },
+                                               { "tmp", 8.0f, 40.0f }, { "smg", 10.0f, 40.0f },
+                                               { "semi", 8.0f, 34.0f } };
+    for ( const ClipFrames &c : s_clipFrames )
+    {
+        if ( strcmp(set ? set : "", c.set) )
+            continue;
+        *outFrame = c.out;
+        *inFrame = c.in;
+        return true;
+    }
+    return false;
+}
+
 // mod: the local player's grenade in his hand: while RE4's ready pose plays (BO1's offhand init / prepare / start /
 // hold, up to the release: then it is thrown)
 static bool s_leonGrenadeOut;
@@ -1242,7 +1271,32 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         R_RuntimeXModel_RootYaw("knife", 0.0f, &knifeYaw, &knifeLength);
         s_leonKnifeOut = action == RT_ACTION_KNIFE && actionTime < knifeLength - 0.1f;
         s_leonGrenadeOut = action == RT_ACTION_THROW_READY;
+        // the magazine: out from RE4's drop of it to its magazine-in frame, where the reload stands in RE4's motion
+        // (R_RuntimeXModel_PoseDObj's: stretched over BO1's reload, from reloadFrom); a first raise starts past it
+        bool clipOut = false;
+        float outFrame, inFrame;
+        const char *clipSet = CG_RuntimeXModel_AnimSet(ps->weapon);
+        if ( action == RT_ACTION_RELOAD && actionDuration > 0.0f && CG_RuntimeXModel_ClipFrames(clipSet, &outFrame, &inFrame) )
+        {
+            float clipYaw, clipLength = 0.0f;
+            if ( !(clipSet && R_RuntimeXModel_RootYaw(va("%s:reload", clipSet), 0.0f, &clipYaw, &clipLength)) )
+                R_RuntimeXModel_RootYaw("reload", 0.0f, &clipYaw, &clipLength);
+            float t = actionTime / actionDuration;
+            t = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
+            const float frame = (reloadFrom + t * (1.0f - reloadFrom)) * clipLength * 30.0f; // (RE4's 30 Hz frames)
+            clipOut = frame >= outFrame && frame < inFrame;
+        }
+        s_leonClipOut = clipOut;
         // (tests: each change of his action, and where in it he is)
+        static int s_loggedWeapon = -1;
+        if ( (int)ps->weapon != s_loggedWeapon && R_RuntimeXModel_DvarOn("leon_actionlog") )
+        {
+            const WeaponDef *logDef = ps->weapon ? BG_GetWeaponDef(ps->weapon) : 0;
+            const char *logSet = CG_RuntimeXModel_AnimSet(ps->weapon);
+            Com_Printf(0, "leon: weapon %s class %d fire type %d set %s\n", BG_WeaponName(ps->weapon),
+                       logDef ? (int)logDef->weapClass : -1, logDef ? (int)logDef->fireType : -1, logSet ? logSet : "(handgun)");
+            s_loggedWeapon = (int)ps->weapon;
+        }
         static int s_loggedAction = -1, s_loggedTime;
         if ( (int)action != s_loggedAction && s_loggedTime != cgameGlob->time && R_RuntimeXModel_DvarOn("leon_actionlog") )
         {
@@ -1375,7 +1429,13 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                                                             && cgameGlob->time - s_aimedTime > 400);
     }
     R_RuntimeXModel_SetReloadFrom(reloadFrom);
-    const float recoil = R_RuntimeXModel_PoseDObj(obj, origin, angles, cgameGlob->time, isPlayer, aimFrac, aimPitch,
+    // a minigun (the Death Machine: no aim down the sights) is held in the Typewriter's aim all the time - RE4's hip
+    // stance - turned up and down with the view: unaimed it hung at his side, at the floor, while its shots left from
+    // the view (his eye); the rest (his turn, his head's look) goes by the real aim
+    const WeaponDef *poseDef = isPlayer && animWeapon ? BG_GetWeaponDef(animWeapon) : 0;
+    const float poseAimFrac = poseDef && poseDef->fireType == WEAPON_FIRETYPE_MINIGUN && action != RT_ACTION_DEATH
+                              ? 1.0f : aimFrac;
+    const float recoil = R_RuntimeXModel_PoseDObj(obj, origin, angles, cgameGlob->time, isPlayer, poseAimFrac, aimPitch,
                                                   action, actionTime, actionDuration, aimCorrection,
                                                   !(isPlayer && player_tankControls && player_tankControls->current.enabled),
                                                   isPlayer ? CG_RuntimeXModel_AnimSet(animWeapon) : 0);

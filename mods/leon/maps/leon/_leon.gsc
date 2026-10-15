@@ -90,6 +90,8 @@ leon_spawn_test()
 		player thread leon_damage_log(); // tests: the damage the player takes (zombie attacks)
 	if ( getDvar( "leon_power" ) != "" )
 		player thread leon_power_on( getDvarFloat( "leon_power" ) ); // tests: the map's power switch thrown
+	if ( getDvar( "leon_powerup" ) != "" )
+		player thread leon_powerup_test( getDvar( "leon_powerup" ) ); // tests: a power-up at his feet (e.g. minigun)
 	if ( getDvar( "leon_give" ) != "" )
 	{
 		// tests: weapons in hand, ammo full, the first out (e.g. python_zm, or "galil_zm mp40_zm")
@@ -241,6 +243,23 @@ leon_keep_model()
 			self setModel( "leon" );
 		}
 	}
+}
+
+// Tests: the named power-up (_zombiemode_powerups: minigun, nuke, insta_kill...) dropped at his feet once the map's
+// power-ups are set up, so he picks it up
+leon_powerup_test( name )
+{
+	self endon( "disconnect" );
+	while ( !isDefined( level.zombie_powerups ) )
+		wait 0.5;
+	wait 2;
+	if ( !isDefined( level.zombie_powerups[ name ] ) )
+	{
+		logPrint( "leon: no power-up " + name + " on this map\n" );
+		return;
+	}
+	level thread maps\_zombiemode_powerups::specific_powerup_drop( name, self.origin );
+	logPrint( "leon: power-up " + name + " dropped\n" );
 }
 
 // Damages the player every 3 s from a point in front of him (tests: his hit reaction, voice and going down).
