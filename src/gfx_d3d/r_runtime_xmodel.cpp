@@ -230,6 +230,26 @@ void __cdecl R_RuntimeXModel_SetFireRates(float kick, float settle)
     s_fireSettle = settle < 0.5f ? 0.5f : (settle > 4.0f ? 4.0f : settle);
 }
 
+// seconds since the previous shot's start, for the next R_RuntimeXModel_PoseDObj's shot only (-1: none): a shot fired
+// while the last one's motion still plays crossfades from where that one is (RT_FIRE_CROSSFADE), instead of snapping
+// back to the motion's start - an automatic's, the Ray Gun's heavy magnum kick, jerked at every shot
+static float s_firePrevTime = -1.0f;
+static const float RT_FIRE_CROSSFADE = 0.08f;
+
+void __cdecl R_RuntimeXModel_SetFirePrev(float seconds)
+{
+    s_firePrevTime = seconds;
+}
+
+// a shot's motion's phase (frames) at its time (seconds): the kick up to its peak at s_fireKick, then the settle at
+// s_fireSettle (R_RuntimeXModel_SetFireRates)
+static float RtFirePhase(const RtAnim &motion, float time)
+{
+    const float peak = (float)motion.recoilPeak;
+    const float kicked = time * motion.fps * s_fireKick;
+    return kicked <= peak ? kicked : peak + (time * motion.fps - peak / s_fireKick) * s_fireSettle;
+}
+
 // the local player's locomotion under RE4's tank controls, for the next R_RuntimeXModel_PoseDObj only: strafeLegs -
 // aimed in and stepping sideways (PM_TankControls), his legs turn toward the step and his torso stays on the aim;
 // turnInPlace - turning on the spot (A / D, the mouse) plays RE4's turn in place (pl_R1_Turn: turn_left / turn_right)
@@ -1624,6 +1644,9 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     const float reloadFrom = s_reloadFrom;
     s_reloadFrom = 0.0f;
     const char *const reloadSet = s_reloadSetGiven ? s_reloadSet : animSet; // (for this call only)
+    const float firePrevTime = s_firePrevTime;
+    s_firePrevTime = -1.0f;
+    float firePrevPhase = -1.0f, fireCross = 1.0f; // the previous shot's motion, crossfaded out (RT_FIRE_CROSSFADE)
     s_reloadSetGiven = false;
     s_reloadSet = 0;
     if ( s_anims.empty() || !obj->numModels || !obj->skel.mat )
@@ -1679,12 +1702,21 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
         {
             const RtAnim &motion = s_anims[actionAnim];
             actionPhase = actionTime * motion.fps;
-            // a shot: the kick up to its peak, then settling back, each at the weapon's rate (s_fireKick, s_fireSettle)
+            // a shot: the kick up to its peak, then settling back, each at the weapon's rate (s_fireKick, s_fireSettle);
+            // one fired while the last one's motion still plays comes in from where that one is
             if ( action == RT_ACTION_FIRE )
             {
-                const float peak = (float)motion.recoilPeak;
-                const float kicked = actionPhase * s_fireKick;
-                actionPhase = kicked <= peak ? kicked : peak + (actionTime * motion.fps - peak / s_fireKick) * s_fireSettle;
+                actionPhase = RtFirePhase(motion, actionTime);
+                if ( firePrevTime >= 0.0f && actionTime < RT_FIRE_CROSSFADE )
+                {
+                    const float prevPhase = RtFirePhase(motion, firePrevTime);
+                    const float prevLast = motion.frameCount - 1 > 0 ? (float)(motion.frameCount - 1) : 0.0f;
+                    if ( prevPhase < prevLast )
+                    {
+                        firePrevPhase = prevPhase;
+                        fireCross = actionTime / RT_FIRE_CROSSFADE;
+                    }
+                }
             }
             // the kick ends at frame 34, blending back over its last 8 (from frame 30 to its end at 49 he stays down in
             // the recovery, 4 cm lower and leaning: it ended hunched); the others at their end, over 4
@@ -1890,6 +1922,23 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
                 float pq[4], pt[3];
                 RtSampleBone(s_anims[actionPitched], actionPhase, b, pq, pt);
                 RtBlendPose(quat, trans, pq, pt, actionPitchBlend);
+            }
+            if ( firePrevPhase >= 0.0f )
+            {
+                // the shot comes in from where the last one's motion was (RT_FIRE_CROSSFADE)
+                float prevQuat[4], prevTrans[3];
+                RtSampleBone(s_anims[actionAnim], firePrevPhase, b, prevQuat, prevTrans);
+                if ( actionPitched >= 0 && actionPitchBlend > 0.0f )
+                {
+                    float pq[4], pt[3];
+                    RtSampleBone(s_anims[actionPitched], firePrevPhase, b, pq, pt);
+                    RtBlendPose(prevQuat, prevTrans, pq, pt, actionPitchBlend);
+                }
+                RtBlendPose(prevQuat, prevTrans, quat, trans, fireCross);
+                for ( int k = 0; k < 4; ++k )
+                    quat[k] = prevQuat[k];
+                for ( int k = 0; k < 3; ++k )
+                    trans[k] = prevTrans[k];
             }
             RtBlendPose(mat->quat, mat->trans, quat, trans, actionWeight);
         }
