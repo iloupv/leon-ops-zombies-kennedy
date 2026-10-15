@@ -1340,11 +1340,12 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                   && fireDef->fireType <= WEAPON_FIRETYPE_BURSTFIRE4 )
             fireWeight = 0.7f * 0.5f;
         R_RuntimeXModel_SetFireWeight(fireWeight);
-        // and its settle back onto the aim twice as fast as RE4's (it floated back); not where the motion works the
-        // gun after the shot - the shotgun's pump, the mine thrower's rack: BO1's rechamber waits on it
+        // and its settle back onto the aim 2.3 times as fast as RE4's (it floated back; at twice still a touch soft);
+        // not where the motion works the gun after the shot - the shotgun's pump, the mine thrower's rack: BO1's
+        // rechamber waits on it
         const char *fireSet = isPlayer && animWeapon ? CG_RuntimeXModel_AnimSet(animWeapon) : 0;
         const bool worked = fireSet && (!strcmp(fireSet, "shotgun") || !strcmp(fireSet, "mine"));
-        R_RuntimeXModel_SetFireSettle(worked ? 1.0f : 2.0f);
+        R_RuntimeXModel_SetFireSettle(worked ? 1.0f : 2.3f);
     }
     // the local player under RE4's controls: aimed in, his legs follow a strafe (PM_TankControls); not aimed, a turn on
     // the spot plays RE4's turn in place (not through the quick turn or down, nor 0.35 s after a quick turn: its turn

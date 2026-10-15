@@ -92,8 +92,14 @@ leon_spawn_test()
 		player thread leon_power_on( getDvarFloat( "leon_power" ) ); // tests: the map's power switch thrown
 	if ( getDvar( "leon_give" ) != "" )
 	{
-		player giveWeapon( getDvar( "leon_give" ) ); // tests: a weapon in hand (e.g. python_zm)
-		player switchToWeapon( getDvar( "leon_give" ) );
+		// tests: weapons in hand, ammo full, the first out (e.g. python_zm, or "galil_zm mp40_zm")
+		given = strTok( getDvar( "leon_give" ), " " );
+		for ( i = 0; i < given.size; i++ )
+		{
+			player giveWeapon( given[i] );
+			player giveMaxAmmo( given[i] );
+		}
+		player switchToWeapon( given[0] );
 	}
 	if ( getDvar( "leon_wallbuy" ) == "1" )
 		player thread leon_goto_wallbuy(); // tests: in front of a wall weapon (its use hint)
