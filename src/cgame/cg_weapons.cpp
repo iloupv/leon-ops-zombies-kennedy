@@ -5220,7 +5220,7 @@ void __cdecl DrawBulletImpacts(
     float up[3]; // [esp+F4h] [ebp-128h] BYREF
     cg_s *otherLocalClientGlob; // [esp+100h] [ebp-11Ch]
     float velocity[3]; // [esp+104h] [ebp-118h] BYREF
-    unsigned __int8 boneIndex; // [esp+113h] [ebp-109h] BYREF
+    unsigned __int8 boneIndex = 0; // [esp+113h] [ebp-109h] BYREF
     int weaponNum; // [esp+114h] [ebp-108h]
     int ads; // [esp+118h] [ebp-104h]
     int shotCount; // [esp+11Ch] [ebp-100h]
@@ -5282,6 +5282,18 @@ void __cdecl DrawBulletImpacts(
             tracerStart[1] = gunOrient.origin[1];
             tracerStart[2] = gunOrient.origin[2];
             AngleVectors(cgameGlob->predictedPlayerState.viewangles, orient.axis[0], orient.axis[1], orient.axis[2]);
+        }
+        else if ( cgameGlob->renderingThirdPerson == TP_FOR_MODEL && CG_ShoulderCameraActive(cgameGlob)
+                  && CG_GetBoneIndex(localClientNum, ent->nextState.number, boneName, &boneIndex)
+                  && FX_GetBoneOrientation(localClientNum, ent->nextState.number, boneIndex, &gunOrient) )
+        {
+            // mod (the Leon mod): over the shoulder the tracer leaves the gun's muzzle (its flash tag on his model, as
+            // zombietron's) - from 30 units out of his eye it streaked out of his face; the shot still goes from the eye
+            ci = &cgameGlob->bgs.clientinfo[ent->nextState.number];
+            tracerStart[0] = gunOrient.origin[0];
+            tracerStart[1] = gunOrient.origin[1];
+            tracerStart[2] = gunOrient.origin[2];
+            AngleVectors(ci->playerAngles, orient.axis[0], orient.axis[1], orient.axis[2]);
         }
         else if ( cgameGlob->renderingThirdPerson == TP_FOR_MODEL )
         {
