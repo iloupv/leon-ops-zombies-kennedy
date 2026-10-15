@@ -232,6 +232,7 @@ void __cdecl R_RuntimeXModel_SetFireRates(float kick, float settle)
 // aimed in and stepping sideways (PM_TankControls), his legs turn toward the step and his torso stays on the aim;
 // turnInPlace - turning on the spot (A / D, the mouse) plays RE4's turn in place (pl_R1_Turn: turn_left / turn_right)
 static bool s_strafeLegs, s_turnInPlace, s_stepWatch;
+static int s_moveIntent; // the player's move keys (1 forward, -1 back, 0 neither): his cycle's way under tank controls
 static int s_playerTurn; // the last such pose's turn in place: 1 left, -1 right, 0 none
 // his footsteps: the cycle's foot plants passed since the client last took them, and whether the last was a run's
 // (counted on whichever thread poses him - the renderer's workers pose DObjs too - and taken on the client's)
@@ -247,10 +248,11 @@ void __cdecl R_RuntimeXModel_SetReloadFrom(float from)
     s_reloadFrom = from < 0.0f ? 0.0f : (from > 0.95f ? 0.95f : from);
 }
 
-void __cdecl R_RuntimeXModel_SetPlayerMotion(bool strafeLegs, bool turnInPlace)
+void __cdecl R_RuntimeXModel_SetPlayerMotion(bool strafeLegs, bool turnInPlace, int moveIntent)
 {
     s_strafeLegs = strafeLegs;
     s_turnInPlace = turnInPlace;
+    s_moveIntent = moveIntent;
     s_stepWatch = true;
 }
 
@@ -1405,7 +1407,15 @@ static int RtChooseCycle(const XModel *model, const RtAnimState &st, bool turnTo
     const float backIn = turnToMotion ? 115.0f : 110.0f;
     const float backOut = sideways ? (turnToMotion ? 100.0f : 95.0f) : 45.0f;
     const bool backNow = st.cur >= 0 && !strcmp(RtAnimBaseName(s_anims[st.cur]), "back");
-    if ( back >= 0 && fabsf(st.moveRel) > (backNow ? backOut : backIn) )
+    // the player under tank controls, not strafing (s_stepWatch): the back step while he presses back, or still slows
+    // out of one, never else - his measured motion trails a fast turn (a flick of the mouse while running read as a
+    // step back and out), and reversing it passed through a walk and the idle on the way (run, walk, idle, back)
+    if ( s_stepWatch && !s_strafeLegs )
+    {
+        if ( back >= 0 && (s_moveIntent < 0 || (s_moveIntent == 0 && backNow)) )
+            return back;
+    }
+    else if ( back >= 0 && fabsf(st.moveRel) > (backNow ? backOut : backIn) )
         return back;
     if ( walk < 0 )
         return run;
@@ -1494,8 +1504,17 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
             }
             st.bodyYaw += (bodyTarget - st.bodyYaw) * (dt * 8.0f < 1.0f ? dt * 8.0f : 1.0f);
             const RtAnim &cur = s_anims[st.cur];
-            // a turn in place steps at the pace of the turn (its own: RT_TURN_IN_PLACE_RATE)
-            float rate = RtCycleRate(cur, st.speed);
+            // a turn in place steps at the pace of the turn (its own: RT_TURN_IN_PLACE_RATE); the player under tank
+            // controls (not strafing) steps at his speed along his facing, backward for the back step (out of a run
+            // into it his speed still went forward, and raced the back step at twice its pace)
+            float cycleSpeed = st.speed;
+            if ( s_stepWatch && !s_strafeLegs && cur.moveSpeed > 0.0f )
+            {
+                const float along = st.speed * cosf(st.moveRel * 0.017453292f);
+                cycleSpeed = !strcmp(RtAnimBaseName(cur), "back") ? -along : along;
+                cycleSpeed = cycleSpeed > 0.0f ? cycleSpeed : 0.0f;
+            }
+            float rate = RtCycleRate(cur, cycleSpeed);
             if ( RtIsTurnInPlace(st.cur) )
             {
                 rate = fabsf(st.yawRate) / RT_TURN_IN_PLACE_RATE;
@@ -1553,7 +1572,7 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     s_lookYaw = 0.0f;
     struct PlayerMotionReset // (s_strafeLegs / s_turnInPlace: for this call only)
     {
-        ~PlayerMotionReset() { s_strafeLegs = s_turnInPlace = s_stepWatch = false; }
+        ~PlayerMotionReset() { s_strafeLegs = s_turnInPlace = s_stepWatch = false; s_moveIntent = 0; }
     } playerMotionReset;
     const bool strafeLegs = s_strafeLegs, turnInPlace = s_turnInPlace;
     const bool tankPlayer = s_stepWatch; // the local player under RE4's tank controls (R_RuntimeXModel_SetPlayerMotion)
