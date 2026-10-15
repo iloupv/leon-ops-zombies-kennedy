@@ -2763,10 +2763,20 @@ void __cdecl CG_ShoulderAimCorrection(float *pitchYaw)
     pitchYaw[1] = s_shoulderAimCorrection[1];
 }
 
-void __cdecl CG_ShoulderAimCorrectionDecay(float frac)
+// out of the aim the correction fades with time, once a client frame (~0.12 s): it faded by a step per pose, and the
+// player is posed several times a frame - a varying count, the renderer's workers among them - so each pose of a frame
+// had his arms at another point of the fade and they shook through the aim's going (most by a wall, where the
+// correction is largest: the aim point right in front of the gun)
+void __cdecl CG_ShoulderAimCorrectionDecay(const cg_s *cgameGlob)
 {
-    s_shoulderAimCorrection[0] *= frac;
-    s_shoulderAimCorrection[1] *= frac;
+    static int s_decayTime = -100000;
+    const int gap = cgameGlob->time - s_decayTime;
+    if ( gap == 0 )
+        return;
+    s_decayTime = cgameGlob->time;
+    const float keep = gap < 0 || gap > 250 ? 0.0f : expf(-(float)gap / 120.0f);
+    s_shoulderAimCorrection[0] *= keep;
+    s_shoulderAimCorrection[1] *= keep;
 }
 
 // mod: the shot's (recoil's) weight on the local player's pose this frame (CG_RuntimeXModel_Pose), 0..1
