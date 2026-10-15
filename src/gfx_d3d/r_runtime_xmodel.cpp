@@ -81,6 +81,7 @@ struct RtAnim
     int neckBone;        // j_neck (the head's look turns it), -1: none
     int neckChain[8];    // its parents below the root, root side first (their local rotations: its parent's frame)
     int neckChainCount;
+    int recoilPeak;      // a shot's motion: the frame its kick peaks (the upper body turned most from its first); 0
 };
 // the local player's head look (R_RuntimeXModel_SetLookYaw): degrees about up, for the next PoseDObj only
 static float s_lookYaw;
@@ -213,6 +214,15 @@ static float s_fireWeight = 1.0f;
 void __cdecl R_RuntimeXModel_SetFireWeight(float weight)
 {
     s_fireWeight = weight < 0.0f ? 0.0f : (weight > 1.0f ? 1.0f : weight);
+}
+
+// how fast a shot's motion plays on from its kick's peak (1: RE4's own; 2 twice as fast - the gun settled back onto
+// the aim slowly, floating), set per frame by the player's weapon (CG_RuntimeXModel_Pose)
+static float s_fireSettle = 1.0f;
+
+void __cdecl R_RuntimeXModel_SetFireSettle(float rate)
+{
+    s_fireSettle = rate < 0.5f ? 0.5f : (rate > 4.0f ? 4.0f : rate);
 }
 
 // the local player's locomotion under RE4's tank controls, for the next R_RuntimeXModel_PoseDObj only: strafeLegs -
@@ -861,6 +871,32 @@ static const XModel *RtBuildModel(const char *name, const void *data, int size, 
             for ( int k = 0; k < count; ++k )
                 anim.neckChain[k] = chain[count - 1 - k];
             anim.neckChainCount = count;
+        }
+        // a shot's kick peak: in its first 12 frames (0.4 s), the frame whose upper body is turned most from the first
+        anim.recoilPeak = 0;
+        const char *colon = strchr(anim.name, ':');
+        if ( !strncmp(colon ? colon + 1 : anim.name, "fire", 4) && anim.frameCount > 1 )
+        {
+            float most = 0.0f;
+            for ( int f = 1; f < anim.frameCount && f < 12; ++f )
+            {
+                float turned = 0.0f;
+                for ( int b = 0; b < anim.boneCount; ++b )
+                {
+                    if ( !upperBody[b] )
+                        continue;
+                    const float *q0 = anim.frames + (size_t)b * 7, *q = anim.frames + ((size_t)f * anim.boneCount + b) * 7;
+                    turned += 1.0f - fabsf(q0[0] * q[0] + q0[1] * q[1] + q0[2] * q[2] + q0[3] * q[3]);
+                }
+                if ( turned > most )
+                {
+                    most = turned;
+                    anim.recoilPeak = f;
+                }
+            }
+            if ( R_RuntimeXModel_DvarOn("leon_actionlog") ) // (tests)
+                Com_Printf(0, "runtime model: '%s' kick peaks at frame %d of %d\n", anim.name, anim.recoilPeak,
+                           anim.frameCount);
         }
         s_anims.push_back(anim);
     }
@@ -1537,6 +1573,9 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
         {
             const RtAnim &motion = s_anims[actionAnim];
             actionPhase = actionTime * motion.fps;
+            // a shot: the kick at its own rate, from its peak on settling back at the weapon's (s_fireSettle)
+            if ( action == RT_ACTION_FIRE && actionPhase > (float)motion.recoilPeak )
+                actionPhase = (float)motion.recoilPeak + (actionPhase - (float)motion.recoilPeak) * s_fireSettle;
             // the kick ends at frame 34, blending back over its last 8 (from frame 30 to its end at 49 he stays down in
             // the recovery, 4 cm lower and leaning: it ended hunched); the others at their end, over 4
             const float last = action == RT_ACTION_KICK && motion.frameCount - 1 > 34 ? 34.0f : (float)(motion.frameCount - 1);
