@@ -103,19 +103,29 @@ def main():
     shutil.rmtree(work, ignore_errors=True)
     os.makedirs(work)
     try:
+        # RE4 reads a file either packed (.lfs) or plain, and texture mods / repacks leave some one way or the other
+        # (the game's own ImagePackHD mixes both): either form is taken, the HD textures falling back to ImagePack's
+        def fetch(candidates, dest):
+            for src in candidates:
+                if os.path.isfile(src + '.lfs'):
+                    unpack(src + '.lfs', dest)
+                    return src + '.lfs'
+                if os.path.isfile(src):
+                    shutil.copyfile(src, dest)
+                    return src
+            return None
+
         for name in ARCHIVES:
-            src = os.path.join(bio4, 'Em', f'{name}.udas.lfs')
-            if not os.path.isfile(src):
+            if not fetch([os.path.join(bio4, 'Em', f'{name}.udas')], os.path.join(work, f'{name}.udas')):
                 if name in REQUIRED:
-                    raise SystemExit(f'missing {src}')
+                    raise SystemExit(f'missing {os.path.join(bio4, "Em", name + ".udas.lfs")}')
                 log(f'no {name}.udas: its motions are left out')
-                continue
-            unpack(src, os.path.join(work, f'{name}.udas'))
-        pack = os.path.join(bio4, 'ImagePackHD', '01000000.pack.yz2.lfs')
-        if not os.path.isfile(pack):
-            raise SystemExit(f'missing {pack}')
-        unpack(pack, os.path.join(work, '01000000.pack.yz2'))
-        log('unpacked')
+        pack = fetch([os.path.join(bio4, 'ImagePackHD', '01000000.pack.yz2'),
+                      os.path.join(bio4, 'ImagePack', '01000000.pack.yz2')], os.path.join(work, '01000000.pack.yz2'))
+        if not pack:
+            raise SystemExit(f'missing {os.path.join(bio4, "ImagePackHD", "01000000.pack.yz2.lfs")} (nor its plain '
+                             f'.pack.yz2, nor ImagePack\'s)')
+        log(f'unpacked (textures: {pack})')
 
         os.makedirs(rtmodels, exist_ok=True)
         rlm = os.path.join(rtmodels, 'leon.rlm')
