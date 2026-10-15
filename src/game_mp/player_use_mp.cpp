@@ -48,6 +48,21 @@ char __cdecl Player_IsPlayerUsingTurretNearby(gentity_s *ent)
     return 0;
 }
 
+// mod (the Leon mod): while its kick is offered or plays (maps\leon\_kick.gsc: leon_kick_ready / leon_kicking, the
+// script's and this server's dvars) the use key kicks, and only that - by a wall gun, a door or a perk it bought or
+// opened them too
+static bool Player_LeonKickTakesUse()
+{
+    static const char *const s_kickDvars[] = { "leon_kick_ready", "leon_kicking" };
+    for ( const char *name : s_kickDvars )
+    {
+        const dvar_s *kick = Dvar_FindVar(name);
+        if ( kick && kick->type == DVAR_TYPE_STRING && kick->current.string && atoi(kick->current.string) )
+            return true;
+    }
+    return false;
+}
+
 void __cdecl Player_UpdateActivate(gentity_s *ent)
 {
     char useSucceeded; // [esp+3h] [ebp-1h]
@@ -62,6 +77,8 @@ void __cdecl Player_UpdateActivate(gentity_s *ent)
     ent->client->ps.weapFlags &= ~1u;
     ent->client->ps.weapFlags &= ~0x10000u;
     useSucceeded = 0;
+    if ( Player_LeonKickTakesUse() ) // mod
+        return;
     if ( ent->client->button_bits.testBit(0x32u) )
     {
         Player_ActivateDoubleTapCmd(ent);

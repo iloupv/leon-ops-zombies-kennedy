@@ -602,15 +602,13 @@ static void CL_HeadlessKeys(int localClientNum, usercmd_s *cmd)
     }
 }
 
-// mod (the Leon mod, player_tankControls): RE4's quick turn (pl_R1_Turn180), on back pressed twice within 0.3 s while
-// not aiming (the player's choice; RE4's own is back + run). The view turns along the turn motion's own root yaw (half a turn in its first 14 frames)
+// mod (the Leon mod, player_tankControls): RE4's quick turn (pl_R1_Turn180), on RE4's back + run (CL_LeonRun: the run
+// key pressed going back, not aiming). The view turns along the turn motion's own root yaw (half a turn in its first 14 frames)
 // and he stands until frame 14, the turn done (RE4 holds him to frame 19 and plays on to 22: it felt slow), the motion
 // ending at frame 16 (R_RuntimeXModel_PoseDObj blends it out over 14..16); cgame plays the motion on the body meanwhile
 // (CL_LeonQuickTurnTime). On the client's input, as a mouse turn, so the server and the prediction just follow it.
 static int cl_quickTurnStart = -1;
 static float cl_quickTurnYaw, cl_quickTurnTurned;
-static bool cl_quickTurnBackHeld;
-static int cl_quickTurnBackTap = -100000;
 
 // the angle the shoulder camera trails the view by through the turn: the view (and his body) turn along the motion,
 // the camera eases after them from 0.08 s and catches up at 0.5 s, so the turn shows on him instead of the camera
@@ -768,7 +766,9 @@ static void CL_LeonRun(int localClientNum, usercmd_s *cmd)
     const kbutton_t *run = &playersKb[localClientNum][30];
     // (held back on the keyboard CL_KeyMove leaves the run bit alone: the key's own state)
     const bool down = run->active || cmd->button_bits.testBit(1u);
-    const bool pressed = down && !cl_leonRunWasDown;
+    // (a menu up - the pause menu - takes the keys: no press counts, none waits for its close)
+    const bool menu = (CL_GetLocalClientUIGlobals(localClientNum)->keyCatchers & 0x10) != 0;
+    const bool pressed = down && !cl_leonRunWasDown && !menu;
     cl_leonRunWasDown = down;
     cl_leonRunTurn = false;
     if ( !player_tankControls || !player_tankControls->current.enabled )
@@ -795,18 +795,9 @@ static void CL_LeonRun(int localClientNum, usercmd_s *cmd)
 
 static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
 {
-    // back pressed twice (its second press within 0.3 s of the first; a stick at least half way back), or the run key
-    // pressed going back (RE4's back + run: CL_LeonRun)
-    const bool back = cmd->forwardmove <= -64 && !cmd->button_bits.testBit(0xBu);
-    bool pressed = cl_leonRunTurn;
-    if ( back && !cl_quickTurnBackHeld )
-    {
-        const int now = (int)Sys_Milliseconds();
-        const bool tapped = now - cl_quickTurnBackTap < 300;
-        pressed |= tapped;
-        cl_quickTurnBackTap = tapped ? -100000 : now;
-    }
-    cl_quickTurnBackHeld = cmd->forwardmove < 0 && !cmd->button_bits.testBit(0xBu) && (back || cl_quickTurnBackHeld);
+    // the run key pressed going back (RE4's back + run: CL_LeonRun) - only that: back tapped twice also fired from a
+    // pad's stick flicked down through the pause menu, and from back held as a right click (a dual wield's) let go
+    const bool pressed = cl_leonRunTurn;
     float yaw, length;
     if ( !player_tankControls || !player_tankControls->current.enabled )
     {
@@ -824,7 +815,7 @@ static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
         if ( !pressed || !R_RuntimeXModel_RootYaw("turn180", 0.0f, &yaw, &length) )
             return;
         cl_quickTurnStart = (int)Sys_Milliseconds();
-        Com_Printf(0, "leon: quick turn (%s)\n", cl_leonRunTurn ? "back + run" : "back twice");
+        Com_Printf(0, "leon: quick turn (back + run)\n");
         cl_quickTurnYaw = yaw;
         cl_quickTurnTurned = 0.0f;
     }
@@ -1215,9 +1206,8 @@ void __cdecl CL_GamepadMove(int localClientNum, usercmd_s *cmd)
                 forward = CL_GamepadAxisValue(localClientNum, 1u);
                 side = CL_GamepadAxisValue(localClientNum, 0);
                 // mod: under RE4's tank controls the left stick's side turns him and only the sign of its forward counts
-                // (PM_TankControls): a little forward or back while turning walked him, and drifting below the centre
-                // tapped back (the quick turn's double tap). Forward under 0.3, or under half the side, is none; side
-                // under 0.15 is none.
+                // (PM_TankControls): a little forward or back while turning walked him. Forward under 0.3, or under
+                // half the side, is none; side under 0.15 is none.
                 if ( player_tankControls && player_tankControls->current.enabled )
                 {
                     if ( fabsf(forward) < 0.3f || fabsf(forward) * 2.0f < fabsf(side) )

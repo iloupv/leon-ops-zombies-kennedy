@@ -4,7 +4,7 @@ Resident Evil 4's Leon S. Kennedy in Call of Duty: Black Ops Zombies, played the
 own copies of both games, and Leon is built from your Resident Evil 4 on your own PC. Nothing from either game is in
 this repository or its releases.
 
-- Over-the-shoulder camera, RE4 tank controls (turning on the spot with RE4's own step-turn), the quick 180 turn,
+- Over-the-shoulder camera, RE4 tank controls (turning on the spot with RE4's own step-turn), RE4's quick 180 turn,
   and a sidestep while aiming
 - Laser sight with RE4's own aim sway (from RE4's aiming code); standing still, the mouse swings the camera around
   Leon, and aiming turns him to where it looks
@@ -26,7 +26,7 @@ this repository or its releases.
 | --- | --- | --- |
 | Walk / turn | W S / A D | Left stick |
 | Run | Shift (press once) | Hold A, or press L3 once |
-| Quick 180 turn | Back + Shift, or back twice | Back + A |
+| Quick 180 turn | S + Shift | Back + A |
 | Aim / fire | Right / left mouse | LT / RT |
 | Sidestep (aimed) | A D | Left stick |
 | Knife | Space | B or R3 |
