@@ -1728,10 +1728,7 @@ static void PM_TankControls(pmove_t *pm, float frametime)
     }
     const bool runKey = cmd->button_bits.testBit(1u);
     cmd->button_bits.resetBit(1u); // no BO1 sprint (stamina, lowered weapon): RE4's run instead
-    // (reloading he walks: RE4 has no running reload - it stops him -, and its standing reload over the run read as him
-    // raising the gun to aim; the run comes back with the reload's end, its latch kept: CL_LeonRun)
-    const bool reloadingNow = ps->weaponstate >= WEAPON_RELOADING_RIGHT && ps->weaponstate <= WEAPON_RELOAD_QUICK_EMPTY;
-    const bool running = runKey && cmd->forwardmove > 0 && !aiming && !reloadingNow;
+    const bool running = runKey && cmd->forwardmove > 0 && !aiming;
     const float full = ps->speed > 0 ? (float)ps->speed : 190.0f;
     // down (last stand: 6, 7) he lies in RE4's death: he neither turns nor crawls (BO1's prone crawl slid him along)
     if ( ps->pm_type == 6 || ps->pm_type == 7 )
