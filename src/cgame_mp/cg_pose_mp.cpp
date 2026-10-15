@@ -1260,12 +1260,13 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         CG_ShoulderAimCorrection(aimCorrection);
     }
     // the head's look (RE4's cPlNeck::move): toward the nearest live enemy within 5 m (197"), +-30 degrees of his
-    // facing (RE4's 45 swung his head round too far over the shoulder camera), 6 degrees a 30 Hz frame (180 a second)
-    // there and back; not while aiming or in a whole-body motion, nor for 1.5 s after the aim is let go (his head
-    // swung off the aim at once)
+    // facing (RE4's 45 swung his head round too far over the shoulder camera); not while aiming or in a whole-body
+    // motion, nor for 1.5 s after the aim is let go (his head swung off the aim at once). It moves as a spring (eased
+    // in and out, ~0.25 s to a look, ~0.15 s back): at RE4's even 180 degrees a second it set off and stopped dead,
+    // and snapped back in a frame as the aim came up - the head jerked toward a zombie and back
     if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
     {
-        static float s_look;
+        static float s_look, s_lookSpeed;
         static int s_lookTime = -1, s_aimTime = -100000;
         float want = 0.0f;
         if ( aimFrac >= 0.01f || cgameGlob->time < s_aimTime )
@@ -1302,9 +1303,17 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         const float dt = s_lookTime >= 0 && cgameGlob->time > s_lookTime && cgameGlob->time - s_lookTime < 250
                              ? (float)(cgameGlob->time - s_lookTime) * 0.001f : 0.0f;
         s_lookTime = cgameGlob->time;
-        const float step = (free ? 180.0f : 720.0f) * dt; // (back from a look at once when he aims or slashes)
-        s_look = want > s_look ? (want - s_look > step ? s_look + step : want)
-                               : (s_look - want > step ? s_look - step : want);
+        if ( dt > 0.0f )
+        {
+            // a critically damped spring toward the look (the smooth-damp step): quicker back to the front
+            const float omega = 2.0f / (free ? 0.25f : 0.15f);
+            const float x = omega * dt;
+            const float decay = 1.0f / (1.0f + x + 0.48f * x * x + 0.235f * x * x * x);
+            const float change = s_look - want;
+            const float pull = (s_lookSpeed + omega * change) * dt;
+            s_lookSpeed = (s_lookSpeed - omega * pull) * decay;
+            s_look = want + (change + pull) * decay;
+        }
         R_RuntimeXModel_SetLookYaw(s_look);
     }
     // RE4's recoil at 70 % (all of it read too big over the shoulder); an automatic's at a third of that (the light
