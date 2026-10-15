@@ -39,10 +39,11 @@ EVT_SOUNDS = [('merchant_amazing_1.wav', 14),  # 0xBD "Stranger, stranger, now t
               ('merchant_nocash.wav', 9)]      # 0xB8 "Not enough cash, stranger."
 # Leon's "Bingo?" in the village (st1/r101.cpp r101_Event30, the bell's event r101s30: its one Str packet plays event
 # stream 13 from frame 0 = bio4evt.xsb cue 13 = wave 138, the scene's whole pre-mixed soundtrack, 16-bit stereo 32 kHz;
-# the line's subtitle - message 4 - shows at event frame 990, 33.03 s): the word cut from it, 34.66 s to 35.12 s, the
-# music bed taken out (centre_voice: his voice is centred, the bed wide; the bed's own spectrum from the pause before
-# the word, 33.97 s to 34.65 s). (name, wave, start s, end s, bed start s, bed end s)
-EVT_CLIPS = [('leon_bingo.wav', 138, 34.66, 35.12, 33.97, 34.65)]
+# the line's subtitle - message 4 - shows at event frame 990, 33.03 s): the whole line cut from it, 32.95 s to
+# 35.12 s ("Where's everyone going?" from 33.01 s, "Bingo?" 34.69 s to 35.06 s), the music bed taken out
+# (centre_voice: his voice is centred, the bed wide; the bed's own spectrum from the pause between the two, 33.97 s
+# to 34.65 s). (name, wave, start s, end s, bed start s, bed end s)
+EVT_CLIPS = [('leon_bingo.wav', 138, 32.95, 35.12, 33.97, 34.65)]
 
 
 def waves(data):
