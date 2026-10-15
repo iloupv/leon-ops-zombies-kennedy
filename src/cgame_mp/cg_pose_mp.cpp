@@ -1327,12 +1327,17 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum && player_tankControls
          && player_tankControls->current.enabled )
     {
-        static int s_quickTurnTime = -100000;
+        // (nor 0.4 s after the aim: its body yaw is the shoulder camera's, out of it the view's - the switch reads as a
+        // quick turn, and a step-turn flashed under the aim's going)
+        static int s_quickTurnTime = -100000, s_aimedTime = -100000;
         if ( action == RT_ACTION_TURN || cgameGlob->time < s_quickTurnTime )
             s_quickTurnTime = cgameGlob->time;
+        if ( aimFrac >= 0.01f || cgameGlob->time < s_aimedTime )
+            s_aimedTime = cgameGlob->time;
         R_RuntimeXModel_SetPlayerMotion(aimFrac > 0.5f, aimFrac < 0.01f && action != RT_ACTION_TURN
                                                             && action != RT_ACTION_DEATH
-                                                            && cgameGlob->time - s_quickTurnTime > 350);
+                                                            && cgameGlob->time - s_quickTurnTime > 350
+                                                            && cgameGlob->time - s_aimedTime > 400);
     }
     R_RuntimeXModel_SetReloadFrom(reloadFrom);
     const float recoil = R_RuntimeXModel_PoseDObj(obj, origin, angles, cgameGlob->time, isPlayer, aimFrac, aimPitch,
