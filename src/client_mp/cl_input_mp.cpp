@@ -798,6 +798,16 @@ static void CL_LeonRun(int localClientNum, usercmd_s *cmd)
         cmd->button_bits.resetBit(1u);
 }
 
+// mod (the Leon mod, player_tankControls): what the player presses, forward (1), back (-1) or neither (0), for his
+// motion's cycle (R_RuntimeXModel_SetPlayerMotion): his measured motion trails a fast turn, and passes through
+// standing still when he reverses
+static int cl_leonMoveIntent;
+
+int __cdecl CL_LeonMoveIntent()
+{
+    return cl_leonMoveIntent;
+}
+
 static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
 {
     // the run key pressed going back (RE4's back + run: CL_LeonRun) - only that: back tapped twice also fired from a
@@ -937,6 +947,7 @@ usercmd_s *__cdecl CL_CreateCmd(usercmd_s *result, int localClientNum)
     CL_LeonRun(localClientNum, &cmd); // mod
     CL_LeonQuickTurn(localClientNum, &cmd); // mod
     CL_LeonSway(localClientNum, &cmd); // mod
+    cl_leonMoveIntent = cmd.forwardmove > 0 ? 1 : (cmd.forwardmove < 0 ? -1 : 0); // mod
     memcpy(result, &cmd, sizeof(usercmd_s));
     return result;
 }

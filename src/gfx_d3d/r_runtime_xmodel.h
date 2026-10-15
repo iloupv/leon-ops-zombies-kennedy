@@ -42,7 +42,7 @@ void __cdecl R_RuntimeXModel_SetFireWeight(float weight); // mod: how strongly a
 void __cdecl R_RuntimeXModel_SetFireRates(float kick, float settle); // mod: a shot's motion's rates: its kick, its settle
 // mod: the local player's locomotion for the next R_RuntimeXModel_PoseDObj: legs turned toward an aimed strafe, RE4's
 // turn in place when he turns standing; and the last such pose's turn in place (1 left, -1 right, 0 none)
-void __cdecl R_RuntimeXModel_SetPlayerMotion(bool strafeLegs, bool turnInPlace);
+void __cdecl R_RuntimeXModel_SetPlayerMotion(bool strafeLegs, bool turnInPlace, int moveIntent);
 // mod: where in RE4's reload the next R_RuntimeXModel_PoseDObj's reload action starts (0..1; a new gun's first raise)
 void __cdecl R_RuntimeXModel_SetReloadFrom(float from);
 int __cdecl R_RuntimeXModel_PlayerTurn();

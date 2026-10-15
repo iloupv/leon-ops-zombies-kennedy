@@ -1426,7 +1426,8 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         R_RuntimeXModel_SetPlayerMotion(aimFrac > 0.5f, aimFrac < 0.01f && action != RT_ACTION_TURN
                                                             && action != RT_ACTION_DEATH
                                                             && cgameGlob->time - s_quickTurnTime > 350
-                                                            && cgameGlob->time - s_aimedTime > 400);
+                                                            && cgameGlob->time - s_aimedTime > 400,
+                                        CL_LeonMoveIntent());
     }
     R_RuntimeXModel_SetReloadFrom(reloadFrom);
     // a minigun (the Death Machine: no aim down the sights) is held in the Typewriter's aim all the time - RE4's hip
