@@ -1746,8 +1746,9 @@ static void PM_TankControls(pmove_t *pm, float frametime)
     }
     else if ( cmd->rightmove )
     {
-        // aimed in he steps sideways at 80 % of the walk's pace (the Leon mod's choice: RE4 stands), his legs turned
-        // toward the step and his torso held on the aim (R_RuntimeXModel_SetPlayerMotion); the mouse still turns him
+        // aimed in he steps sideways at ~80 % of the walk's (20 % faster than RE4's walk; the Leon mod's choice: RE4
+        // stands), his legs turned toward the step and his torso held on the aim (R_RuntimeXModel_SetPlayerMotion);
+        // the mouse still turns him
         strafe = 127.0f * 0.8f * 1.2f * 68.0f / full;
         if ( player_strafeSpeedScale->current.value > 0.1f )
             strafe /= player_strafeSpeedScale->current.value; // PM_CmdScale slows a strafe by it
@@ -1758,9 +1759,9 @@ static void PM_TankControls(pmove_t *pm, float frametime)
     cmd->rightmove = (char)strafe;
     if ( !cmd->forwardmove ) // aimed in he still walks (the Leon mod's choice: RE4 stops him), never runs
         return;
-    // RE4's speeds, 20 % faster (the zombies keep up with RE4's own pace); the run reaches the player's top speed
+    // RE4's speeds, 30 % faster (the zombies keep up with RE4's own pace); the run reaches the player's top speed
     // (ps->speed) at ~14 % and stays there. The cycles play at the rate that matches (R_RuntimeXModel_PoseDObj).
-    const float speed = 1.2f * (cmd->forwardmove < 0 ? 77.0f : (running ? 167.0f : 68.0f));
+    const float speed = 1.3f * (cmd->forwardmove < 0 ? 77.0f : (running ? 167.0f : 68.0f));
     float move = 127.0f * speed / full;
     if ( cmd->forwardmove < 0 && player_backSpeedScale->current.value > 0.1f )
         move /= player_backSpeedScale->current.value; // PM_CmdScale slows a backpedal by it: RE4's back step is 77

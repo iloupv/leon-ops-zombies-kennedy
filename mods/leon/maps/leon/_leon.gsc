@@ -20,6 +20,20 @@ init()
 	level thread maps\leon\_helmet::init(); // Moon's astronaut helmet on him
 	maps\leon\_blood::init(); // more blood on his hits (its effects loaded now, with the level's)
 	level thread leon_game_over();
+	level thread leon_box_weapons();
+}
+
+// The Mystery Box keeps to the guns RE4's motions can hold: no dual wields (the CZ75s, and the HS10, which Pack-a-Punch
+// makes a pair: Leon holds one gun, the other floated in his left hand).
+leon_box_weapons()
+{
+	while ( !isDefined( level.zombie_weapons ) )
+		wait 0.5;
+	wait 0.5; // (all of the map's added)
+	out = strTok( "cz75dw_zm cz75dw_upgraded_zm hs10_zm", " " );
+	for ( i = 0; i < out.size; i++ )
+		if ( isDefined( level.zombie_weapons[ out[i] ] ) )
+			level.zombie_weapons[ out[i] ].is_in_box = false;
 }
 
 // The game lost (_zombiemode's end_game: solo with no Quick Revive he never dies - his health is put back and the game

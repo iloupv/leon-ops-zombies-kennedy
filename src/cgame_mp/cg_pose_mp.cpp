@@ -1023,6 +1023,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     // weapon time when it starts)
     RtAction action = RT_ACTION_NONE;
     float actionTime = 0.0f, actionDuration = 0.0f;
+    float reloadFrom = 0.0f; // where in RE4's reload a reload action starts (R_RuntimeXModel_SetReloadFrom)
     if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
     {
         static int s_frame = -1, s_lastState, s_lastWeaponTime, s_fireStart = -100000, s_reloadStart = -100000;
@@ -1136,6 +1137,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         // the weapon's reload by stages, when it reloads round by round and its motion set has them (the magnum's, the
         // shotgun's: converter's reload_start / reload_loop / reload_end)
         bool segmentedReload = false;
+        reloadFrom = 0.0f;
         {
             const WeaponDef *reloadDef = ps->weapon ? BG_GetWeaponDef(ps->weapon) : 0;
             const char *set = CG_RuntimeXModel_AnimSet(ps->weapon);
@@ -1203,9 +1205,12 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         }
         else if ( s_raiseStart > -100000 )
         {
-            // a new gun's first raise: its reload over BO1's raise time - a round-by-round one's close alone (the
-            // shotgun's pump, the revolver's cylinder shut), its whole reload too long for the raise
+            // a new gun's first raise: the end of its reload over BO1's raise time, the gun worked (its last 45 %: the
+            // slide, the bolt, the charging handle - the magazine changed whole looked odd on a new gun), a
+            // round-by-round one's close (the shotgun's pump, the revolver's cylinder shut)
             action = segmentedReload ? RT_ACTION_RELOAD_END : RT_ACTION_RELOAD;
+            if ( !segmentedReload )
+                reloadFrom = 0.55f;
             actionTime = (float)(cgameGlob->time - s_raiseStart) * 0.001f;
             actionDuration = (float)s_raiseLength * 0.001f;
         }
@@ -1302,18 +1307,18 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                                : (s_look - want > step ? s_look - step : want);
         R_RuntimeXModel_SetLookYaw(s_look);
     }
-    // an automatic's shots play RE4's recoil at a third (the light machine guns, the assault rifles, the SMGs: RE4's
-    // recoil, made for one shot at a time, restarted shot after shot and shook him), a burst's at half; one shot at a
-    // time keeps it whole
+    // RE4's recoil at 70 % (all of it read too big over the shoulder); an automatic's at a third of that (the light
+    // machine guns, the assault rifles, the SMGs: RE4's recoil, made for one shot at a time, restarted shot after shot
+    // and shook him), a burst's at half
     {
         const WeaponDef *fireDef = isPlayer && animWeapon ? BG_GetWeaponDef(animWeapon) : 0;
-        float fireWeight = 1.0f;
+        float fireWeight = 0.7f;
         if ( fireDef && (fireDef->weapClass == WEAPCLASS_MG || fireDef->fireType == WEAPON_FIRETYPE_FULLAUTO
                          || fireDef->fireType == WEAPON_FIRETYPE_MINIGUN) )
-            fireWeight = 0.35f;
+            fireWeight = 0.7f * 0.35f;
         else if ( fireDef && fireDef->fireType >= WEAPON_FIRETYPE_BURSTFIRE2
                   && fireDef->fireType <= WEAPON_FIRETYPE_BURSTFIRE4 )
-            fireWeight = 0.5f;
+            fireWeight = 0.7f * 0.5f;
         R_RuntimeXModel_SetFireWeight(fireWeight);
     }
     // the local player under RE4's controls: aimed in, his legs follow a strafe (PM_TankControls); not aimed, a turn on
@@ -1329,6 +1334,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                                                             && action != RT_ACTION_DEATH
                                                             && cgameGlob->time - s_quickTurnTime > 350);
     }
+    R_RuntimeXModel_SetReloadFrom(reloadFrom);
     const float recoil = R_RuntimeXModel_PoseDObj(obj, origin, angles, cgameGlob->time, isPlayer, aimFrac, aimPitch,
                                                   action, actionTime, actionDuration, aimCorrection,
                                                   !(isPlayer && player_tankControls && player_tankControls->current.enabled),

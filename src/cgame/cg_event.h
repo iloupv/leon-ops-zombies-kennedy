@@ -24,6 +24,7 @@ unsigned int __cdecl CG_PlayBoltedEffect(
                 int dobjHandle,
                 unsigned int boneName);
 void __cdecl CG_PlayFxOnTag(int localClientNum, centity_s *cent, int eventParm);
+int __cdecl CG_LeonStepSurface(); // mod: the ground's surface under the local player's last step
 void __cdecl CG_DoFootstepEvent(
                 int localClientNum,
                 centity_s *cent,
