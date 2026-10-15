@@ -216,7 +216,7 @@ void __cdecl R_RuntimeXModel_SetFireWeight(float weight)
     s_fireWeight = weight < 0.0f ? 0.0f : (weight > 1.0f ? 1.0f : weight);
 }
 
-// how fast a shot's motion plays on from its kick's peak (1: RE4's own; 2 twice as fast - the gun settled back onto
+// how fast a shot's motion plays on from its kick's peak (1: RE4's own; 2.3 for most guns - the gun settled back onto
 // the aim slowly, floating), set per frame by the player's weapon (CG_RuntimeXModel_Pose)
 static float s_fireSettle = 1.0f;
 

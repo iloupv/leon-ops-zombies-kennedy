@@ -5152,6 +5152,17 @@ void __cdecl BG_WeaponFireRecoil(const playerState_s *ps, float *recoilSpeed, fl
 LABEL_18:
     fPitchKicka = fPitchKick * fReducePercent;
     fYawKicka = fYawKick * fReducePercent;
+    // mod (the Leon mod, player_tankControls): an automatic's (or a burst's) kick sways the aim a little side to side
+    // instead of climbing - its laser rose straight up through a burst: a third of the climb, and a sideways kick of up
+    // to half of it, either way at random
+    if (player_tankControls && player_tankControls->current.enabled
+        && (weapDef2->fireType == WEAPON_FIRETYPE_FULLAUTO || weapDef2->fireType == WEAPON_FIRETYPE_MINIGUN
+            || (weapDef2->fireType >= WEAPON_FIRETYPE_BURSTFIRE2 && weapDef2->fireType <= WEAPON_FIRETYPE_BURSTFIRE4)))
+    {
+        const float climb = fPitchKicka;
+        fPitchKicka = climb * 0.3f;
+        fYawKicka = (bgs->Random() * 2.0f - 1.0f) * fabsf(climb) * 0.5f;
+    }
     if (weapDef2->weapType == WEAPTYPE_GAS && *kickAVel == 0.0)
     { 
         *kickAVel = *kickAVel - 0.001;
