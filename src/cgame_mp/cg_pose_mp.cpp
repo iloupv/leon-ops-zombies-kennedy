@@ -1052,20 +1052,22 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             s_frame = cgameGlob->time;
             if ( firing && (state != s_lastState || ps->weaponTime > s_lastWeaponTime + 1) )
             {
-                // a shot overrides a slash or a throw still holding the action (theirs runs 2 s, their motions end
-                // sooner: the shot's recoil did not play after a slash)
+                // a shot overrides a slash, a throw or the kick still holding the action (theirs runs 2 s, their motions
+                // end sooner: the shot's recoil did not play after a slash)
                 s_fireStart = cgameGlob->time;
-                s_knifeStart = s_throwStart = -100000;
+                s_knifeStart = s_throwStart = s_kickStart = -100000;
             }
             // a melee (Space under tank controls: CL_LeonQuickTurn) slashes the knife; a grenade's throw (its
             // release: BO1's offhand start) throws
             // each new action overrides the one playing: a slash a hit reaction, a reload a hit or a slash, the kick
-            // all three (its reload is dropped: PM_TankControls) - the one overridden came back halfway through after it
+            // all three (its reload is dropped: PM_TankControls) - the one overridden came back halfway through after it.
+            // A shot, a slash or a reload the kick (none can start through it, PM_TankControls: only after its motion
+            // has ended, at 1.13 s, while its action ran 2 s - a reload right after it showed from 2 s, part way in)
             if ( (state == WEAPON_MELEE_INIT || state == WEAPON_MELEE_FIRE) && s_lastState != WEAPON_MELEE_INIT
                  && s_lastState != WEAPON_MELEE_FIRE )
             {
                 s_knifeStart = cgameGlob->time;
-                s_leonHitStart = -100000;
+                s_leonHitStart = s_kickStart = -100000;
             }
             const dvar_s *kickStamp = Dvar_FindVar("leon_kick_stamp");
             const int stamp = kickStamp && kickStamp->type == DVAR_TYPE_STRING && kickStamp->current.string
@@ -1116,7 +1118,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             {
                 s_reloadStart = cgameGlob->time;
                 s_reloadLength = CG_RuntimeXModel_ReloadMsec(ps, ps->weaponTime > 300 ? ps->weaponTime : 300);
-                s_leonHitStart = s_knifeStart = -100000;
+                s_leonHitStart = s_knifeStart = s_kickStart = -100000;
             }
             const WeaponDef *raiseDef = ps->weapon ? BG_GetWeaponDef(ps->weapon) : 0;
             const char *raiseName = ps->weapon ? BG_WeaponName(ps->weapon) : "";
@@ -1240,6 +1242,15 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         R_RuntimeXModel_RootYaw("knife", 0.0f, &knifeYaw, &knifeLength);
         s_leonKnifeOut = action == RT_ACTION_KNIFE && actionTime < knifeLength - 0.1f;
         s_leonGrenadeOut = action == RT_ACTION_THROW_READY;
+        // (tests: each change of his action, and where in it he is)
+        static int s_loggedAction = -1, s_loggedTime;
+        if ( (int)action != s_loggedAction && s_loggedTime != cgameGlob->time && R_RuntimeXModel_DvarOn("leon_actionlog") )
+        {
+            Com_Printf(0, "leon: action %d at %d, %.2f s in (weaponstate %d)\n", (int)action, cgameGlob->time, actionTime,
+                       ps->weaponstate);
+            s_loggedAction = (int)action;
+            s_loggedTime = cgameGlob->time;
+        }
     }
     // the weapon whose motion set he moves with: the local player's predicted one, another player's from his entity
     unsigned int animWeapon = 0;

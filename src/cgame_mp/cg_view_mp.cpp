@@ -3084,18 +3084,34 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
     AxisToQuat(orient.axis, placement.base.quat);
     // RE4's line (esp19's Draw_line3d_local_222) fades out over max_laser_dist (12000 mm: 472"), where it ends; here
     // the fade thins the segments (each as long as it is wide), so they stay end to end. It starts at the muzzle
-    // (RE4's starts 500 mm past it, which leaves a gap behind the shoulder camera)
+    // (RE4's starts 500 mm past it, which leaves a gap behind the shoulder camera). Whole segments up to the end, the
+    // rest in halving pieces (8, 4, 2, 1 at the segment's scale): a whole last segment ran on up to 16 units past the
+    // dot - through a zombie close in front
     const float laserMax = 472.0f;
     const float lineEnd = length < laserMax ? length : laserMax;
     int segment = 0;
-    for (float d = 0.0f; d < lineEnd && segment < 128; ++segment)
+    float d = 0.0f;
+    for (; segment < 124; ++segment)
     {
         const float rate = 1.0f - d / laserMax;
         placement.scale = rate > 0.15f ? rate : 0.15f;
+        if (d + 16.0f * placement.scale > lineEnd)
+            break;
         for (int k = 0; k < 3; ++k)
             placement.base.origin[k] = orient.origin[k] + orient.axis[0][k] * d;
         R_FilterXModelIntoScene(beam, &placement, 0, &lighting[segment], 0.0f);
         d += 16.0f * placement.scale;
+    }
+    for (int p = 0; p < 4 && segment < 128; ++p)
+    {
+        const XModel *piece = R_RuntimeXModel_LaserPiece(p);
+        const float pieceLength = (float)(8 >> p) * placement.scale;
+        if (!piece || d + pieceLength > lineEnd)
+            continue;
+        for (int k = 0; k < 3; ++k)
+            placement.base.origin[k] = orient.origin[k] + orient.axis[0][k] * d;
+        R_FilterXModelIntoScene(piece, &placement, 0, &lighting[segment++], 0.0f);
+        d += pieceLength;
     }
     // RE4's dot (drawPoint): where the line hits, facing the camera (round), sized with the camera's distance:
     // 0.8 + dist / 8000 mm (315"), at most 3
