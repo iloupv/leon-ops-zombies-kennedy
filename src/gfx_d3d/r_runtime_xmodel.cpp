@@ -1467,6 +1467,7 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
         ~PlayerMotionReset() { s_strafeLegs = s_turnInPlace = s_stepWatch = false; }
     } playerMotionReset;
     const bool strafeLegs = s_strafeLegs, turnInPlace = s_turnInPlace;
+    const bool tankPlayer = s_stepWatch; // the local player under RE4's tank controls (R_RuntimeXModel_SetPlayerMotion)
     const float reloadFrom = s_reloadFrom;
     s_reloadFrom = 0.0f;
     if ( s_anims.empty() || !obj->numModels || !obj->skel.mat )
@@ -1649,8 +1650,10 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
         if ( b == 0 && !(obj->skel.partBits.skel[0] & 0x80000000)
              && (isPlayer || !(obj->skel.partBits.anim[0] & 0x80000000)) )
         {
-            // aiming: facing the aim (but for the strafing legs: the torso is turned back onto it at the spine)
-            const float half = st.bodyYaw * (aimLevel >= 0 && !strafeLegs ? 1.0f - aimFrac : 1.0f) * 0.5f * 0.017453292f;
+            // aiming: facing the aim (but for the strafing legs: the torso is turned back onto it at the spine - for
+            // the player under tank controls always, aimed or not, his legs easing back under him)
+            const float half = st.bodyYaw * (aimLevel >= 0 && !strafeLegs && !tankPlayer ? 1.0f - aimFrac : 1.0f) * 0.5f
+                               * 0.017453292f;
             float quat[4] = { 0.0f, 0.0f, sinf(half), cosf(half) };
             if ( isPlayer )
             {
@@ -1723,9 +1726,11 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             for ( int k = 0; k < 4; ++k )
                 mat->quat[k] = out[k];
         }
-        if ( b == cur.spineBone && isPlayer && strafeLegs && st.bodyYaw != 0.0f )
+        if ( b == cur.spineBone && isPlayer && (strafeLegs || tankPlayer) && st.bodyYaw != 0.0f )
         {
-            // the strafe: the hips turned toward the step (the root, above), the torso turned back onto the aim
+            // the strafe: the hips turned toward the step (the root, above), the torso turned back onto the aim; not
+            // only while strafing (aimed past half way): the aim let go, the hips' turn went to his torso at once - his
+            // head and torso jumped by half of it and eased back (a strafe's, or a zombie's or a wall's nudge's)
             const float yaw = -st.bodyYaw * 0.5f * 0.017453292f;
             const float qy[4] = { 0.0f, 0.0f, sinf(yaw), cosf(yaw) };
             float out[4];
