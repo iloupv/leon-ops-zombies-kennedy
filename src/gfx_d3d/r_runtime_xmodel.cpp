@@ -83,6 +83,8 @@ struct RtAnim
     int neckChain[8];    // its parents below the root, root side first (their local rotations: its parent's frame)
     int neckChainCount;
     int recoilPeak;      // a shot's motion: the frame its kick peaks (the upper body turned most from its first); 0
+    int reloadRaise;     // a reload's motion: the frame its raise back to RE4's aim starts (its last half's farthest
+                         // from its end pose); 0
 };
 // the local player's head look (R_RuntimeXModel_SetLookYaw): degrees about up, for the next PoseDObj only
 static float s_lookYaw;
@@ -905,6 +907,37 @@ static const XModel *RtBuildModel(const char *name, const void *data, int size, 
             if ( R_RuntimeXModel_DvarOn("leon_actionlog") ) // (tests)
                 Com_Printf(0, "runtime model: '%s' kick peaks at frame %d of %d\n", anim.name, anim.recoilPeak,
                            anim.frameCount);
+        }
+        // a reload's raise back to the aim: in its last half, the frame whose upper body is turned farthest from its
+        // last (RE4 reloads from its aim and ends raising the gun back up to it)
+        anim.reloadRaise = 0;
+        if ( !strcmp(colon ? colon + 1 : anim.name, "reload") && anim.frameCount > 4 )
+        {
+            const float *last = anim.frames + (size_t)(anim.frameCount - 1) * anim.boneCount * 7;
+            float most = -1.0f;
+            for ( int f = anim.frameCount / 2; f < anim.frameCount - 1; ++f )
+            {
+                float turned = 0.0f;
+                for ( int b = 0; b < anim.boneCount; ++b )
+                {
+                    if ( !upperBody[b] )
+                        continue;
+                    const float *q0 = last + (size_t)b * 7, *q = anim.frames + ((size_t)f * anim.boneCount + b) * 7;
+                    turned += 1.0f - fabsf(q0[0] * q[0] + q0[1] * q[1] + q0[2] * q[2] + q0[3] * q[3]);
+                }
+                if ( turned > most )
+                {
+                    most = turned;
+                    anim.reloadRaise = f;
+                }
+            }
+            // (farthest at the half's very start: no raise of its own found - it moves toward its end all through the
+            // half, the magazine still going in there (the Killer7's at 44 of 55) - played whole, as before)
+            if ( anim.reloadRaise <= anim.frameCount / 2 + 1 )
+                anim.reloadRaise = 0;
+            if ( R_RuntimeXModel_DvarOn("leon_actionlog") ) // (tests)
+                Com_Printf(0, "runtime model: '%s' raises back to the aim from frame %d of %d\n", anim.name,
+                           anim.reloadRaise, anim.frameCount);
         }
         s_anims.push_back(anim);
     }
@@ -1734,6 +1767,18 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             actionPhase = (reloadFrom + t * (1.0f - reloadFrom)) * (float)(reload.frameCount - 1);
             const float fade = 0.15f / actionDuration; // 0.15 s in and out
             actionWeight = t < fade ? t / fade : (1.0f - t < fade ? (1.0f - t) / fade : 1.0f);
+            // RE4's reload ends raising the gun back to its aim (it reloads aimed in): BO1 reloads unaimed, so it holds
+            // where that raise starts and eases back into his stance over the rest of the reload - he put the gun up as
+            // if to aim before lowering it (the magazine's frames, before it, keep their times)
+            if ( reload.reloadRaise > 0 && actionPhase > (float)reload.reloadRaise )
+            {
+                const float span = (float)(reload.frameCount - 1 - reload.reloadRaise);
+                float k = span > 0.0f ? (actionPhase - (float)reload.reloadRaise) / span : 1.0f;
+                k = k > 1.0f ? 1.0f : k;
+                actionPhase = (float)reload.reloadRaise;
+                const float out = 1.0f - k * k * (3.0f - 2.0f * k);
+                actionWeight = actionWeight < out ? actionWeight : out;
+            }
         }
     }
     else if ( (action == RT_ACTION_RELOAD_START || action == RT_ACTION_RELOAD_LOOP || action == RT_ACTION_RELOAD_END)
