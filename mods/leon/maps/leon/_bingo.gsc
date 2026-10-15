@@ -1,14 +1,15 @@
 #include maps\_utility;
 #include common_scripts\utility;
 
-// LEON MOD - not part of the original game. Leon's "Bingo?" (the runtime sound leon_bingo, from the player's own RE4:
-// tools/leon-converter/leon_sounds.py) as a special round starts: the Hellhound rounds (_zombiemode_ai_dogs' flag
+// LEON MOD - not part of the original game. Leon's "Where's everyone going? Bingo?" (the runtime sound leon_bingo, from
+// the player's own RE4: tools/leon-converter/leon_sounds.py) once at the start of a map, ~9.5 s in, and as a special
+// round starts: the Hellhound rounds (_zombiemode_ai_dogs' flag
 // "dog_round"), "Five"'s thief (flag "thief_round"), the monkey rounds (flag "monkey_round") and Moon's crawler rounds
 // (level notify "crawler_round_starting"). Once a round, 6.5 s in: after the round's own start has played (the dog
 // round's stinger, zmb_dog_round_start, runs 5.7 s, its announcer from 1 s in under it); no line when the sound is
 // not there.
 //   leon_bingo 0     off
-//   leon_bingotest 1 test: the line as if a special round started, 3 s into the level
+//   leon_bingostart 0  not at the start of the map
 //   leon_soundlen "<alias> ..."  test: each alias played in turn, its length logged (headless: bo1_snd_nodevice_length)
 
 init()
@@ -17,8 +18,8 @@ init()
 		return;
 	level thread leon_bingo_flags();
 	level thread leon_bingo_notify( "crawler_round_starting" );
-	if ( getDvar( "leon_bingotest" ) == "1" )
-		level thread leon_bingo_test();
+	if ( getDvar( "leon_bingostart" ) != "0" )
+		level thread leon_bingo_start();
 	if ( getDvar( "leon_soundlen" ) != "" )
 		level thread leon_sound_lengths( getDvar( "leon_soundlen" ) );
 }
@@ -65,10 +66,17 @@ leon_bingo_notify( name )
 	}
 }
 
-leon_bingo_test()
+// at the start of the map, once its player is in: 3 s, then the special round's 6.5 s (leon_bingo_say)
+leon_bingo_start()
 {
+	players = getEntArray( "player", "classname" );
+	while ( players.size == 0 )
+	{
+		wait 0.5;
+		players = getEntArray( "player", "classname" );
+	}
 	wait 3;
-	level thread leon_bingo_say( "test" );
+	level thread leon_bingo_say( "start" );
 }
 
 leon_bingo_say( why )
