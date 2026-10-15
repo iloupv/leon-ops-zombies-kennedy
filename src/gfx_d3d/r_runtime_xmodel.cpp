@@ -250,6 +250,17 @@ void __cdecl R_RuntimeXModel_SetReloadFrom(float from)
     s_reloadFrom = from < 0.0f ? 0.0f : (from > 0.95f ? 0.95f : from);
 }
 
+// the motion set the next R_RuntimeXModel_PoseDObj's reload comes from when it is not its animSet's (a gun posed with
+// one RE4 weapon's motions and reloaded with another's: the Ray Gun's magnum stance, the handgun's reload); 0 its own
+static const char *s_reloadSet;
+static bool s_reloadSetGiven;
+
+void __cdecl R_RuntimeXModel_SetReloadSet(const char *set)
+{
+    s_reloadSet = set;
+    s_reloadSetGiven = true;
+}
+
 void __cdecl R_RuntimeXModel_SetPlayerMotion(bool strafeLegs, bool turnInPlace, int moveIntent)
 {
     s_strafeLegs = strafeLegs;
@@ -1612,6 +1623,9 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     const bool tankPlayer = s_stepWatch; // the local player under RE4's tank controls (R_RuntimeXModel_SetPlayerMotion)
     const float reloadFrom = s_reloadFrom;
     s_reloadFrom = 0.0f;
+    const char *const reloadSet = s_reloadSetGiven ? s_reloadSet : animSet; // (for this call only)
+    s_reloadSetGiven = false;
+    s_reloadSet = 0;
     if ( s_anims.empty() || !obj->numModels || !obj->skel.mat )
         return 0.0f;
     const XModel *model = obj->localModels[0];
@@ -1758,7 +1772,7 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     }
     else if ( action == RT_ACTION_RELOAD && actionDuration > 0.0f )
     {
-        actionAnim = RtFindSetAnim(model, animSet, "reload");
+        actionAnim = RtFindSetAnim(model, reloadSet, "reload");
         if ( actionAnim >= 0 )
         {
             const RtAnim &reload = s_anims[actionAnim];

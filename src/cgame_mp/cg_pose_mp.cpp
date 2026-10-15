@@ -855,8 +855,11 @@ static const char *CG_RuntimeXModel_AnimSet(unsigned int weapon)
     case WEAPCLASS_ROCKETLAUNCHER:
         return "launcher";
     case WEAPCLASS_PISTOL:
-        // the Python: the Broken Butterfly (a revolver, round by round); the others (the M1911, the Ray Gun...): the
-        // handgun (the Killer7's heavy two-handed shot felt like a magnum on the starting pistol)
+        // the Python: the Broken Butterfly (a revolver, round by round); the Ray Gun: the Handcannon's stance and heavy
+        // shot (reloaded as the handgun: CG_RuntimeXModel_ReloadSet); the others (the M1911...): the handgun (the
+        // Killer7's heavy two-handed shot felt like a magnum on the starting pistol)
+        if ( strstr(name, "ray_gun") )
+            return "magnum";
         return strstr(name, "python") ? "revolver" : 0;
     case WEAPCLASS_RIFLE:
         // bolt actions (Kar98k, L96, Scavenger): the rifle; the scoped semi-automatics (Dragunov): the semi-auto rifle
@@ -880,6 +883,16 @@ static const char *CG_RuntimeXModel_AnimSet(unsigned int weapon)
     }
 }
 
+
+// the set a gun's reload motion comes from: its own set's, but the Ray Gun's - posed and fired as the magnum, reloaded
+// as the handgun (the Handcannon's is a revolver's cylinder reload; the Ray Gun swaps a cell)
+static const char *CG_RuntimeXModel_ReloadSet(unsigned int weapon)
+{
+    const WeaponVariantDef *variant = weapon ? BG_GetWeaponVariantDef(weapon) : 0;
+    if ( variant && variant->szInternalName && strstr(variant->szInternalName, "ray_gun") )
+        return 0;
+    return CG_RuntimeXModel_AnimSet(weapon);
+}
 
 // mod: the local player's hit (CG_TransitionPlayerState's damage feedback): RE4's front or back reaction, by where the
 // damage came from against his facing, and his pain grunt (the runtime sound "leon_pain": RE4's SE 9 / 10 / 11);
@@ -1275,8 +1288,11 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         // (R_RuntimeXModel_PoseDObj's: stretched over BO1's reload, from reloadFrom); a first raise starts past it
         bool clipOut = false;
         float outFrame, inFrame;
-        const char *clipSet = CG_RuntimeXModel_AnimSet(ps->weapon);
-        if ( action == RT_ACTION_RELOAD && actionDuration > 0.0f && CG_RuntimeXModel_ClipFrames(clipSet, &outFrame, &inFrame) )
+        const char *clipSet = CG_RuntimeXModel_ReloadSet(ps->weapon);
+        // (not a new gun's first raise: the reload's end over it works the gun, its magazine in - from 55 % on, the
+        // handgun's raise started inside the magazine's window and hid it for a moment)
+        if ( action == RT_ACTION_RELOAD && reloadFrom <= 0.0f && actionDuration > 0.0f
+             && CG_RuntimeXModel_ClipFrames(clipSet, &outFrame, &inFrame) )
         {
             float clipYaw, clipLength = 0.0f;
             if ( !(clipSet && R_RuntimeXModel_RootYaw(va("%s:reload", clipSet), 0.0f, &clipYaw, &clipLength)) )
@@ -1430,6 +1446,8 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                                         CL_LeonMoveIntent());
     }
     R_RuntimeXModel_SetReloadFrom(reloadFrom);
+    if ( isPlayer && animWeapon )
+        R_RuntimeXModel_SetReloadSet(CG_RuntimeXModel_ReloadSet(animWeapon));
     // a minigun (the Death Machine: no aim down the sights) is held in the Typewriter's aim all the time - RE4's hip
     // stance - turned up and down with the view: unaimed it hung at his side, at the floor, while its shots left from
     // the view (his eye); the rest (his turn, his head's look) goes by the real aim
