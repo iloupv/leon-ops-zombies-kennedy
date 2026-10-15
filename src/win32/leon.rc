@@ -1,0 +1,3 @@
+// mod (the Leon mod): the exe's icon - resource 1, which the game window's class loads (win_main.cpp, win_syscon.cpp)
+// and Explorer shows; drawn by tools/leon-icon/make_icon.py
+1 ICON "leon.ico"

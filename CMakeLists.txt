@@ -108,6 +108,10 @@ target_link_libraries(BO1Zombies PUBLIC delayimp.lib)
 
 set_target_properties(BO1Zombies PROPERTIES WIN32_EXECUTABLE TRUE)
 
+# The exe's icon (resource 1: the game window's class loads it; Explorer shows it): the Leon mod's, drawn by
+# tools/leon-icon/make_icon.py
+target_sources(BO1Zombies PRIVATE "${SRC_DIR}/win32/leon.rc")
+
 # Set the VS debugger's working directory to the build-output dir for whichever config is active 
 set_target_properties(BO1Zombies PROPERTIES
     VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_BINARY_DIR}/$<CONFIG>"
