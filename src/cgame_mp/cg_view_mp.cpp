@@ -3050,6 +3050,8 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
         float wantAngles[3], barrelAngles[3];
         vectoangles(want, wantAngles);
         vectoangles(orient.axis[0], barrelAngles);
+        if (R_RuntimeXModel_DvarOn("leon_barrellog")) // (tests: the barrel's way each frame, its recoil's smoothness)
+            Com_Printf(0, "leon: barrel at %d pitch %.2f yaw %.2f\n", cgameGlob->time, barrelAngles[0], barrelAngles[1]);
         const float dt = (float)cgameGlob->frametime * 0.001f;
         const float k = dt * 20.0f < 1.0f ? dt * 20.0f : 1.0f; // tight: a swing leaves the barrel little behind
         // the body's own turn this frame (the shoulder camera's yaw, which turns him past the dead zone)

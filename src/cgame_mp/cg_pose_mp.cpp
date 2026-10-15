@@ -1066,9 +1066,11 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     RtAction action = RT_ACTION_NONE;
     float actionTime = 0.0f, actionDuration = 0.0f;
     float reloadFrom = 0.0f; // where in RE4's reload a reload action starts (R_RuntimeXModel_SetReloadFrom)
+    float firePrev = -1.0f; // a shot's: seconds since the shot before it (R_RuntimeXModel_SetFirePrev)
     if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
     {
         static int s_frame = -1, s_lastState, s_lastWeaponTime, s_fireStart = -100000, s_reloadStart = -100000;
+        static int s_prevFireStart = -100000; // the shot before (its motion crossfades into the new one's)
         static int s_knifeStart = -100000, s_throwStart = -100000, s_readyStart = -100000;
         static int s_kickStart = -100000, s_kickStamp; // the script's kick (leon_kick_stamp: its time at the kick)
         static int s_reloadLength = 1;
@@ -1089,6 +1091,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             if ( cgameGlob->time < s_frame )
             {
                 s_fireStart = s_reloadStart = s_knifeStart = s_throwStart = -100000; // a new level / restart
+                s_prevFireStart = -100000;
                 s_leonHitStart = -100000;
             }
             s_frame = cgameGlob->time;
@@ -1096,6 +1099,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             {
                 // a shot overrides a slash, a throw or the kick still holding the action (theirs runs 2 s, their motions
                 // end sooner: the shot's recoil did not play after a slash)
+                s_prevFireStart = cgameGlob->time - s_fireStart < 3000 ? s_fireStart : -100000;
                 s_fireStart = cgameGlob->time;
                 s_knifeStart = s_throwStart = s_kickStart = -100000;
             }
@@ -1262,6 +1266,8 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         {
             action = RT_ACTION_FIRE;
             actionTime = (float)(cgameGlob->time - s_fireStart) * 0.001f;
+            if ( s_prevFireStart > -100000 )
+                firePrev = (float)(cgameGlob->time - s_prevFireStart) * 0.001f;
         }
         if ( cg_thirdPersonActionTest->current.integer == 1 )
         {
@@ -1409,6 +1415,11 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         else if ( fireDef && fireDef->fireType >= WEAPON_FIRETYPE_BURSTFIRE2
                   && fireDef->fireType <= WEAPON_FIRETYPE_BURSTFIRE4 )
             fireWeight = 0.7f * 0.5f;
+        // the Ray Gun's (the Handcannon's shot, fired full-auto) at a third of an automatic's: RE4's magnum kick threw
+        // the barrel up 38 degrees at every shot, ~12 now
+        const WeaponVariantDef *fireVariant = isPlayer && animWeapon ? BG_GetWeaponVariantDef(animWeapon) : 0;
+        if ( fireVariant && fireVariant->szInternalName && strstr(fireVariant->szInternalName, "ray_gun") )
+            fireWeight = 0.7f * 0.35f / 3.0f;
         R_RuntimeXModel_SetFireWeight(fireWeight);
         // and its settle back onto the aim 2.3 times as fast as RE4's (it floated back; at twice still a touch soft);
         // an automatic's kick and settle at 3 (RE4's kick never peaked between its shots: a slow push); not where the
@@ -1446,6 +1457,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                                         CL_LeonMoveIntent());
     }
     R_RuntimeXModel_SetReloadFrom(reloadFrom);
+    R_RuntimeXModel_SetFirePrev(firePrev);
     if ( isPlayer && animWeapon )
         R_RuntimeXModel_SetReloadSet(CG_RuntimeXModel_ReloadSet(animWeapon));
     // a minigun (the Death Machine: no aim down the sights) is held in the Typewriter's aim all the time - RE4's hip
