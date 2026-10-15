@@ -5,7 +5,8 @@ RE4 plays them with SndCall(1, n) (the player block): PlSetDamageSe picks pain S
 Pl_R0_Die SE 0xD (game/pl_dmg.cpp); pl00.xsb's cues 9 / 10 / 11 / 13 play waves 39 / 38 / 37 / 33.
 
 usage: python -I leon_sounds.py <pl00.xwb> <out dir>   (writes leon_pain_1..3.wav, leon_death.wav, the kick's; with
-core.xwb next to pl00.xwb also leon_pickup.wav, with bio4evt.xwb the Merchant's lines: merchant_*.wav)"""
+core.xwb next to pl00.xwb also leon_pickup.wav, with bio4evt.xwb the Merchant's lines: merchant_*.wav, and Leon's
+"Bingo?": leon_bingo.wav)"""
 import array
 import math
 import mmap
@@ -36,6 +37,12 @@ EVT_SOUNDS = [('merchant_amazing_1.wav', 14),  # 0xBD "Stranger, stranger, now t
               ('merchant_weak_1.wav', 8),      # 0xB7 "Is that all, stranger?"
               ('merchant_buyin.wav', 12),      # 0xBB "What're ya buyin'?"
               ('merchant_nocash.wav', 9)]      # 0xB8 "Not enough cash, stranger."
+# Leon's "Bingo?" in the village (st1/r101.cpp r101_Event30, the bell's event r101s30: its one Str packet plays event
+# stream 13 from frame 0 = bio4evt.xsb cue 13 = wave 138, the scene's whole pre-mixed soundtrack, 16-bit stereo 32 kHz;
+# the line's subtitle - message 4 - shows at event frame 990, 33.03 s): the word cut from it, 34.66 s to 35.12 s, the
+# music bed taken out (centre_voice: his voice is centred, the bed wide; the bed's own spectrum from the pause before
+# the word, 33.97 s to 34.65 s). (name, wave, start s, end s, bed start s, bed end s)
+EVT_CLIPS = [('leon_bingo.wav', 138, 34.66, 35.12, 33.97, 34.65)]
 
 
 def waves(data):
@@ -73,6 +80,99 @@ def loud(pcm, target_db=-12.0, knee=0.7):
     return out.tobytes()
 
 
+def fft(x, inverse=False):
+    """In-place iterative radix-2 FFT of a list of complex numbers (its length a power of two)."""
+    n = len(x)
+    j = 0
+    for i in range(1, n):
+        bit = n >> 1
+        while j & bit:
+            j ^= bit
+            bit >>= 1
+        j |= bit
+        if i < j:
+            x[i], x[j] = x[j], x[i]
+    size = 2
+    sign = 1.0 if inverse else -1.0
+    while size <= n:
+        w = complex(math.cos(2.0 * math.pi / size), sign * math.sin(2.0 * math.pi / size))
+        half = size // 2
+        for start in range(0, n, size):
+            wk = 1.0 + 0.0j
+            for k in range(start, start + half):
+                t = wk * x[k + half]
+                x[k + half] = x[k] - t
+                x[k] = x[k] + t
+                wk *= w
+        size *= 2
+    if inverse:
+        for i in range(n):
+            x[i] /= n
+    return x
+
+
+def centre_voice(left, right, bed_left, bed_right, n=1024, hop=256):
+    """A centred voice out of a wide stereo mix (floats, -1..1): per short-time spectrum bin the two channels' mid,
+    kept as far as they agree (a centred source is the same in both: 2 Re(L conj R) / (|L|^2 + |R|^2) near 1), less
+    the bed's own level there (spectral subtraction, the bed measured from bed_left / bed_right, a stretch without
+    the voice). Returns the mono voice, as long as the input."""
+    window = [0.5 - 0.5 * math.cos(2.0 * math.pi * i / n) for i in range(n)]
+
+    def frames(sig):
+        padded = [0.0] * n + list(sig) + [0.0] * n
+        for start in range(0, len(padded) - n + 1, hop):
+            yield start, [complex(padded[start + i] * window[i], 0.0) for i in range(n)]
+
+    # the bed: its mean magnitude per bin over the stretch without the voice
+    bed = [0.0] * n
+    count = 0
+    for (_s, l), (_t, r) in zip(frames(bed_left), frames(bed_right)):
+        fl, fr = fft(l), fft(r)
+        for k in range(n):
+            bed[k] += abs((fl[k] + fr[k]) * 0.5)
+        count += 1
+    bed = [b / max(1, count) for b in bed]
+    length = len(left)
+    out = [0.0] * (length + 2 * n)
+    norm = [0.0] * (length + 2 * n)
+    for (start, l), (_t, r) in zip(frames(left), frames(right)):
+        fl, fr = fft(l), fft(r)
+        mid = []
+        for k in range(n):
+            a, b = fl[k], fr[k]
+            power = abs(a) ** 2 + abs(b) ** 2
+            agree = 2.0 * (a * b.conjugate()).real / power if power > 1e-12 else 0.0
+            agree = max(0.0, agree) ** 2
+            m = (a + b) * 0.5
+            mag = abs(m)
+            kept = max(0.0, mag - 1.5 * bed[k]) / mag if mag > 1e-12 else 0.0
+            mid.append(m * agree * kept)
+        back = fft(mid, inverse=True)
+        for i in range(n):
+            out[start + i] += back[i].real * window[i]
+            norm[start + i] += window[i] * window[i]
+    return [out[n + i] / norm[n + i] if norm[n + i] > 1e-6 else 0.0 for i in range(length)]
+
+
+def clip_voice(pcm, rate, start, end, bed_start, bed_end, fade=0.01):
+    """The 16-bit stereo PCM's start..end seconds, its centred voice alone (centre_voice), faded in and out over fade
+    seconds; mono 16-bit PCM."""
+    samples = array.array('h', bytes(pcm))
+
+    def stereo(a, b):
+        i, j = int(a * rate), int(b * rate)
+        return ([samples[2 * f] / 32768.0 for f in range(i, j)], [samples[2 * f + 1] / 32768.0 for f in range(i, j)])
+
+    left, right = stereo(start, end)
+    bed_left, bed_right = stereo(bed_start, bed_end)
+    voice = centre_voice(left, right, bed_left, bed_right)
+    ramp = max(1, int(fade * rate))
+    for i in range(min(ramp, len(voice))):
+        voice[i] *= i / ramp
+        voice[-1 - i] *= i / ramp
+    return array.array('h', [int(max(-1.0, min(1.0, v)) * 32767.0) for v in voice]).tobytes()
+
+
 def wav(channels, rate, bits, pcm):
     align = channels * bits // 8
     return (b'RIFF' + struct.pack('<I', 36 + len(pcm)) + b'WAVE'
@@ -91,6 +191,7 @@ if __name__ == '__main__':
     evt = os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), 'bio4evt.xwb')
     if os.path.exists(evt):
         sounds += [(evt, name, index) for name, index in EVT_SOUNDS]
+        sounds += [(evt, clip[0], clip) for clip in EVT_CLIPS]
     else:
         print(f'no {evt}: no Merchant')
     banks = {}
@@ -98,11 +199,17 @@ if __name__ == '__main__':
         if path not in banks:
             with open(path, 'rb') as f:  # (mapped: read only what the waves need)
                 banks[path] = waves(mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ))
+        clip = index if isinstance(index, tuple) else None
+        if clip:
+            index = clip[1]
         channels, rate, bits, pcm = banks[path][index]
         assert bits == 16, f'{name}: {bits}-bit'
-        if channels == 2:
-            # mono, as every other runtime sound (the Merchant's lines are stereo: the engine's loaded 2D voices
-            # played them silent)
+        if clip:
+            assert channels == 2, f'{name}: a clip needs the stereo mix'
+            pcm = loud(clip_voice(pcm, rate, *clip[2:]))
+            channels = 1
+        elif channels == 2:
+            # mono, as every other runtime sound (the Merchant's lines are stereo)
             frames = array.array('h', bytes(pcm))
             pcm = array.array('h', [(frames[i] + frames[i + 1]) // 2 for i in range(0, len(frames) - 1, 2)]).tobytes()
             channels = 1
