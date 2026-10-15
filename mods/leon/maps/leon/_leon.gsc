@@ -90,6 +90,8 @@ leon_spawn_test()
 		player thread leon_damage_log(); // tests: the damage the player takes (zombie attacks)
 	if ( getDvar( "leon_power" ) != "" )
 		player thread leon_power_on( getDvarFloat( "leon_power" ) ); // tests: the map's power switch thrown
+	if ( getDvar( "leon_perks" ) != "" )
+		player thread leon_perks_test( getDvar( "leon_perks" ) ); // tests: perks given ("all": the eight)
 	if ( getDvar( "leon_powerup" ) != "" )
 		player thread leon_powerup_test( getDvar( "leon_powerup" ) ); // tests: a power-up at his feet (e.g. minigun)
 	if ( getDvar( "leon_give" ) != "" )
@@ -243,6 +245,36 @@ leon_keep_model()
 			self setModel( "leon" );
 		}
 	}
+}
+
+// Tests: perks given at the spawn through the machines' own give_perk (_zombiemode_perks: the bottle's end), so
+// their effects and icons are the bought ones'; "all" gives the eight, any map, machine or not
+leon_perks_test( list )
+{
+	self endon( "disconnect" );
+	wait 2;
+	if ( list == "all" )
+		list = "specialty_armorvest specialty_quickrevive specialty_fastreload specialty_rof specialty_longersprint "
+			+ "specialty_flakjacket specialty_deadshot specialty_additionalprimaryweapon";
+	perks = strTok( list, " " );
+	machines = getEntArray( "zombie_vending", "targetname" );
+	for ( i = 0; i < perks.size; i++ )
+	{
+		if ( self HasPerk( perks[i] ) )
+			continue;
+		// (a perk with no machine on the map has no icon loaded: give_perk's icon threw a script error - the perk alone)
+		onMap = false;
+		for ( m = 0; m < machines.size; m++ )
+		{
+			if ( isDefined( machines[m].script_noteworthy ) && machines[m].script_noteworthy == perks[i] )
+				onMap = true;
+		}
+		if ( onMap )
+			self maps\_zombiemode_perks::give_perk( perks[i] );
+		else
+			self SetPerk( perks[i] );
+	}
+	logPrint( "leon: perks given: " + list + "\n" );
 }
 
 // Tests: the named power-up (_zombiemode_powerups: minigun, nuke, insta_kill...) dropped at his feet once the map's
