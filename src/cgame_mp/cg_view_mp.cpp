@@ -2848,8 +2848,21 @@ static void CG_ShoulderAimPoint(cg_s *cgameGlob, float *eye, float *fwd, float *
     }
     const float minDist = onZombie ? 48.0f : 150.0f;
     const float dist = 8192.0f * trace.fraction;
+    const float target = dist > minDist ? dist : minDist;
+    // the distance glides there (its log, ~0.12 s), never jumps: with a zombie close the line hit it one frame and the
+    // wall behind it the next (it moves, the aim sways), the aim point jumped between ~50" and the wall, and the aim
+    // correction chasing it shook the torso through the aim and back out of it
+    static float s_aimLogDist;
+    static int s_aimDistTime = -100000;
+    const int gap = cgameGlob->time - s_aimDistTime;
+    if (gap < 0 || gap > 250)
+        s_aimLogDist = logf(target); // (a new aim: straight there)
+    else if (gap > 0)
+        s_aimLogDist += (logf(target) - s_aimLogDist) * (1.0f - expf(-(float)gap / 120.0f));
+    s_aimDistTime = cgameGlob->time;
+    const float glide = expf(s_aimLogDist);
     for (int k = 0; k < 3; ++k)
-        aim[k] = eye[k] + fwd[k] * (dist > minDist ? dist : minDist);
+        aim[k] = eye[k] + fwd[k] * glide;
 }
 
 // mod (the Leon mod): the kick's cue from afar - a dull yellow halo on every staggered zombie (maps\leon\_kick.gsc lists
