@@ -1256,7 +1256,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
     {
         if ( aimFrac < 0.98f )
-            CG_ShoulderAimCorrectionDecay(0.9f);
+            CG_ShoulderAimCorrectionDecay(cgameGlob);
         CG_ShoulderAimCorrection(aimCorrection);
     }
     // the head's look (RE4's cPlNeck::move): toward the nearest live enemy within 5 m (197"), +-30 degrees of his
