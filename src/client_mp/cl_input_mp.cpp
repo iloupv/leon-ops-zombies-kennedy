@@ -501,11 +501,12 @@ void __cdecl CL_CreateNewCommands(int localClientNum)
 // weapon-key paths run (weapnext / weapprev / +actionslot 3 = the altMode toggle maps\_loadout sets, CG_ActionSlotDown_f
 // -> ToggleWeaponAltMode). "<start ms> <period ms>|<offset ms> <console command>|<offset ms> hold <bit> <ms> [fwd]|..."
 // runs every entry at start + k * period + offset (cgame time); "hold" ORs usercmd button <bit> (0 attack, 1 sprint,
-// 4 reload) into the commands for <ms>, "fwd" / "back" also move forward / back (sprint needs it), "left" / "right"
+// 4 reload; "<bit>,<bit>" two at once - 11,0 an aimed shot: the command line splits at '+', so no +speed_throw here)
+// into the commands for <ms>, "fwd" / "back" also move forward / back (sprint needs it), "left" / "right"
 // sideways (11 held too: a strafe aimed in under tank controls, else a turn); "key <keynum>" presses a key and lets it
 // go (CL_KeyEvent). Logs bo1_keys / bo1_weapsel.
 static const dvar_t *cl_headlessKeys;
-static int cl_headlessHoldBit = -1, cl_headlessHoldEnd, cl_headlessHoldFwd; // fwd: 1 forward, -1 back
+static int cl_headlessHoldBit = -1, cl_headlessHoldBit2 = -1, cl_headlessHoldEnd, cl_headlessHoldFwd; // fwd: 1 forward, -1 back
 static int cl_headlessHoldSide; // 1 right, -1 left
 
 static void CL_HeadlessKeys(int localClientNum, usercmd_s *cmd)
@@ -563,7 +564,7 @@ static void CL_HeadlessKeys(int localClientNum, usercmd_s *cmd)
             const int kNow = now - start - offset < 0 ? -1 : (now - start - offset) / period;
             if (kNow == kPrev)
                 continue;
-            int bit = 0, ms = 0;
+            int bit = 0, bit2 = -1, ms = 0;
             char fwd[8] = {};
             int keyNum = 0;
             if (sscanf(text, "key %d", &keyNum) == 1)
@@ -573,9 +574,11 @@ static void CL_HeadlessKeys(int localClientNum, usercmd_s *cmd)
                 CL_KeyEvent(localClientNum, keyNum, 1, Sys_Milliseconds());
                 CL_KeyEvent(localClientNum, keyNum, 0, Sys_Milliseconds());
             }
-            else if (sscanf(text, "hold %d %d %7s", &bit, &ms, fwd) >= 2)
+            else if (sscanf(text, "hold %d,%d %d %7s", &bit, &bit2, &ms, fwd) >= 3
+                     || (bit2 = -1, sscanf(text, "hold %d %d %7s", &bit, &ms, fwd) >= 2))
             {
                 cl_headlessHoldBit = bit;
+                cl_headlessHoldBit2 = bit2;
                 cl_headlessHoldEnd = now + ms;
                 cl_headlessHoldFwd = !strcmp(fwd, "fwd") ? 1 : (!strcmp(fwd, "back") ? -1 : 0);
                 cl_headlessHoldSide = !strcmp(fwd, "right") ? 1 : (!strcmp(fwd, "left") ? -1 : 0);
@@ -595,6 +598,8 @@ static void CL_HeadlessKeys(int localClientNum, usercmd_s *cmd)
     {
         if (cl_headlessHoldBit < 51) // 99: no button, only the move
             cmd->button_bits.setBit(cl_headlessHoldBit);
+        if (cl_headlessHoldBit2 >= 0 && cl_headlessHoldBit2 < 51)
+            cmd->button_bits.setBit(cl_headlessHoldBit2);
         if (cl_headlessHoldFwd)
             cmd->forwardmove = cl_headlessHoldFwd > 0 ? 127 : -127;
         if (cl_headlessHoldSide)
