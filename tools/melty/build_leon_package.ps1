@@ -34,7 +34,7 @@ Copy-Item (Join-Path $Re4Decomp 'tools\motion\host\build\libmotion_host.so') (Jo
 $hidden = 'leon_rlm', 'leon_sounds', 're4_motion', 'motion.evalhost', 'motion.fcv', 'udas_reader', 'uhd_bin_gltf', 'uhd_pack',
     'leon_gltf', 'leon_full' | ForEach-Object { '--hidden-import', $_ }
 $ErrorActionPreference = 'Continue' # (PowerShell 5.1 turns its stderr log lines into errors)
-& (Join-Path $M 'venv\Scripts\pyinstaller.exe') --noconfirm --onedir --windowed --name leon_setup `
+& (Join-Path $M 'venv\Scripts\pyinstaller.exe') --noconfirm --onedir --windowed --name leon_setup --icon (Join-Path $repo 'src\win32\leon.ico') `
     --distpath (Join-Path $stage 'dist') --workpath (Join-Path $stage 'work') --specpath $stage `
     --paths $ToolsDir --paths (Join-Path $Re4Decomp 'tools') @hidden `
     --add-binary "${LfsUnpack};." --add-binary "$(Join-Path $stage 'libmotion_host.dll');motion_host" `
@@ -45,7 +45,7 @@ if ($LASTEXITCODE) { throw "pyinstaller failed ($LASTEXITCODE): $(Join-Path $sta
 
 # the launcher for playing without Melty (one file next to the game's exe)
 $ErrorActionPreference = 'Continue'
-& (Join-Path $M 'venv\Scripts\pyinstaller.exe') --noconfirm --onefile --windowed --name LeonLauncher `
+& (Join-Path $M 'venv\Scripts\pyinstaller.exe') --noconfirm --onefile --windowed --name LeonLauncher --icon (Join-Path $repo 'src\win32\leon.ico') `
     --distpath (Join-Path $stage 'dist') --workpath (Join-Path $stage 'work_launcher') --specpath $stage `
     --exclude-module unittest --exclude-module pydoc `
     (Join-Path $repo 'tools\leon-launcher\leon_launcher.py') 2>&1 | Out-File (Join-Path $stage 'pyinstaller_launcher.log')
