@@ -203,6 +203,14 @@ void __cdecl Sys_QuitWithLostDevice(int lostMs)
     TerminateProcess(GetCurrentProcess(), 0);
 }
 
+// a fresh headless thread dump file (Sys_HeadlessThreadLog's, next to the exe) at the run's start
+static void __declspec(noinline) Sys_HeadlessThreadLogReset()
+{
+    char threadsPath[MAX_PATH + 32];
+    Sys_EmergencyPath("bo1_threads.log", threadsPath, sizeof(threadsPath));
+    DeleteFileA(threadsPath);
+}
+
 // headless thread dumps go to their own file: appending to console_mp.log while the process lives would be
 // overwritten by the engine's next writes (its CRT FILE keeps its own position)
 static void Sys_HeadlessThreadLog(const char *fmt, ...)
@@ -213,7 +221,11 @@ static void Sys_HeadlessThreadLog(const char *fmt, ...)
     _vsnprintf(msg, sizeof(msg) - 1, fmt, ap);
     va_end(ap);
     msg[sizeof(msg) - 1] = 0;
-    HANDLE f = CreateFileA("main\\bo1_threads.log", FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+    // (next to the exe, as bo1_emergency.log: the working folder of a package install is the player's Black Ops folder,
+    // never to be written)
+    char threadsPath[MAX_PATH + 32];
+    Sys_EmergencyPath("bo1_threads.log", threadsPath, sizeof(threadsPath));
+    HANDLE f = CreateFileA(threadsPath, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
     if (f != INVALID_HANDLE_VALUE)
     {
         DWORD written;
@@ -2296,7 +2308,7 @@ int __stdcall WinMain(HINSTANCE__ *hInstance, HINSTANCE__ *hPrevInstance, char *
     s_threadDumpMs = s_headless ? (unsigned int)Sys_CmdlineIntValue(lpCmdLine, "bo1_threaddump") : 0;
     if ( s_threadDumpMs ) // zombies: headless hang evidence (Sys_HeadlessDumpThreads)
     {
-        DeleteFileA("main\\bo1_threads.log");
+        Sys_HeadlessThreadLogReset();
         CloseHandle(CreateThread(NULL, 0, Sys_HeadlessThreadDumpThread, NULL, 0, NULL));
     }
     // L43: also in a real window (tools\realtest.ps1 reads its BO1_FRAMEPERF lines); off unless on the command line
@@ -2304,7 +2316,7 @@ int __stdcall WinMain(HINSTANCE__ *hInstance, HINSTANCE__ *hPrevInstance, char *
     s_hitchWatchMs = s_headless && !s_threadDumpMs ? (unsigned int)Sys_CmdlineIntValue(lpCmdLine, "bo1_hitchwatch") : 0;
     if ( s_hitchWatchMs ) // k1: headless client hitch evidence (Sys_HitchWatchThread)
     {
-        DeleteFileA("main\\bo1_threads.log");
+        Sys_HeadlessThreadLogReset();
         CloseHandle(CreateThread(NULL, 0, Sys_HitchWatchThread, NULL, 0, NULL));
     }
     Sys_InitializeCriticalSections();
