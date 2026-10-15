@@ -29,6 +29,8 @@
 #include <gfx_d3d/r_runtime_xmodel.h>
 #include <sound/snd_runtime.h>
 #include "cg_ents_mp.h"
+#include "cg_pose_mp.h"
+#include <xanim/dobj_utils.h>
 #include <game/statindex.h>
 #include <cgame/cg_drawtools.h>
 #include <gfx_d3d/r_dvars.h>
@@ -2939,6 +2941,35 @@ static void CG_LeonFootsteps(int localClientNum)
                                  CG_LeonStepSurface(), quiet);
 }
 
+// mod (the Leon mod): the gun's magazine (its world model's tag_clip, as BO1's AI reloads hide it) hidden while RE4's
+// reload has it out (CG_RuntimeXModel_ClipOut) - it stayed in the gun through the whole reload; once a frame, before
+// the frame's skinning, and only the bit set here is cleared (a weapon's own hidden tags stay)
+static void CG_LeonReloadClip(DObj *obj)
+{
+    static const DObj *s_hidObj;
+    static int s_hidBone = -1;
+    const bool out = CG_RuntimeXModel_ClipOut();
+    static bool s_loggedOut;
+    if ( out != s_loggedOut && R_RuntimeXModel_DvarOn("leon_actionlog") ) // (tests)
+        Com_Printf(0, "leon: magazine %s at %d\n", out ? "out" : "in", CG_GetLocalClientGlobals(0)->time);
+    s_loggedOut = out;
+    unsigned char bone = 254;
+    const bool has = out && DObjGetBoneIndex(obj, scr_const.tag_clip, &bone, -1);
+    if ( s_hidObj == obj && s_hidBone >= 0 && (!has || bone != s_hidBone) )
+    {
+        obj->hidePartBits[s_hidBone >> 5] &= ~(0x80000000u >> (s_hidBone & 0x1F));
+        s_hidBone = -1;
+    }
+    if ( has && (s_hidObj != obj || s_hidBone != bone) && !(obj->hidePartBits[bone >> 5] & (0x80000000u >> (bone & 0x1F))) )
+    {
+        obj->hidePartBits[bone >> 5] |= 0x80000000u >> (bone & 0x1F);
+        s_hidObj = obj;
+        s_hidBone = bone;
+        if ( R_RuntimeXModel_DvarOn("leon_actionlog") ) // (tests)
+            Com_Printf(0, "leon: magazine hidden (tag_clip, bone %d)\n", (int)bone);
+    }
+}
+
 // mod (the Leon mod, player_tankControls): RE4's sound of the gun coming up to aim - every weapon's ready motion plays
 // the player's SE 0x28 two 30 Hz frames in (wep/pl_handgun.cpp wep02_r3_ready10) - the runtime sound "leon_aim", ~67 ms
 // into each raise of the aim (from lowered, or lowering: a raise again mid-way is RE4's ready again); once a frame
@@ -2994,6 +3025,7 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
         CG_LeonKickHalos(localClientNum); // (once a frame: with the local player's own model)
         CG_LeonFootsteps(localClientNum);
         CG_LeonAimSound(localClientNum);
+        CG_LeonReloadClip(obj);
     }
     if (!CG_ShoulderCameraActive(cgameGlob) || cent->nextState.number != cgameGlob->predictedPlayerState.clientNum
         || CG_ShoulderAimFrac(cgameGlob) < 0.98f // on once the aim is raised (firing too: PM_TankControls)
