@@ -15,7 +15,7 @@ this repository or its releases.
   roundhouse kick it - every zombie the kick catches is a knife kill
 - RE4's Merchant at the Mystery Box: "What're ya buyin'?", and a line for the weapon it gives you ("Stranger,
   stranger, now that's a weapon!" for the wonder weapons)
-- Leon's hit reactions, death, pain grunts and voice; his head tracks nearby zombies; RE4's pickup sound; more blood
+- Leon's hit reactions, death, pain grunts and voice; his head tracks nearby zombies; RE4's pickup and aim sounds; more blood
 - Gamepad support with RE4's layout
 - The astronaut helmet on Moon; boots straight to the zombies map list
 - Single player

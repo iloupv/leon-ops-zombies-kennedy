@@ -27,6 +27,7 @@
 #include <clientscript/scr_const.h>
 #include <cgame/cg_laser.h>
 #include <gfx_d3d/r_runtime_xmodel.h>
+#include <sound/snd_runtime.h>
 #include "cg_ents_mp.h"
 #include <game/statindex.h>
 #include <cgame/cg_drawtools.h>
@@ -2938,6 +2939,51 @@ static void CG_LeonFootsteps(int localClientNum)
                                  CG_LeonStepSurface(), quiet);
 }
 
+// mod (the Leon mod, player_tankControls): RE4's sound of the gun coming up to aim - every weapon's ready motion plays
+// the player's SE 0x28 two 30 Hz frames in (wep/pl_handgun.cpp wep02_r3_ready10) - the runtime sound "leon_aim", ~67 ms
+// into each raise of the aim (from lowered, or lowering: a raise again mid-way is RE4's ready again); once a frame
+static void CG_LeonAimSound(int localClientNum)
+{
+    const cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+    static float s_prevFrac;
+    static bool s_armed = true, s_due;
+    static int s_time = -100000, s_raiseTime;
+    const int time = cgameGlob->time;
+    if ( time == s_time )
+        return;
+    const float aimFrac = CG_ShoulderAimFrac(cgameGlob);
+    const bool down = cgameGlob->predictedPlayerState.pm_type == 6 || cgameGlob->predictedPlayerState.pm_type == 7;
+    if ( time < s_time || !player_tankControls || !player_tankControls->current.enabled || down )
+    {
+        // (a new map, or not his controls: no raise carried over)
+        s_time = time;
+        s_prevFrac = aimFrac;
+        s_armed = true;
+        s_due = false;
+        return;
+    }
+    s_time = time;
+    if ( aimFrac <= 0.0f || aimFrac < s_prevFrac )
+        s_armed = true;
+    else if ( s_armed && aimFrac > s_prevFrac )
+    {
+        s_armed = false;
+        s_due = true;
+        s_raiseTime = time;
+    }
+    s_prevFrac = aimFrac;
+    if ( s_due && time - s_raiseTime >= 60 ) // (~67 ms at the frame rate's steps)
+    {
+        s_due = false;
+        if ( aimFrac > 0.0f )
+        {
+            const bool played = SND_Runtime_PlayLocal(localClientNum, "leon_aim");
+            if ( R_RuntimeXModel_DvarOn("leon_aimlog") ) // (tests: headless runs load no sounds)
+                Com_Printf(0, "leon: aim sound at %d (raise %d)%s\n", time, s_raiseTime, played ? "" : ", none loaded");
+        }
+    }
+}
+
 // mod: Resident Evil 4's laser sight: while the local player aims over the shoulder, a laser from the muzzle of the
 // weapon in his hand (its tag_flash) to the point the view line hits - where the shots land
 void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
@@ -2947,6 +2993,7 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
     {
         CG_LeonKickHalos(localClientNum); // (once a frame: with the local player's own model)
         CG_LeonFootsteps(localClientNum);
+        CG_LeonAimSound(localClientNum);
     }
     if (!CG_ShoulderCameraActive(cgameGlob) || cent->nextState.number != cgameGlob->predictedPlayerState.clientNum
         || CG_ShoulderAimFrac(cgameGlob) < 0.98f // on once the aim is raised (firing too: PM_TankControls)

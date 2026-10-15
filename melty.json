@@ -17,7 +17,7 @@
       "path": "{managed}/leon_setup/leon_setup.exe",
       "args": ["--re4", "{game:custom-resident-evil-4-2005}", "--bo1", "{game}", "--out", "{managed}"]
     },
-    "done": { "file": "{managed}/mods/leon/rtmodels/leon_ready_v3.txt" }
+    "done": { "file": "{managed}/mods/leon/rtmodels/leon_ready_v4.txt" }
   },
   "launch": {
     "kind": "exe",

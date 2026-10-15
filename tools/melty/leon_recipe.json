@@ -43,7 +43,7 @@
       ]
     },
     "done": {
-      "file": "{managed}/mods/leon/rtmodels/leon_ready_v3.txt"
+      "file": "{managed}/mods/leon/rtmodels/leon_ready_v4.txt"
     }
   },
   "launch": {
