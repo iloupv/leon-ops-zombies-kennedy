@@ -216,14 +216,35 @@ void __cdecl R_RuntimeXModel_SetFireWeight(float weight)
 // the local player's locomotion under RE4's tank controls, for the next R_RuntimeXModel_PoseDObj only: strafeLegs -
 // aimed in and stepping sideways (PM_TankControls), his legs turn toward the step and his torso stays on the aim;
 // turnInPlace - turning on the spot (A / D, the mouse) plays RE4's turn in place (pl_R1_Turn: turn_left / turn_right)
-static bool s_strafeLegs, s_turnInPlace;
+static bool s_strafeLegs, s_turnInPlace, s_stepWatch;
 static int s_playerTurn; // the last such pose's turn in place: 1 left, -1 right, 0 none
+// his footsteps: the cycle's foot plants passed since the client last took them, and whether the last was a run's
+// (counted on whichever thread poses him - the renderer's workers pose DObjs too - and taken on the client's)
+static volatile long s_playerSteps;
+static volatile bool s_playerStepRun;
+
+// where in RE4's reload the next R_RuntimeXModel_PoseDObj's reload action starts (0..1: 0 its start; a new gun's first
+// raise plays its end, the gun worked)
+static float s_reloadFrom;
+
+void __cdecl R_RuntimeXModel_SetReloadFrom(float from)
+{
+    s_reloadFrom = from < 0.0f ? 0.0f : (from > 0.95f ? 0.95f : from);
+}
 
 void __cdecl R_RuntimeXModel_SetPlayerMotion(bool strafeLegs, bool turnInPlace)
 {
     s_strafeLegs = strafeLegs;
     s_turnInPlace = turnInPlace;
+    s_stepWatch = true;
 }
+
+int __cdecl R_RuntimeXModel_TakePlayerSteps(bool *run)
+{
+    *run = s_playerStepRun;
+    return (int)_InterlockedExchange(&s_playerSteps, 0);
+}
+
 
 int __cdecl R_RuntimeXModel_PlayerTurn()
 {
@@ -1232,6 +1253,32 @@ static float RtCycleRate(const RtAnim &anim, float speed)
 
 // The cycle for the entity's motion: idle when (nearly) still, back when moving against its facing, run past the
 // geometric mean of the walk and run speeds, else walk; hysteresis keeps it from flickering at the thresholds.
+// where a cycle's feet plant, as fractions of it (the frames each ankle is lowest in RE4's motions, the same in nearly
+// every weapon's set: walk 0 / 15 of 28, run 0 / 11 of 21, the back step 3 / 19 of 21); 0 when not a cycle
+static int RtFootPlants(const RtAnim &anim, float *plants)
+{
+    const char *name = RtAnimBaseName(anim);
+    if ( !strcmp(name, "walk") )
+    {
+        plants[0] = 0.0f;
+        plants[1] = 15.0f / 28.0f;
+        return 2;
+    }
+    if ( !strcmp(name, "run") )
+    {
+        plants[0] = 0.0f;
+        plants[1] = 11.0f / 21.0f;
+        return 2;
+    }
+    if ( !strcmp(name, "back") )
+    {
+        plants[0] = 3.0f / 21.0f;
+        plants[1] = 19.0f / 21.0f;
+        return 2;
+    }
+    return 0;
+}
+
 static bool RtIsTurnInPlace(int anim)
 {
     if ( anim < 0 )
@@ -1364,7 +1411,22 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
                 rate = fabsf(st.yawRate) / RT_TURN_IN_PLACE_RATE;
                 rate = rate < 0.5f ? 0.5f : (rate > 1.6f ? 1.6f : rate);
             }
+            const float oldPhase = st.curPhase;
             st.curPhase = RtWrapPhase(st.curPhase + dt * cur.fps * rate, cur.frameCount);
+            // the player's footsteps on the cycle's own plants (s_stepWatch: the local player's): each one passed
+            float plants[2];
+            const int plantCount = s_stepWatch && st.speed > 20.0f ? RtFootPlants(cur, plants) : 0;
+            for ( int p = 0; p < plantCount; ++p )
+            {
+                const float at = plants[p] * (float)cur.frameCount;
+                const bool crossed = st.curPhase >= oldPhase ? (oldPhase < at && at <= st.curPhase)
+                                                             : (at > oldPhase || at <= st.curPhase); // (wrapped)
+                if ( crossed )
+                {
+                    s_playerStepRun = !strcmp(RtAnimBaseName(cur), "run");
+                    _InterlockedIncrement(&s_playerSteps);
+                }
+            }
             if ( st.prev >= 0 )
             {
                 const RtAnim &prev = s_anims[st.prev];
@@ -1401,9 +1463,11 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     s_lookYaw = 0.0f;
     struct PlayerMotionReset // (s_strafeLegs / s_turnInPlace: for this call only)
     {
-        ~PlayerMotionReset() { s_strafeLegs = s_turnInPlace = false; }
+        ~PlayerMotionReset() { s_strafeLegs = s_turnInPlace = s_stepWatch = false; }
     } playerMotionReset;
     const bool strafeLegs = s_strafeLegs, turnInPlace = s_turnInPlace;
+    const float reloadFrom = s_reloadFrom;
+    s_reloadFrom = 0.0f;
     if ( s_anims.empty() || !obj->numModels || !obj->skel.mat )
         return 0.0f;
     const XModel *model = obj->localModels[0];
@@ -1542,7 +1606,7 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             const RtAnim &reload = s_anims[actionAnim];
             float t = actionTime / actionDuration;
             t = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
-            actionPhase = t * (float)(reload.frameCount - 1);
+            actionPhase = (reloadFrom + t * (1.0f - reloadFrom)) * (float)(reload.frameCount - 1);
             const float fade = 0.15f / actionDuration; // 0.15 s in and out
             actionWeight = t < fade ? t / fade : (1.0f - t < fade ? (1.0f - t) / fade : 1.0f);
         }
@@ -1568,6 +1632,9 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             actionWeight = actionWeight < 0.0f ? 0.0f : actionWeight;
         }
     }
+    // moving (a walk / run / back step cycle, not standing): a hit reaction takes the upper body alone, the legs keep
+    // their stride (a hit as he ran stopped his legs dead under him)
+    const bool moving = cur.moveSpeed > 0.0f && st.speed > 20.0f;
     int numBones = cur.boneCount < model->numBones ? cur.boneCount : model->numBones;
     if ( numBones > obj->numBones )
         numBones = obj->numBones;
@@ -1626,7 +1693,7 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             RtBlendPose(mat->quat, mat->trans, quat, trans, aimFrac);
         }
         if ( actionAnim >= 0 && actionWeight > 0.0f
-             && (action == RT_ACTION_TURN || action == RT_ACTION_HIT_FRONT || action == RT_ACTION_HIT_BACK
+             && (action == RT_ACTION_TURN || ((action == RT_ACTION_HIT_FRONT || action == RT_ACTION_HIT_BACK) && !moving)
                  || action == RT_ACTION_KICK
                  || action == RT_ACTION_DEATH || (cur.upperBody && cur.upperBody[b])) )
         {

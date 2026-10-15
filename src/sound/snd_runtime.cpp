@@ -296,9 +296,10 @@ void __cdecl SND_Runtime_LoadForLevel()
                    (unsigned int)alias->variants.size(), templ->name);
 }
 
-// Under Leon (his runtime voice loaded): the zombies characters' lines (vox_plr_*) muted, and their breathing
-// (chr_breathing_*: the gasp at a death, the hurt / better breaths) at Leon's own voice level - full scale in its group,
-// it played ~3x over him (dry 1.0 against his 0.32)
+// Under Leon (his runtime voice loaded): the zombies characters' lines (vox_plr_*) muted, and the player's breathing -
+// the characters' (chr_breathing_*: the gasp at a death, the hurt / better breaths; at a third it still blared out on a
+// near death and its recovery, full scale in its group), the sprint's gasp and the sniper's held breath (in / out /
+// gasp, the heartbeat): RE4's Leon breathes none of them
 float __cdecl SND_Runtime_VoiceScale(unsigned int id)
 {
     struct Answer
@@ -321,8 +322,11 @@ float __cdecl SND_Runtime_VoiceScale(unsigned int id)
     float scale = 1.0f;
     if ( list && list->name && !_strnicmp(list->name, "vox_plr_", 8) )
         scale = 0.0f;
-    else if ( list && list->name && !_strnicmp(list->name, "chr_breathing", 13) )
-        scale = 0.32f;
+    else if ( list && list->name
+              && (!_strnicmp(list->name, "chr_breathing", 13) || !_strnicmp(list->name, "chr_sprint_gasp", 15)
+                  || !_strnicmp(list->name, "fly_sprint_gasp", 15) || !_strnicmp(list->name, "wpn_sniper_breath", 17)
+                  || !_strnicmp(list->name, "wpn_sniper_heartbeat", 20)) )
+        scale = 0.0f;
     // a gun's first raise (wpn_<gun>_1straise_plr, BO1's handling on a new gun): RE4's pickup sounds in its place
     // (maps\leon\_pickup)
     else if ( list && list->name && !_strnicmp(list->name, "wpn_", 4) && I_stristr(list->name, "_1straise") )

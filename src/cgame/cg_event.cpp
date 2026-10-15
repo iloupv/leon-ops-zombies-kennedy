@@ -274,6 +274,16 @@ void __cdecl CG_PlayFxOnTag(int localClientNum, centity_s *cent, int eventParm)
     }
 }
 
+// mod (the Leon mod, player_tankControls): the local player's footsteps go with RE4's steps on him - BO1's timed by
+// its bob cycle fell out of step with them - played on his cycle's foot plants (CG_RuntimeXModel_Pose); his own events
+// only give the ground's surface
+static int s_leonStepSurface;
+
+int __cdecl CG_LeonStepSurface()
+{
+    return s_leonStepSurface;
+}
+
 void __cdecl CG_DoFootstepEvent(
                 int localClientNum,
                 centity_s *cent,
@@ -282,6 +292,12 @@ void __cdecl CG_DoFootstepEvent(
                 int surfaceType,
                 bool quiet)
 {
+    if ( isPlayerView && player_tankControls && player_tankControls->current.enabled
+         && cent->nextState.number == CG_GetLocalClientGlobals(localClientNum)->predictedPlayerState.clientNum )
+    {
+        s_leonStepSurface = surfaceType; // mod
+        return;
+    }
     // SP 0x005F87C0 has the same gate: (nextSnap ps.bobCycle & 0x7f) <= 0x3f.
     if (SND_BO1TraceEnabled()) // zombies (a1): bo1_audio, trace only
     {

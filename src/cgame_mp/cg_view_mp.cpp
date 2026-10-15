@@ -2896,13 +2896,35 @@ static void CG_LeonKickHalos(int localClientNum)
     }
 }
 
+// mod (the Leon mod, player_tankControls): the local player's footsteps on his RE4 cycle's foot plants
+// (R_RuntimeXModel_TakePlayerSteps; CG_DoFootstepEvent leaves BO1's bob-timed ones out), played here on the client's
+// own thread - the pose that counts them can run on the renderer's; quiet with Dead Shot's silent steps as BO1's
+static void CG_LeonFootsteps(int localClientNum)
+{
+    bool run;
+    const int steps = R_RuntimeXModel_TakePlayerSteps(&run);
+    cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+    if ( !steps || !cg_footsteps->current.enabled || !player_tankControls || !player_tankControls->current.enabled
+         || cgameGlob->predictedPlayerState.groundEntityNum == ENTITYNUM_NONE )
+        return;
+    const int clientNum = cgameGlob->predictedPlayerState.clientNum;
+    centity_s *self = CG_GetEntity(localClientNum, clientNum);
+    const bool quiet = (cgameGlob->bgs.clientinfo[clientNum].perks[1] & 0x40) != 0;
+    for ( int s = 0; s < steps && s < 2; ++s )
+        CScr_PlayerFootstepEvent(localClientNum, self, true, run ? EV_FOOTSTEP_RUN : EV_FOOTSTEP_WALK,
+                                 CG_LeonStepSurface(), quiet);
+}
+
 // mod: Resident Evil 4's laser sight: while the local player aims over the shoulder, a laser from the muzzle of the
 // weapon in his hand (its tag_flash) to the point the view line hits - where the shots land
 void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
 {
     cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     if (cent->nextState.number == cgameGlob->predictedPlayerState.clientNum)
+    {
         CG_LeonKickHalos(localClientNum); // (once a frame: with the local player's own model)
+        CG_LeonFootsteps(localClientNum);
+    }
     if (!CG_ShoulderCameraActive(cgameGlob) || cent->nextState.number != cgameGlob->predictedPlayerState.clientNum
         || CG_ShoulderAimFrac(cgameGlob) < 0.98f // on once the aim is raised (firing too: PM_TankControls)
         || cgameGlob->predictedPlayerState.pm_type == 6 || cgameGlob->predictedPlayerState.pm_type == 7) // not down

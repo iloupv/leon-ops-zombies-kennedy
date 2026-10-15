@@ -9,8 +9,8 @@ void __cdecl SND_Runtime_LoadForLevel();
 // plays a runtime alias as the local player's 2D sound; false when there is none by that name
 bool __cdecl SND_Runtime_PlayLocal(int localClientNum, const char *alias);
 // the volume scale of an alias under the runtime voice: with Leon's voice loaded ("leon_pain"), the zombies characters'
-// own lines (vox_plr_*) play silent (0: dropped, a script waiting on their notify would wait forever) and their
-// breathing (chr_breathing*) at Leon's level; 1 for every other alias
+// own lines (vox_plr_*) and the player's breathing (chr_breathing*, the sprint gasp, the sniper's held breath) play
+// silent (0: dropped, a script waiting on their notify would wait forever); 1 for every other alias
 float __cdecl SND_Runtime_VoiceScale(unsigned int id);
 // the volume scale of a sound against RE4's pickup: BO1's purchase sounds (zmb_cha_ching, zmb_weap_wall) within 300 ms
 // of "leon_pickup" are dropped (0, or stopped on their entity when they came first); 1 for every other alias

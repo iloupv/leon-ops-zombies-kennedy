@@ -41,7 +41,11 @@ void __cdecl R_RuntimeXModel_SetFireWeight(float weight); // mod: how strongly a
 // mod: the local player's locomotion for the next R_RuntimeXModel_PoseDObj: legs turned toward an aimed strafe, RE4's
 // turn in place when he turns standing; and the last such pose's turn in place (1 left, -1 right, 0 none)
 void __cdecl R_RuntimeXModel_SetPlayerMotion(bool strafeLegs, bool turnInPlace);
+// mod: where in RE4's reload the next R_RuntimeXModel_PoseDObj's reload action starts (0..1; a new gun's first raise)
+void __cdecl R_RuntimeXModel_SetReloadFrom(float from);
 int __cdecl R_RuntimeXModel_PlayerTurn();
+// mod: the local player's footsteps (his cycle's foot plants) since the last call, and whether they were a run's
+int __cdecl R_RuntimeXModel_TakePlayerSteps(bool *run);
 // mod: a dvar set non-zero (bool, int, or a string set from the command line or a script); false when it does not exist
 bool __cdecl R_RuntimeXModel_DvarOn(const char *name);
 // returns the shot's (recoil's) weight on the pose this frame, 0..1 (0: no shot playing)
