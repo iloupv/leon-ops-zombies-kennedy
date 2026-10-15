@@ -39,7 +39,7 @@ bool __cdecl R_RuntimeXModel_HasAnim(const char *name);
 // the head's look for the next R_RuntimeXModel_PoseDObj (a player's): degrees about up, + to his left
 void __cdecl R_RuntimeXModel_SetLookYaw(float degrees);
 void __cdecl R_RuntimeXModel_SetFireWeight(float weight); // mod: how strongly a shot plays RE4's fire motion (0..1)
-void __cdecl R_RuntimeXModel_SetFireSettle(float rate); // mod: how fast a shot's motion plays on from its kick's peak
+void __cdecl R_RuntimeXModel_SetFireRates(float kick, float settle); // mod: a shot's motion's rates: its kick, its settle
 // mod: the local player's locomotion for the next R_RuntimeXModel_PoseDObj: legs turned toward an aimed strafe, RE4's
 // turn in place when he turns standing; and the last such pose's turn in place (1 left, -1 right, 0 none)
 void __cdecl R_RuntimeXModel_SetPlayerMotion(bool strafeLegs, bool turnInPlace);

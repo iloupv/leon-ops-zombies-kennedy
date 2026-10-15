@@ -79,6 +79,7 @@ struct RtAnim
     const unsigned char *upperBody; // per bone: 1 from j_spinelower up (the aim poses take these), 0 below
     int spineBone;       // j_spinelower (the aim correction turns it), -1: none
     int neckBone;        // j_neck (the head's look turns it), -1: none
+    int eyelidBone;      // RE4's part 0x1C, the eyelid (j_re4_028: the blink turns it; its motions hold it), -1: none
     int neckChain[8];    // its parents below the root, root side first (their local rotations: its parent's frame)
     int neckChainCount;
     int recoilPeak;      // a shot's motion: the frame its kick peaks (the upper body turned most from its first); 0
@@ -216,13 +217,15 @@ void __cdecl R_RuntimeXModel_SetFireWeight(float weight)
     s_fireWeight = weight < 0.0f ? 0.0f : (weight > 1.0f ? 1.0f : weight);
 }
 
-// how fast a shot's motion plays on from its kick's peak (1: RE4's own; 2.3 for most guns - the gun settled back onto
-// the aim slowly, floating), set per frame by the player's weapon (CG_RuntimeXModel_Pose)
-static float s_fireSettle = 1.0f;
+// how fast a shot's motion plays its kick, up to the kick's peak, and on from there (1: RE4's own; most guns settle at
+// 2.3 - the gun floated back onto the aim -, the automatics kick and settle at 3: RE4's kick, made for one shot, never
+// peaked between their shots and pushed slowly), set per frame by the player's weapon (CG_RuntimeXModel_Pose)
+static float s_fireKick = 1.0f, s_fireSettle = 1.0f;
 
-void __cdecl R_RuntimeXModel_SetFireSettle(float rate)
+void __cdecl R_RuntimeXModel_SetFireRates(float kick, float settle)
 {
-    s_fireSettle = rate < 0.5f ? 0.5f : (rate > 4.0f ? 4.0f : rate);
+    s_fireKick = kick < 0.5f ? 0.5f : (kick > 4.0f ? 4.0f : kick);
+    s_fireSettle = settle < 0.5f ? 0.5f : (settle > 4.0f ? 4.0f : settle);
 }
 
 // the local player's locomotion under RE4's tank controls, for the next R_RuntimeXModel_PoseDObj only: strafeLegs -
@@ -848,13 +851,15 @@ static const XModel *RtBuildModel(const char *name, const void *data, int size, 
         for ( int a = (int)b; a >= 0 && !upperBody[b]; a = parent[a] )
             upperBody[b] = boneName[a] == "j_spinelower";
     }
-    int spineBone = -1, neckBone = -1;
+    int spineBone = -1, neckBone = -1, eyelidBone = -1;
     for ( unsigned int b = 0; b < boneCount; ++b )
     {
         if ( boneName[b] == "j_spinelower" )
             spineBone = (int)b;
         if ( boneName[b] == "j_neck" )
             neckBone = (int)b;
+        if ( boneName[b] == "j_re4_028" )
+            eyelidBone = (int)b;
     }
     for ( RtAnim &anim : anims )
     {
@@ -862,6 +867,7 @@ static const XModel *RtBuildModel(const char *name, const void *data, int size, 
         anim.upperBody = upperBody;
         anim.spineBone = spineBone;
         anim.neckBone = neckBone;
+        anim.eyelidBone = eyelidBone;
         anim.neckChainCount = 0;
         if ( neckBone > 0 )
         {
@@ -1182,7 +1188,10 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
     // a character's cloth material first (the zombies' gear: the characters' own lit shader, matte where a prop's is
     // shiny), else a plain lit prop's
     static const char *const s_clothTechsets[] = { "mc_l_sm_r0c0n0s0_clothcharr_hero", "mc_l_sm_r0c0n0s0_clothcharr" };
-    const Material *templ = RtFindTemplateMaterial(s_clothTechsets, ARRAYSIZE(s_clothTechsets));
+    static const char *const s_clothPlainTechsets[] = { "mc_l_sm_r0c0n0s0_clothcharr", "mc_l_sm_r0c0n0s0_clothcharr_hero" };
+    const bool plainTest = R_RuntimeXModel_DvarOn("leon_clothplain"); // tests: the cloth shader without its hero lighting
+    const Material *templ = RtFindTemplateMaterial(plainTest ? s_clothPlainTechsets : s_clothTechsets,
+                                                   ARRAYSIZE(s_clothTechsets));
     if ( !templ )
         templ = RtFindTemplateMaterial(s_opaqueTechsets, ARRAYSIZE(s_opaqueTechsets));
     if ( !templ )
@@ -1276,6 +1285,29 @@ static void RtSampleBone(const RtAnim &anim, float phase, int b, float *quat, fl
 }
 
 // out = a * b (Hamilton; x, y, z, w): b turned by a
+// RE4's blink (game/pl_class.cpp moveEyeNormal): the eyelid (part 0x1C) turned about its X axis - BO1's Y, positive
+// closing - by a table, a value a 30 Hz frame: a blink every 89 frames (~3 s), 7 frames long, one in four the long one
+// (9, closing again half way). Degrees at timeMs, eased between RE4's frames; each entity on its own phase.
+static float RtBlinkAngle(int timeMs, int entnum)
+{
+    static const float s_short[7] = { 5.0f, 10.0f, 20.0f, 18.0f, 14.0f, 10.0f, 5.0f };
+    static const float s_long[9] = { 5.0f, 10.0f, 20.0f, 17.0f, 19.0f, 20.0f, 15.0f, 10.0f, 5.0f };
+    const unsigned int seed = (unsigned int)entnum * 2654435761u;
+    const float frame = (float)(timeMs < 0 ? 0 : timeMs) * 0.03f + (float)(seed % 89u);
+    const int cycle = (int)(frame / 89.0f);
+    const float in = frame - (float)cycle * 89.0f;
+    const bool longBlink = ((((unsigned int)cycle * 2246822519u) ^ seed) >> 13) % 4u == 0;
+    const float *table = longBlink ? s_long : s_short;
+    const int count = longBlink ? 9 : 7;
+    // (frame i of the blink: the table's i - 1, open at 0 and after the last)
+    const int f0 = (int)in;
+    if ( f0 > count )
+        return 0.0f;
+    const float v0 = f0 >= 1 && f0 <= count ? table[f0 - 1] : 0.0f;
+    const float v1 = f0 + 1 <= count ? table[f0] : 0.0f;
+    return v0 + (v1 - v0) * (in - (float)f0);
+}
+
 static void RtQuatMul(const float *a, const float *b, float *out)
 {
     out[0] = a[3] * b[0] + a[0] * b[3] + a[1] * b[2] - a[2] * b[1];
@@ -1540,6 +1572,13 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
         s_playerTurn = RtIsTurnInPlace(st.cur) ? (!strcmp(RtAnimBaseName(s_anims[st.cur]), "turn_left") ? 1 : -1) : 0;
     const RtAnim &cur = s_anims[st.cur];
     const RtAnim *prev = st.prev >= 0 && st.blend < 1.0f ? &s_anims[st.prev] : 0;
+    // the blink (RtBlinkAngle; not once dead, as RE4's moveEye); leon_blinktest holds the lid at an angle (tests)
+    float blink = cur.eyelidBone >= 0 && action != RT_ACTION_DEATH ? RtBlinkAngle(timeMs, obj->entnum) : 0.0f;
+    {
+        const dvar_s *blinkTest = Dvar_FindVar("leon_blinktest");
+        if ( blinkTest && blinkTest->type == DVAR_TYPE_STRING && blinkTest->current.string && blinkTest->current.string[0] )
+            blink = (float)atof(blinkTest->current.string);
+    }
     // aiming (a player's ADS): the upper body takes the aim pose, level blended toward up or down by the view pitch
     // (RE4 blends its three by the aim pitch, cMot3), in by the ADS fraction
     const int aimLevel = aimFrac > 0.0f ? RtFindSetAnim(model, animSet, "aim") : -1;
@@ -1574,9 +1613,13 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
         {
             const RtAnim &motion = s_anims[actionAnim];
             actionPhase = actionTime * motion.fps;
-            // a shot: the kick at its own rate, from its peak on settling back at the weapon's (s_fireSettle)
-            if ( action == RT_ACTION_FIRE && actionPhase > (float)motion.recoilPeak )
-                actionPhase = (float)motion.recoilPeak + (actionPhase - (float)motion.recoilPeak) * s_fireSettle;
+            // a shot: the kick up to its peak, then settling back, each at the weapon's rate (s_fireKick, s_fireSettle)
+            if ( action == RT_ACTION_FIRE )
+            {
+                const float peak = (float)motion.recoilPeak;
+                const float kicked = actionPhase * s_fireKick;
+                actionPhase = kicked <= peak ? kicked : peak + (actionTime * motion.fps - peak / s_fireKick) * s_fireSettle;
+            }
             // the kick ends at frame 34, blending back over its last 8 (from frame 30 to its end at 49 he stays down in
             // the recovery, 4 cm lower and leaning: it ended hunched); the others at their end, over 4
             const float last = action == RT_ACTION_KICK && motion.frameCount - 1 > 34 ? 34.0f : (float)(motion.frameCount - 1);
@@ -1810,6 +1853,16 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
                 twist = (float)atof(twistTest->current.string);
             const float yaw = twist * actionWeight * 0.5f * 0.017453292f;
             const float qy[4] = { 0.0f, 0.0f, sinf(yaw), cosf(yaw) };
+            float out[4];
+            RtQuatMul(qy, mat->quat, out);
+            for ( int k = 0; k < 4; ++k )
+                mat->quat[k] = out[k];
+        }
+        if ( b == cur.eyelidBone && blink != 0.0f )
+        {
+            // the blink: the lid about its parent's (the head's) left axis
+            const float half = blink * 0.5f * 0.017453292f;
+            const float qy[4] = { 0.0f, sinf(half), 0.0f, cosf(half) };
             float out[4];
             RtQuatMul(qy, mat->quat, out);
             for ( int k = 0; k < 4; ++k )

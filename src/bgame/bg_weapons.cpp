@@ -1761,6 +1761,10 @@ void __cdecl PM_Weapon_FinishWeaponChange(pmove_t *pm, int previousWeaponState)
                 anim = 13;
                 weapontime = weapDef->iRaiseTime;
             }
+            // mod (the Leon mod, player_tankControls): a switch's raise at half BO1's (made for its first person hands,
+            // it dragged over the shoulder); not a new gun's first raise, which RE4's reload end plays over
+            if ( anim != 14 && player_tankControls && player_tankControls->current.enabled )
+                weapontime /= 2;
         }
         if ( weapDef->bNoDropsOrRaises )
         {
@@ -3159,6 +3163,9 @@ void __cdecl PM_BeginWeaponChange(pmove_t *pm, unsigned int newweapon, bool quic
                             iEmptyDropTime = weapDefOld->iDropTime;
                         ps->weaponTime = iEmptyDropTime;
                     }
+                    // mod (the Leon mod, player_tankControls): a switch's drop at half BO1's, as its raise
+                    if ( !altswitch && player_tankControls && player_tankControls->current.enabled )
+                        ps->weaponTime /= 2;
                     if ( pm->ps->pm_type != 6
                         && pm->ps->pm_type != 7
                         && pm->ps->pm_type != 8
