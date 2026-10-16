@@ -6,8 +6,10 @@
 #include <cfloat>
 
 #include <clientscript/cscr_animtree.h>
+#include <clientscript/cscr_compiler.h>
 #include <clientscript/cscr_main.h>
 #include <clientscript/cscr_stringlist.h>
+#include <clientscript/cscr_variable.h>
 #include <clientscript/cscr_vm.h>
 #include <game/g_load_utils.h>
 #include <game_mp/actor_mp.h>
@@ -420,6 +422,60 @@ void G_SP_RunAITypeLoadScripts()
     }
 }
 
+// zombies: canonical ids of the level fields "early_level" and "script" (compiler identifiers are canonical ids, not
+// SL string ids), saved by G_SP_LevelStartFields before Scr_EndLoadScripts releases the table.
+static unsigned int s_earlyLevelKey;
+static unsigned int s_scriptKey;
+
+void G_SP_LevelStartFields(scriptInstance_t inst)
+{
+    unsigned int string;
+
+    if ( inst != SCRIPTINSTANCE_SERVER )
+        return;
+    string = SL_FindString("early_level", inst);
+    s_earlyLevelKey = string ? gScrCompilePub[inst].canonicalStrings[string] : 0;
+    string = SL_FindString("script", inst);
+    s_scriptKey = string ? gScrCompilePub[inst].canonicalStrings[string] : 0;
+}
+
+// zombies: maps/_load_common::map_is_early_in_the_game returns level.early_level[level.script], which
+// set_early_level (_load / _zombiemode_load main) fills for "cuba" and "vorkuta" only; the default
+// `level.early_level[level.script] = false` for every other level is inside a /# #/ block, compiled only with
+// developer_script. Without it the function returns undefined and maps/_gameskill::shouldShowCoverWarning
+// (redFlashingOverlay, on each player damage) fails "cannot cast undefined to bool"; the VM's recovery
+// then takes the `return false` branch, so the retail exe behaves as if the entry were false and says nothing
+// only because developer is 0. Set that default here, after the level main has built the array: the same
+// assignment as the dev block, by the VM's own array path.
+static void G_SP_DefaultEarlyLevel()
+{
+    const scriptInstance_t inst = SCRIPTINSTANCE_SERVER;
+    const unsigned int levelId = gScrVarPub[inst].levelId;
+    unsigned int earlyLevelId;
+    unsigned int scriptId;
+    unsigned int array;
+    unsigned int mapName;
+    VariableValue value;
+    const char *varUsagePos;
+
+    earlyLevelId = s_earlyLevelKey ? FindVariable(inst, levelId, s_earlyLevelKey) : 0;
+    scriptId = s_scriptKey ? FindVariable(inst, levelId, s_scriptKey) : 0;
+    if ( !earlyLevelId || !scriptId || GetValueType(inst, earlyLevelId) != VAR_POINTER
+        || GetValueType(inst, scriptId) != VAR_STRING
+        || GetObjectType(inst, GetVariableValueAddress(inst, earlyLevelId)->u.pointerValue) != VAR_ARRAY )
+        return;
+    mapName = GetVariableValueAddress(inst, scriptId)->u.stringValue;
+    if ( FindVariable(inst, GetVariableValueAddress(inst, earlyLevelId)->u.pointerValue, mapName) )
+        return;
+    varUsagePos = gScrVarPub[inst].varUsagePos; // allocations outside a script thread need a tag (as the debugger)
+    gScrVarPub[inst].varUsagePos = "<level start variable>";
+    array = Scr_EvalArrayRef(inst, earlyLevelId); // copy on write, as `level.early_level[...] =` does
+    value.type = VAR_INTEGER;
+    value.u.intValue = 0;
+    SetVariableValue(inst, GetVariable(inst, array, mapName), &value);
+    gScrVarPub[inst].varUsagePos = varUsagePos;
+}
+
 // zombies: Scr_StartLevelMain, SP 0x004B7F80.
 void Scr_SP_StartLevelMain()
 {
@@ -434,6 +490,7 @@ void Scr_SP_StartLevelMain()
     }
     hThread = Scr_ExecThread(SCRIPTINSTANCE_SERVER, g_scr_data.levelscript, 0);
     Scr_FreeThread(hThread, SCRIPTINSTANCE_SERVER);
+    G_SP_DefaultEarlyLevel();
     // mod: then the fs_game mod's maps/_mod_main::main (G_SP_LoadLevelScripts), as Scr_LoadLevel does on the MP path
     extern int g_modMainScript;
     if ( g_modMainScript )

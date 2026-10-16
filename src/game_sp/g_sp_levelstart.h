@@ -51,7 +51,9 @@ void G_SP_FindActorAnimTree();
 struct XAnim_s *G_SP_GetActorAnims();
 
 // Scr_StartLevelMain, SP 0x004B7F80: the gametype script (if any), then maps/<mapname>::main,
-// each as a thread on level, inside G_InitGame.
+// each as a thread on level, inside G_InitGame. zombies: then the dev-only level.early_level default.
 void Scr_SP_StartLevelMain();
+// zombies: from Scr_EndLoadScripts, the level field ids Scr_SP_StartLevelMain's early_level default needs.
+void G_SP_LevelStartFields(scriptInstance_t inst);
 // zombies: the "mlvl <a> <b>" client command (SP Cmd_MenuLevel_f 0x0054BBB0) -> CodeCallback_MenuMessage(a, b).
 void G_SP_Cmd_MenuLevel_f();
