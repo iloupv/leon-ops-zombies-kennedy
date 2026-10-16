@@ -1,3 +1,4 @@
+#include <bgame/bg_leon.h>
 #include "bg_pmove.h"
 #include "bg_public.h"
 #include "bg_perks.h"
@@ -1701,16 +1702,15 @@ static void PM_TankControls(pmove_t *pm, float frametime)
     if ( canAim && (!cmd->button_bits.testBit(0xBu) || ps->fWeaponPosFrac < 0.98f) )
         cmd->button_bits.resetBit(0);
     // no reload (bits 4: reload, 5: use / reload) while the mod's kick (maps\leon\_kick.gsc) is offered or plays: F (use)
-    // kicks, and a use / reload bind would reload instead
-    static const char *const s_kickDvars[] = { "leon_kick_ready", "leon_kicking" };
-    for ( const char *kickDvar : s_kickDvars )
+    // kicks, and a use / reload bind would reload instead (his own: bg_leon.h, the script's flags on his player state)
+    static const unsigned int s_kickFlags[] = { LEON_EF2_KICK_READY, LEON_EF2_KICKING };
+    for ( const unsigned int kickFlag : s_kickFlags )
     {
-        const dvar_s *kick = Dvar_FindVar(kickDvar);
-        if ( kick && kick->type == DVAR_TYPE_STRING && kick->current.string && atoi(kick->current.string) )
+        if ( (unsigned int)ps->eFlags2 & kickFlag )
         {
             cmd->button_bits.resetBit(4u);
             cmd->button_bits.resetBit(5u);
-            if ( kickDvar == s_kickDvars[1] )
+            if ( kickFlag == LEON_EF2_KICKING )
             {
                 // through the kick itself: no aim (11), shot (0) or knife (2) either, and a reload under way is
                 // dropped (the kick overrides it, as a sprint does: the clip stays as it was)

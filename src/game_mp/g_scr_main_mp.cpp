@@ -1,3 +1,4 @@
+#include <bgame/bg_leon.h>
 #include <sound/snd_bo1_trace.h>
 #include <game_sp/g_sp_vision.h>
 #include <game_sp/g_sp_testplan.h>
@@ -16808,6 +16809,21 @@ void __cdecl GScr_SetClientFlag(scr_entref_t entref)
     }
 }
 
+// mod (the Leon mod): <player> leonsetkickflags( <ready>, <kicking> ) - his kick's state (bgame/bg_leon.h), read by his
+// pmove, his prediction and his use key
+static void __cdecl GScr_LeonSetKickFlags(scr_entref_t entref)
+{
+    gentity_s *pSelf = GetEntity(entref);
+    if ( !pSelf->client )
+    {
+        Scr_Error(SCRIPTINSTANCE_SERVER, "leonsetkickflags: not a player", 0);
+        return;
+    }
+    unsigned int &flags = *(unsigned int *)&pSelf->client->ps.eFlags2;
+    flags = Scr_GetInt(0, SCRIPTINSTANCE_SERVER) ? flags | LEON_EF2_KICK_READY : flags & ~LEON_EF2_KICK_READY;
+    flags = Scr_GetInt(1, SCRIPTINSTANCE_SERVER) ? flags | LEON_EF2_KICKING : flags & ~LEON_EF2_KICKING;
+}
+
 void __cdecl GScr_ClearClientFlag(scr_entref_t entref)
 {
     const char *v1; // eax
@@ -17423,6 +17439,7 @@ BuiltinMethodDef methods_3[] =
   { "getclientflag", GScr_GetClientFlag, 0 },
   // END
   { "clearclientflag", GScr_ClearClientFlag, 0 },
+  { "leonsetkickflags", GScr_LeonSetKickFlags, 0 }, // mod (the Leon mod)
   { "fakefire", GScr_FakeFire, 0 },
   { "makeusable", ScrCmd_MakeUsable, 0 },
   { "makeunusable", ScrCmd_MakeUnusable, 0 },

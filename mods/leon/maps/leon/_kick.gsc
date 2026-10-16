@@ -5,11 +5,12 @@
 
 // LEON MOD - RE4's stagger and kick. A zombie shot in the head or the legs staggers (BO1's own "shot" flinch, as a
 // Ganado reels from a head or knee shot) when the hit took at least 15% of its full health, and not again for 4 s
-// after it recovers; while one is staggered in reach in front of Leon, the engine shows RE4's
-// action prompt (leon_kick_ready: this script and the client share the process's dvars) and the use key (F) kicks:
-// RE4's kick on him (the client's pose, from leon_kick_stamp), and every zombie its sweep catches dies at once and is
-// sent flying (a launched ragdoll). A staggered zombie wears a dull yellow halo through its stagger, seen from afar
-// (it can be kicked): leon_staggered lists them for the client (CG_LeonKickHalos).
+// after it recovers; while one is staggered in reach in front of a player, the engine shows him RE4's
+// action prompt (his kick flags: <player> leonsetkickflags( ready, kicking ), on his player state - bgame/bg_leon.h) and
+// the use key (F) kicks: RE4's kick on him (his client's pose, from leon_kick_stamp; the others' from his flags), and
+// every zombie its sweep catches dies at once and is sent flying (a launched ragdoll). A staggered zombie wears a dull
+// yellow halo through its stagger, seen from afar (it can be kicked): leon_staggered lists them for every player's
+// client (CG_LeonKickHalos). Every player kicks (player_init, from _leon's setup of each player).
 //   leon_kick 0      off
 //   leon_kicktest 1  test: every 3 s the nearest zombie is put in front of the player and staggered (2: another
 //                    one beside it too, for the sweep; 3: 400" ahead instead)
@@ -18,10 +19,6 @@ init()
 {
 	if ( getDvar( "leon_kick" ) == "0" )
 		return;
-	setDvar( "leon_kick_ready", "0" );
-	setDvar( "leon_kick_stamp", "0" );
-	setDvar( "leon_kicking", "0" );
-	setDvar( "leon_staggered", "" );
 	level.leon_staggered = [];
 	level thread leon_zombie_watch();
 	players = getEntArray( "player", "classname" );
@@ -30,9 +27,23 @@ init()
 		wait 0.5;
 		players = getEntArray( "player", "classname" );
 	}
-	array_thread( players, ::leon_kick_watch );
 	if ( getDvar( "leon_kicktest" ) == "1" || getDvar( "leon_kicktest" ) == "2" || getDvar( "leon_kicktest" ) == "3" )
 		players[0] thread leon_kick_test();
+}
+
+// self: a player coming in - his kick (his client's halos and stamp start clear)
+player_init()
+{
+	if ( getDvar( "leon_kick" ) == "0" )
+		return;
+	self leonsetkickflags( 0, 0 );
+	self setClientDvar( "leon_kick_stamp", "0" );
+	list = "";
+	if ( isDefined( level.leon_staggered ) )
+		for ( i = 0; i < level.leon_staggered.size; i++ )
+			list = list + level.leon_staggered[i] + " ";
+	self setClientDvar( "leon_staggered", list );
+	self thread leon_kick_watch();
 }
 
 // Test (headless: no aim at a zombie): every 3 s the nearest zombie is put in front of the player and staggered.
@@ -176,7 +187,9 @@ leon_staggered_publish()
 	list = "";
 	for ( i = 0; i < level.leon_staggered.size; i++ )
 		list = list + level.leon_staggered[i] + " ";
-	setDvar( "leon_staggered", list );
+	players = getEntArray( "player", "classname" );
+	for ( i = 0; i < players.size; i++ )
+		players[i] setClientDvar( "leon_staggered", list );
 }
 
 leon_staggered()
@@ -213,18 +226,26 @@ leon_kick_target()
 leon_kick_watch()
 {
 	self endon( "disconnect" );
+	ready = false;
 	for ( ;; )
 	{
 		wait 0.05;
 		if ( isDefined( self.leon_kicking ) )
 			continue;
 		target = self leon_kick_target();
-		if ( isDefined( target ) )
-			setDvar( "leon_kick_ready", "1" );
-		else
-			setDvar( "leon_kick_ready", "0" );
+		if ( isDefined( target ) != ready )
+		{
+			ready = isDefined( target );
+			if ( ready )
+				self leonsetkickflags( 1, 0 );
+			else
+				self leonsetkickflags( 0, 0 );
+		}
 		if ( isDefined( target ) && self useButtonPressed() )
+		{
 			self leon_kick();
+			ready = false;
+		}
 	}
 }
 
@@ -235,9 +256,8 @@ leon_kick()
 {
 	self endon( "disconnect" );
 	self.leon_kicking = true;
-	setDvar( "leon_kick_stamp", getTime() ); // the client starts Leon's kick on it
-	setDvar( "leon_kick_ready", "0" ); // no prompt through the kick
-	setDvar( "leon_kicking", "1" ); // no reload through it (PM_TankControls)
+	self setClientDvar( "leon_kick_stamp", getTime() ); // his client starts the kick on it
+	self leonsetkickflags( 0, 1 ); // no prompt, aim, shot or reload through it (PM_TankControls); the others see it
 	self enableInvulnerability(); // no damage through the kick
 	wait 0.53;
 	forward = anglesToForward( ( 0, self.angles[1], 0 ) );
@@ -266,8 +286,7 @@ leon_kick()
 	wait 1.25; // to the motion's end (50 frames: 1.67 s) and its blend out
 	if ( hit )
 		logPrint( "leon: kick's kills scored, score " + self.score + "\n" );
-	setDvar( "leon_kick_ready", "0" );
-	setDvar( "leon_kicking", "0" );
+	self leonsetkickflags( 0, 0 );
 	if ( getDvar( "leon_test" ) == "" && getDvar( "leon_kicktest" ) == "" ) // (the tests keep him invulnerable)
 		self disableInvulnerability();
 	while ( self useButtonPressed() )

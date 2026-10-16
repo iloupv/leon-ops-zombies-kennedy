@@ -1,3 +1,4 @@
+#include <bgame/bg_leon.h>
 #include "bg_misc.h"
 #include <universal/q_shared.h>
 #include <universal/dvar.h>
@@ -2864,6 +2865,11 @@ void __cdecl BG_PlayerToEntitySetFlags(playerState_s *ps, entityState_s *s)
 
     s->lerp.eFlags = ps->eFlags;
     s->lerp.eFlags2 = ps->eFlags2;
+    // mod (the Leon mod, co-op): his last stand for the others' clients, in the kick offer's bit (bgame/bg_leon.h)
+    if ( ps->pm_type == 6 || ps->pm_type == 7 )
+        s->lerp.eFlags2 = (int)((unsigned int)s->lerp.eFlags2 | LEON_EF2_ENT_DOWN);
+    else
+        s->lerp.eFlags2 = (int)((unsigned int)s->lerp.eFlags2 & ~LEON_EF2_ENT_DOWN);
     if ( ps->pm_type < 9 )
         v2 = s->lerp.eFlags & 0xFFFBFFFF;
     else

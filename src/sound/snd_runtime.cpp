@@ -387,6 +387,18 @@ float __cdecl SND_Runtime_PickupScale(unsigned int id, SndEntHandle ent)
     return 1.0f;
 }
 
+bool __cdecl SND_Runtime_PlayOnEntity(int localClientNum, int entnum, const char *alias)
+{
+    bool found = false;
+    for ( const SndRuntimeAlias *a : s_runtimeAliases )
+        if ( !_stricmp(a->name.c_str(), alias) )
+            found = true;
+    if ( !found )
+        return false;
+    CG_PlaySound(localClientNum, entnum, 0, 0, false, 1.0f, (unsigned int)SND_HashName(alias));
+    return true;
+}
+
 bool __cdecl SND_Runtime_PlayLocal(int localClientNum, const char *alias)
 {
     bool found = false;

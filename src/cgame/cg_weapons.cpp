@@ -1,3 +1,4 @@
+#include <bgame/bg_leon.h>
 #include "cg_weapons.h"
 #include <bgame/bg_local.h>
 #include <cgame_mp/cg_local_mp.h>
@@ -3583,9 +3584,7 @@ void __cdecl ProcessWeaponNoteTracks(int localClientNum, const playerState_s *pr
         // still go) - through Leon's kick (it drops a reload under way, PM_TankControls: the reload blends out to idle
         // and its mag out / in, gear still sounded), and while a weapon is raised or put away (a new gun's first
         // raise racked and rattled over RE4's pickup sound; Leon's own model plays no such motion)
-        const dvar_s *leonKicking = Dvar_FindVar("leon_kicking");
-        const bool silent = (leonKicking && leonKicking->type == DVAR_TYPE_STRING && leonKicking->current.string
-                             && atoi(leonKicking->current.string))
+        const bool silent = ((unsigned int)predictedPlayerState->eFlags2 & LEON_EF2_KICKING)
                             || (player_tankControls && player_tankControls->current.enabled
                                 && predictedPlayerState->weaponstate >= WEAPON_RAISING
                                 && predictedPlayerState->weaponstate <= WEAPON_DROPPING_ALTSWITCH);

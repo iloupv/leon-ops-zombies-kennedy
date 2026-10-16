@@ -1,3 +1,4 @@
+#include <bgame/bg_leon.h>
 #include <bgame/bg_weapons_def.h>
 #include "cg_pose_mp.h"
 #include "cg_view_mp.h"
@@ -1043,6 +1044,86 @@ void __cdecl CG_RuntimeXModel_PlayerHit(int localClientNum, int yawByte, int pit
     CG_LeonVoice(localClientNum, "pain");
 }
 
+// mod (co-op): another player's actions on his runtime model, from what reaches this client of him - his weapon events
+// (CG_EntityEvent -> CG_RuntimeXModel_RemoteEvent: his shots, reloads, slashes, grenades), his aim (eFlags 0x80000:
+// BG_PlayerToEntitySetFlags' ADS), his kick and his last stand (bgame/bg_leon.h's flags on his entity) and his death
+// (eFlags 0x40000); his voice (pain is the server's: maps\leon\_leon.gsc) from his model's character. The local player's
+// come from his predicted state (CG_RuntimeXModel_Pose).
+struct RtRemoteActions
+{
+    int frame; // the cgame time of the last update (behind it: a new level, all reset)
+    int fireStart, prevFireStart, reloadStart, reloadLength, knifeStart, readyStart, throwStart, kickStart, downStart;
+    bool kicking, kickVoiced, down;
+    float aim;
+};
+static RtRemoteActions s_remoteActions[64];
+
+static RtRemoteActions &CG_RemoteActions(int clientNum, int now)
+{
+    RtRemoteActions &r = s_remoteActions[clientNum & 63];
+    if ( now < r.frame || !r.frame )
+    {
+        memset(&r, 0, sizeof(r));
+        r.fireStart = r.prevFireStart = r.reloadStart = r.knifeStart = r.readyStart = r.throwStart = r.kickStart
+            = r.downStart = -100000;
+        r.reloadLength = 1;
+        r.kickVoiced = true;
+        r.frame = now;
+    }
+    return r;
+}
+
+void __cdecl CG_RuntimeXModel_RemoteEvent(int localClientNum, int clientNum, int event, unsigned int weapon)
+{
+    const int now = CG_GetLocalClientGlobals(localClientNum)->time;
+    RtRemoteActions &r = CG_RemoteActions(clientNum, now);
+    switch ( event )
+    {
+    case EV_FIRE_WEAPON:
+    case EV_FIRE_WEAPON_LASTSHOT:
+    case EV_FIRE_WEAPON_LEFT:
+    case EV_FIRE_WEAPON_LASTSHOT_LEFT:
+        r.prevFireStart = now - r.fireStart < 3000 ? r.fireStart : -100000;
+        r.fireStart = now;
+        r.knifeStart = r.throwStart = -100000;
+        break;
+    case EV_RELOAD:
+    case EV_RELOAD_FROM_EMPTY:
+    case EV_RELOAD_START:
+    {
+        // (over the gun's own reload time: his weapon time is not sent)
+        const WeaponVariantDef *variant = weapon ? BG_GetWeaponVariantDef(weapon) : 0;
+        const int ms = variant ? (event == EV_RELOAD_FROM_EMPTY ? variant->iReloadEmptyTime : variant->iReloadTime) : 0;
+        r.reloadStart = now;
+        r.reloadLength = ms > 300 ? ms : 1500;
+        r.knifeStart = -100000;
+        break;
+    }
+    case EV_MELEE_SWIPE:
+        r.knifeStart = now;
+        r.reloadStart = -100000;
+        break;
+    case EV_PREP_OFFHAND:
+        r.readyStart = now;
+        break;
+    case EV_USE_OFFHAND:
+        r.readyStart = -100000;
+        r.throwStart = now;
+        break;
+    default:
+        break;
+    }
+}
+
+// another player's voice: his character's runtime sound (his model's name: ada_pain...), else Leon's, on his entity
+static void CG_RemoteVoice(int localClientNum, const DObj *obj, const char *sound)
+{
+    const XModel *model = DObjGetModel(obj, 0);
+    if ( model && model->name && SND_Runtime_PlayOnEntity(localClientNum, obj->entnum - 1, va("%s_%s", model->name, sound)) )
+        return;
+    SND_Runtime_PlayOnEntity(localClientNum, obj->entnum - 1, va("leon_%s", sound));
+}
+
 // mod: poses a runtime model's DObj (R_RuntimeXModel_PoseDObj) before DObjCalcSkel, with the entity's origin and
 // angles; for the local player also the aim: the weapon's ADS fraction and the view pitch.
 void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
@@ -1338,6 +1419,89 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                        ps->weaponstate);
             s_loggedAction = (int)action;
             s_loggedTime = cgameGlob->time;
+        }
+    }
+    else if ( isPlayer && obj->entnum > 0 )
+    {
+        // another player (co-op): his actions as they reach this client (RtRemoteActions), once per frame
+        const centity_s *cent = CG_GetEntity(pose->localClientNum, obj->entnum - 1);
+        const entityState_s *es = &cent->nextState;
+        const int now = cgameGlob->time;
+        RtRemoteActions &r = CG_RemoteActions(obj->entnum - 1, now);
+        if ( r.frame != now )
+        {
+            const float dt = now > r.frame && now - r.frame < 250 ? (float)(now - r.frame) * 0.001f : 0.0f;
+            r.frame = now;
+            // his aim eased in and out over BO1's ADS times (~0.2 s): only whether he is aimed is sent
+            r.aim += ((es->lerp.eFlags & 0x80000) ? dt : -dt) / 0.2f;
+            r.aim = r.aim < 0.0f ? 0.0f : (r.aim > 1.0f ? 1.0f : r.aim);
+            const bool kicking = ((unsigned int)es->lerp.eFlags2 & LEON_EF2_KICKING) != 0;
+            if ( kicking && !r.kicking )
+            {
+                r.kickStart = now;
+                r.kickVoiced = false;
+                r.knifeStart = r.reloadStart = r.fireStart = -100000;
+            }
+            r.kicking = kicking;
+            if ( !r.kickVoiced && now - r.kickStart >= 300 ) // (his swing's sounds at the local kick's frame)
+            {
+                r.kickVoiced = true;
+                CG_RemoteVoice(pose->localClientNum, obj, "kicka");
+                CG_RemoteVoice(pose->localClientNum, obj, "kickb");
+            }
+            const bool down = (es->lerp.eFlags & 0x40000) || ((unsigned int)es->lerp.eFlags2 & LEON_EF2_ENT_DOWN);
+            if ( down && !r.down )
+            {
+                r.downStart = now;
+                CG_RemoteVoice(pose->localClientNum, obj, "death");
+            }
+            r.down = down;
+        }
+        aimFrac = r.aim;
+        aimPitch = AngleNormalize180(es->lerp.apos.trBase[0]);
+        const unsigned int weapon = es->weapon;
+        const char *set = CG_RuntimeXModel_AnimSet(weapon);
+        const WeaponDef *reloadDef = weapon ? BG_GetWeaponDef(weapon) : 0;
+        const bool segmented = reloadDef && reloadDef->bSegmentedReload
+                               && R_RuntimeXModel_HasAnim(set ? va("%s:reload_loop", set) : "reload_loop");
+        if ( r.down )
+        {
+            action = RT_ACTION_DEATH;
+            actionTime = (float)(now - r.downStart) * 0.001f;
+        }
+        else if ( now - r.kickStart < 2000 && now >= r.kickStart )
+        {
+            action = RT_ACTION_KICK;
+            actionTime = (float)(now - r.kickStart) * 0.001f;
+        }
+        else if ( now - r.knifeStart < 1000 && now >= r.knifeStart )
+        {
+            action = RT_ACTION_KNIFE;
+            actionTime = (float)(now - r.knifeStart) * 0.001f;
+        }
+        else if ( r.readyStart > -100000 && now - r.readyStart < 10000 )
+        {
+            action = RT_ACTION_THROW_READY;
+            actionTime = (float)(now - r.readyStart) * 0.001f;
+        }
+        else if ( now - r.throwStart < 2000 && now >= r.throwStart )
+        {
+            action = RT_ACTION_THROW;
+            actionTime = (float)(now - r.throwStart) * 0.001f;
+        }
+        else if ( now - r.reloadStart < r.reloadLength && now >= r.reloadStart )
+        {
+            // (a round-by-round gun's whole reload as one loop: its open, rounds and close are not told apart)
+            action = segmented ? RT_ACTION_RELOAD_LOOP : RT_ACTION_RELOAD;
+            actionTime = (float)(now - r.reloadStart) * 0.001f;
+            actionDuration = (float)r.reloadLength * 0.001f;
+        }
+        else if ( now - r.fireStart < 3000 && now >= r.fireStart )
+        {
+            action = RT_ACTION_FIRE;
+            actionTime = (float)(now - r.fireStart) * 0.001f;
+            if ( r.prevFireStart > -100000 )
+                firePrev = (float)(now - r.prevFireStart) * 0.001f;
         }
     }
     // the weapon whose motion set he moves with: the local player's predicted one, another player's from his entity

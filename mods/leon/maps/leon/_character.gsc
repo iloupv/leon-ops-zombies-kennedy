@@ -2,8 +2,9 @@
 // runtime model the mod's setup converts from the player's own RE4 (rtmodels/<name>.rlm; leon.cfg's bo1_rtmodels lists
 // them, and the engine's bo1_rtmodels_loaded those this install has). They all play RE4's player motions (Leon's for
 // what a character has none of), the kick included, and say their own pain, death and kick (the engine's CG_LeonVoice
-// reads leon_character). At the start of a match "Press KNIFE to switch character" goes through them; the pick is kept
-// (leon_character is saved in the player's config).
+// reads leon_character, set on each player's own client; the others hear his from his model). Each player has his own
+// (self.leon_character): the host the one he picked last (leon_character, saved in his config), a player who joins the
+// first one nobody plays yet. At the start of a match "Press KNIFE to switch character" goes through them.
 
 // From _leon's init, before the level's first frame: the characters' models precached.
 precache()
@@ -25,8 +26,8 @@ precache()
 		precacheModel( level.leon_characters[i] );
 }
 
-// the character picked last (leon_character), when this install has it; else Leon
-current()
+// the character this install's player picked last (leon_character), when it has it; else Leon
+saved()
 {
 	name = getDvar( "leon_character" );
 	for ( i = 0; i < level.leon_characters.size; i++ )
@@ -37,13 +38,42 @@ current()
 	return level.leon_characters[0];
 }
 
-// self: the player, as the character
+// self: the player - his character
+current()
+{
+	if ( isDefined( self.leon_character ) )
+		return self.leon_character;
+	return saved();
+}
+
+// self: the player - his character as he comes in: the host's saved pick, another's the first nobody plays yet
+first_pick()
+{
+	players = getEntArray( "player", "classname" );
+	if ( players.size == 0 || players[0] == self )
+		return saved();
+	for ( i = 0; i < level.leon_characters.size; i++ )
+	{
+		taken = false;
+		for ( j = 0; j < players.size; j++ )
+		{
+			if ( players[j] != self && isDefined( players[j].leon_character ) && players[j].leon_character == level.leon_characters[i] )
+				taken = true;
+		}
+		if ( !taken )
+			return level.leon_characters[i];
+	}
+	return level.leon_characters[0];
+}
+
+// self: the player, as the character (his own client told it: his voice, and his config keeps it)
 apply( name )
 {
-	setDvar( "leon_character", name );
+	self.leon_character = name;
+	self setClientDvar( "leon_character", name );
 	self detachAll();
 	self setModel( name );
-	logPrint( "leon: character " + name + "\n" );
+	logPrint( "leon: " + self.playername + " plays " + name + "\n" );
 }
 
 display_name( name )
@@ -84,7 +114,7 @@ choose()
 		pressed = self meleeButtonPressed();
 		if ( pressed && !was )
 		{
-			name = current();
+			name = self current();
 			next = level.leon_characters[0];
 			for ( i = 0; i < level.leon_characters.size - 1; i++ )
 			{
@@ -96,7 +126,7 @@ choose()
 				until = getTime() + 6000;
 		}
 		was = pressed;
-		text = "Press KNIFE to switch character: " + display_name( current() );
+		text = "Press KNIFE to switch character: " + display_name( self current() );
 		if ( text != shown )
 		{
 			hud setText( text );

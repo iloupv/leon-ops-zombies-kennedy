@@ -1,3 +1,4 @@
+#include <bgame/bg_leon.h>
 #include <gfx_d3d/r_runtime_xmodel.h>
 #include <cgame/cg_sp_hud.h>
 #include <win32/win_main.h>
@@ -390,11 +391,11 @@ bool __cdecl CG_AreAllPlayerNamesVisible()
 }
 
 // mod (the Leon mod): RE4's action prompt for the kick, while the mod's script (zombie_theater_ffotd.gsc) has a
-// staggered zombie in reach in front of the player (leon_kick_ready: the server's script and this client share the
-// process's dvars); the use key (F) then kicks
+// staggered zombie in reach in front of the player (bg_leon.h: the script's flag on his player state); the use key (F)
+// then kicks
 static void CG_DrawLeonKickPrompt(int localClientNum)
 {
-    if ( !R_RuntimeXModel_DvarOn("leon_kick_ready") )
+    if ( !((unsigned int)CG_GetLocalClientGlobals(localClientNum)->predictedPlayerState.eFlags2 & LEON_EF2_KICK_READY) )
         return;
     ScreenPlacement *scrPlace = &scrPlaceView[localClientNum];
     const float fontScale = 0.5f;
