@@ -7,7 +7,7 @@ aim: leon_aim.wav.
 
 usage: python -I leon_sounds.py <pl00.xwb> <out dir>   (writes leon_pain_1..3.wav, leon_death.wav, the kick's; with
 core.xwb next to pl00.xwb also leon_pickup.wav, with bio4evt.xwb the Merchant's lines: merchant_*.wav, and Leon's
-"Bingo?": leon_bingo.wav)"""
+"Bingo?": leon_bingo.wav, "Hasta luego!": leon_hasta_luego.wav and "Hey, it's that dog.": leon_that_dog.wav)"""
 import array
 import math
 import mmap
@@ -49,7 +49,13 @@ EVT_SOUNDS = [('merchant_amazing_1.wav', 14),  # 0xBD "Stranger, stranger, now t
 # 35.12 s ("Where's everyone going?" from 33.01 s, "Bingo?" 34.69 s to 35.06 s), the music bed taken out
 # (centre_voice: his voice is centred, the bed wide; the bed's own spectrum from the pause between the two, 33.97 s
 # to 34.65 s). (name, wave, start s, end s, bed start s, bed end s)
-EVT_CLIPS = [('leon_bingo.wav', 138, 32.95, 35.12, 33.97, 34.65)]
+# Two more cut the same way: "Hasta luego!" to Mendez in the barn (st1/r11f.cpp: event r11fs02, its Str packet event
+# stream 71 = cue 71 = wave 101; the subtitle at 10.00 s; the bed the fire and music just before it), and "Hey, it's
+# that dog." in the village square as the dog comes to help with El Gigante (st1/r119.cpp r119_EventDogAppear: event
+# r119s10, stream 26 = cue 26 = wave 153; the subtitle at 6.93 s; the bed the quiet before it).
+EVT_CLIPS = [('leon_bingo.wav', 138, 32.95, 35.12, 33.97, 34.65),
+             ('leon_hasta_luego.wav', 101, 9.86, 10.62, 9.50, 9.86),
+             ('leon_that_dog.wav', 153, 6.98, 8.24, 6.72, 7.01)]
 
 
 def waves(data):

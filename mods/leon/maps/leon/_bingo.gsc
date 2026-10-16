@@ -7,13 +7,16 @@
 // "dog_round"), "Five"'s thief (flag "thief_round"), the monkey rounds (flag "monkey_round") and Moon's crawler rounds
 // (level notify "crawler_round_starting"). Once a round, 6.5 s in: after the round's own start has played (the dog
 // round's stinger, zmb_dog_round_start, runs 5.7 s, its announcer from 1 s in under it); no line when the sound is
-// not there.
-//   leon_bingo 0     off
+// not there. The dog round has his "Hey, it's that dog." instead (leon_that_dog: the village square's dog, RE4's
+// r119s10), and the Nuke his "Hasta luego!" (leon_hasta_luego: to Mendez in the barn, r11fs02) as he grabs it
+// (_zombiemode_powerups' powerup_grab: "nuke_triggered" on the player who took it).
+//   leon_bingo 0     off (the special rounds' and the map start's lines)
 //   leon_bingostart 0  not at the start of the map
 //   leon_soundlen "<alias> ..."  test: each alias played in turn, its length logged (headless: bo1_snd_nodevice_length)
 
 init()
 {
+	level thread leon_nuke_line();
 	if ( getDvar( "leon_bingo" ) == "0" )
 		return;
 	level thread leon_bingo_flags();
@@ -82,10 +85,31 @@ leon_bingo_start()
 leon_bingo_say( why )
 {
 	wait 6.5;
-	if ( !soundExists( "leon_bingo" ) )
+	alias = "leon_bingo";
+	if ( why == "dog_round" && soundExists( "leon_that_dog" ) )
+		alias = "leon_that_dog";
+	if ( !soundExists( alias ) )
 		return;
 	players = getEntArray( "player", "classname" );
 	for ( i = 0; i < players.size; i++ )
-		players[i] playLocalSound( "leon_bingo" );
-	logPrint( "leon: bingo (" + why + ")\n" );
+		players[i] playLocalSound( alias );
+	logPrint( "leon: " + alias + " (" + why + ")\n" );
+}
+
+leon_nuke_line()
+{
+	players = getEntArray( "player", "classname" );
+	while ( players.size == 0 )
+	{
+		wait 0.5;
+		players = getEntArray( "player", "classname" );
+	}
+	player = players[0];
+	for ( ;; )
+	{
+		player waittill( "nuke_triggered" );
+		if ( soundExists( "leon_hasta_luego" ) )
+			player playLocalSound( "leon_hasta_luego" );
+		logPrint( "leon: hasta luego\n" );
+	}
 }
