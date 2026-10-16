@@ -1,3 +1,4 @@
+#include <bgame/bg_leon.h>
 #include "cg_hudelem.h"
 #include <stringed/stringed_hooks.h>
 #include <ui/ui_shared.h>
@@ -800,6 +801,8 @@ bool __cdecl ClampScreenPosToEdges(
     return clamped;
 }
 
+void CG_SP_DrawReviveWaypoints(int localClientNum); // mod (co-op), below
+
 void __cdecl CG_Draw2dHudElems(int localClientNum, int foreground)
 {
     bool v2; // [esp+0h] [ebp-1038h]
@@ -823,6 +826,8 @@ void __cdecl CG_Draw2dHudElems(int localClientNum, int foreground)
     else
     {
         CG_Draw2dHudElemList(elems, elemCount, localClientNum, foreground, v4, v2);
+        if ( !foreground )
+            CG_SP_DrawReviveWaypoints(localClientNum); // mod (co-op): a downed teammate's revive icon
         if ( !localClientNum )
         {
             elemCount = GetSortedDebugHudElems(elems);
@@ -1972,6 +1977,68 @@ void __cdecl UpdateHudElemWarGameData(int localClientNum, const hudelem_s *elem)
     }
 }
 
+// mod (co-op): the icon of a waypoint drawn by the client itself (CG_SP_DrawReviveWaypoints), not a server's hud elem's
+// material index
+static Material *s_waypointMaterialOverride;
+
+// mod (co-op tests): bo1_waypointlog 1 - each waypoint hud elem drawn (a downed player's revive icon), once a second
+// per path: its materials, its target entity and its position
+static void CG_LogWaypoint(int localClientNum, const hudelem_s *elem, const char *path)
+{
+    const dvar_s *on = Dvar_FindVar("bo1_waypointlog");
+    if ( !on || !on->current.enabled )
+        return;
+    static int s_last[2];
+    const int slot = path[0] == '2' ? 0 : 1;
+    const int now = CG_GetLocalClientGlobals(localClientNum)->time;
+    if ( now - s_last[slot] < 1000 && now >= s_last[slot] )
+        return;
+    s_last[slot] = now;
+    char material[64] = "", offscreen[64] = "";
+    CG_ServerMaterialName(localClientNum, elem->materialIndex, material, sizeof(material));
+    CG_ServerMaterialName(localClientNum, elem->offscreenMaterialIdx, offscreen, sizeof(offscreen));
+    Com_Printf(0, "waypoint %s: material '%s' offscreen '%s' target %d at (%g %g %g) value %g\n", path, material, offscreen,
+               elem->targetEntNum, elem->x, elem->y, elem->z, elem->value);
+}
+
+void    DrawOffscreenViewableWaypoint(int localClientNum, const hudelem_s *elem);
+
+// mod (co-op): the revive icon over a downed teammate - SP's HUD ownerdraw 199 (CG_OwnerDrawHud 0x005ACCB0 ->
+// 0x00632F20, not ported: it draws waypoint_revive over each player in last stand, on screen or at its edge with the
+// objective pointer) - as a waypoint aimed at him (DrawOffscreenViewableWaypoint: on screen, clamped to the edges with
+// the pointer, the revive offset over him); his last stand from his entity (bgame/bg_leon.h's flag). Solo never shows
+// one: only a teammate's.
+void CG_SP_DrawReviveWaypoints(int localClientNum)
+{
+    const cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+    if ( !cgameGlob->nextSnap || !zombiemode || !zombiemode->current.enabled )
+        return;
+    static Material *s_revive;
+    if ( !s_revive )
+        s_revive = Material_RegisterHandle("waypoint_revive", 7);
+    if ( !s_revive )
+        return;
+    hudelem_s elem;
+    memset(&elem, 0, sizeof(elem));
+    elem.type = HE_TYPE_WAYPOINT;
+    elem.ui3dWindow = -1;
+    elem.color.rgba = -1; // (opaque white)
+    elem.fromColor = elem.color;
+    for ( int i = 0; i < com_maxclients->current.integer && i < 64; ++i )
+    {
+        if ( i == cgameGlob->nextSnap->ps.clientNum )
+            continue;
+        const centity_s *cent = CG_GetEntity(localClientNum, i);
+        if ( !(((*((const unsigned int *)cent + 201)) >> 1) & 1) || cent->nextState.eType != ET_PLAYER
+             || !((unsigned int)cent->nextState.lerp.eFlags2 & LEON_EF2_ENT_DOWN) )
+            continue;
+        elem.targetEntNum = (short)i;
+        s_waypointMaterialOverride = s_revive;
+        DrawOffscreenViewableWaypoint(localClientNum, &elem);
+        s_waypointMaterialOverride = 0;
+    }
+}
+
 void    DrawOffscreenViewableWaypoint(int localClientNum, const hudelem_s *elem)
 {
     float v3; // xmm0_4
@@ -2043,7 +2110,9 @@ void    DrawOffscreenViewableWaypoint(int localClientNum, const hudelem_s *elem)
     iassert(elem);
     iassert(elem->type == HE_TYPE_WAYPOINT);
 
-    hasMaterial = CG_ServerMaterialName(localClientNum, elem->offscreenMaterialIdx, materialName, 0x40u);
+    CG_LogWaypoint(localClientNum, elem, "2d");
+    hasMaterial = s_waypointMaterialOverride
+                      ? 1 : CG_ServerMaterialName(localClientNum, elem->offscreenMaterialIdx, materialName, 0x40u);
     if (hasMaterial)
     {
         if (!CG_Flashbanged(localClientNum) && !CG_Flared(localClientNum))
@@ -2052,7 +2121,9 @@ void    DrawOffscreenViewableWaypoint(int localClientNum, const hudelem_s *elem)
             BG_LerpHudColors(elem, time, &toColor);
             if (toColor.a)
             {
-                if (hasMaterial)
+                if (s_waypointMaterialOverride)
+                    material = s_waypointMaterialOverride;
+                else if (hasMaterial)
                     material = Material_RegisterHandle(materialName, 7);
                 else
                     material = 0;
@@ -2352,6 +2423,19 @@ void __cdecl CG_AddDrawSurfsFor3dHudElems(int localClientNum)
     int elemCount; // [esp+100h] [ebp-4h]
     int savedregs; // [esp+104h] [ebp+0h] BYREF
 
+    const dvar_s *waypointLog = Dvar_FindVar("bo1_waypointlog"); // mod (co-op tests): the waypoints this client has
+    if ( waypointLog && waypointLog->current.enabled )
+    {
+        static int s_lastCount = -1;
+        int count = 0;
+        elemCount = GetSortedHudElems(localClientNum, elems);
+        for ( i = 0; i < elemCount; ++i )
+            count += elems[i]->type == 15;
+        if ( count != s_lastCount )
+            Com_Printf(0, "waypoints: %d of %d hud elems (highRez %d, draw hud %d)\n", count, elemCount,
+                       r_highRezWaypoints ? 1 : 0, CG_ShouldDrawHud(localClientNum) ? 1 : 0);
+        s_lastCount = count;
+    }
     if ( !r_highRezWaypoints && CG_ShouldDrawHud(localClientNum) )
     {
         elemCount = GetSortedHudElems(localClientNum, elems);
@@ -2389,6 +2473,7 @@ void AddDrawSurfForHudElemWaypoint(int localClientNum, const hudelem_s *elem)
     int time; // [esp+88h] [ebp-8h]
 
     time = CG_GetLocalClientGlobals(localClientNum)->time;
+    CG_LogWaypoint(localClientNum, elem, "3d");
     BG_LerpHudColors(elem, time, &color);
     if (color.a)
     {

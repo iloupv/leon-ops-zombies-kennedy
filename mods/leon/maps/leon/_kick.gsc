@@ -227,24 +227,32 @@ leon_kick_watch()
 {
 	self endon( "disconnect" );
 	ready = false;
+	held = true; // (a use key already down - rebuilding a window, buying - is no press: only a new one kicks)
 	for ( ;; )
 	{
 		wait 0.05;
+		pressed = self useButtonPressed();
+		fresh = pressed && !held;
+		held = pressed;
 		if ( isDefined( self.leon_kicking ) )
 			continue;
 		target = self leon_kick_target();
-		if ( isDefined( target ) != ready )
+		// not offered while the use key is held from before: the offer takes the use key (Player_LeonKickTakesUse), and
+		// a window being rebuilt with it held stopped - or was kicked from once that held key counted
+		offer = isDefined( target ) && ( !pressed || fresh );
+		if ( offer != ready )
 		{
-			ready = isDefined( target );
+			ready = offer;
 			if ( ready )
 				self leonsetkickflags( 1, 0 );
 			else
 				self leonsetkickflags( 0, 0 );
 		}
-		if ( isDefined( target ) && self useButtonPressed() )
+		if ( offer && fresh )
 		{
 			self leon_kick();
 			ready = false;
+			held = true;
 		}
 	}
 }

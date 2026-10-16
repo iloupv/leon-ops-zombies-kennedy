@@ -82,7 +82,8 @@ leon_player_setup()
 	{
 		self maps\leon\_character::apply( self maps\leon\_character::first_pick() );
 		self thread leon_keep_model();
-		self thread maps\leon\_character::choose(); // "Press KNIFE to switch character"
+		self setClientDvar( "leon_charprompt", "0" ); // (a prompt cut short by a disconnect left it on his client)
+		self thread maps\leon\_character::choose(); // "Press SWITCH WEAPON to change character"
 	}
 	self thread leon_down_no_weapons();
 	self thread leon_pain_heard();
@@ -447,6 +448,8 @@ leon_hurt_loop( damage )
 		self setPerk( "specialty_quickrevive" ); // solo: down (last stand) instead of game over
 		self.lives = 1; // (the machine's solo life: _zombiemode's solo death checks self.lives)
 	}
+	if ( getDvar( "leon_hurtdelay" ) != "" )
+		wait getDvarFloat( "leon_hurtdelay" ); // (co-op: after the other player has joined)
 	for ( ;; )
 	{
 		wait 3;

@@ -4,7 +4,7 @@
 // what a character has none of), the kick included, and say their own pain, death and kick (the engine's CG_LeonVoice
 // reads leon_character, set on each player's own client; the others hear his from his model). Each player has his own
 // (self.leon_character): the host the one he picked last (leon_character, saved in his config), a player who joins the
-// first one nobody plays yet. At the start of a match "Press KNIFE to switch character" goes through them.
+// first one nobody plays yet. At the start of a match "Press SWITCH WEAPON to change character" goes through them.
 
 // From _leon's init, before the level's first frame: the characters' models precached.
 precache()
@@ -108,10 +108,13 @@ choose()
 	hud.hidewheninmenu = true;
 	until = getTime() + 15000;
 	shown = "";
-	was = true; // (a knife already held at the spawn is no press)
+	was = true; // (a press already held at the spawn is none)
+	// his weapon switch (weapnext: the mouse wheel, the pad's Y) presses the change-seat button meanwhile, not the weapon
+	// (the engine's CG_NextWeapon_f reads leon_charprompt on his client)
+	self setClientDvar( "leon_charprompt", "1" );
 	while ( getTime() < until )
 	{
-		pressed = self meleeButtonPressed();
+		pressed = self changeSeatButtonPressed();
 		if ( pressed && !was )
 		{
 			name = self current();
@@ -126,7 +129,7 @@ choose()
 				until = getTime() + 6000;
 		}
 		was = pressed;
-		text = "Press KNIFE to switch character: " + display_name( self current() );
+		text = "Press SWITCH WEAPON to change character: " + display_name( self current() );
 		if ( text != shown )
 		{
 			hud setText( text );
@@ -134,6 +137,7 @@ choose()
 		}
 		wait 0.05;
 	}
+	self setClientDvar( "leon_charprompt", "0" );
 	hud fadeOverTime( 0.5 );
 	hud.alpha = 0;
 	wait 0.5;
