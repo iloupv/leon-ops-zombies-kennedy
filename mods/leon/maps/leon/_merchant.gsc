@@ -94,6 +94,14 @@ leon_merchant_nocash()
 	}
 }
 
+// self: a player coming in (_leon's setup) - his score followed
+player_init()
+{
+	if ( getDvar( "leon_merchant" ) == "0" )
+		return;
+	self thread leon_merchant_score_track();
+}
+
 // the other buyables: each one's use against its price, as its own script reckons it
 leon_merchant_buyables()
 {
@@ -103,7 +111,6 @@ leon_merchant_buyables()
 		wait 0.5;
 		players = getEntArray( "player", "classname" );
 	}
-	array_thread( players, ::leon_merchant_score_track );
 	if ( getDvar( "leon_poortest" ) == "1" )
 		players[0].score = 10;
 	kinds = strTok( "zombie_door zombie_debris weapon_upgrade zombie_vending zombie_vending_upgrade", " " );

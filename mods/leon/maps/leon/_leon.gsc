@@ -14,6 +14,7 @@ init()
 	logPrint( "leon: init on " + getDvar( "mapname" ) + "\n" );
 	maps\leon\_character::precache(); // Leon, and Ada, HUNK and Luis where they were built
 	precacheModel( "t5_weapon_m14_world" ); // the npc test's weapon (common_zombie: on every map)
+	level thread leon_players(); // every player (co-op: those who join too) as his character
 	level thread leon_spawn_test();
 	level thread maps\leon\_kick::init(); // RE4's stagger and kick
 	level thread maps\leon\_merchant::init(); // RE4's Merchant at the Mystery Box
@@ -42,9 +43,95 @@ leon_box_weapons()
 // camera (pm_type 5) takes over.
 leon_game_over()
 {
-	setDvar( "leon_death_stamp", "0" );
 	level waittill( "end_game" );
-	setDvar( "leon_death_stamp", getTime() + 1 );
+	level.leon_game_over = true;
+	players = getEntArray( "player", "classname" );
+	for ( i = 0; i < players.size; i++ )
+		players[i] setClientDvar( "leon_death_stamp", getTime() + 1 );
+}
+
+// Every player, as he comes in (the host at the start, another when he joins): his character, and what the mod gives
+// each one - the kick, the pickup sound, the Merchant's notice of his score, his "Hasta luego!", his weapons put away
+// while down, his pain heard by the others.
+leon_players()
+{
+	for ( ;; )
+	{
+		players = getEntArray( "player", "classname" );
+		for ( i = 0; i < players.size; i++ )
+		{
+			if ( isDefined( players[i].leon_setup ) )
+				continue;
+			players[i].leon_setup = true;
+			players[i] thread leon_player_setup();
+		}
+		wait 0.25;
+	}
+}
+
+leon_player_setup()
+{
+	self endon( "disconnect" );
+	// as soon as the game has given him his character (it sets the model at the spawn), not a few seconds later
+	while ( !isDefined( self.model ) || self.model == "" )
+		wait 0.05;
+	wait 0.1;
+	if ( !isDefined( level.leon_game_over ) )
+		self setClientDvar( "leon_death_stamp", "0" );
+	if ( getDvar( "leon_nomodel" ) != "1" ) // tests: BO1's own player model
+	{
+		self maps\leon\_character::apply( self maps\leon\_character::first_pick() );
+		self thread leon_keep_model();
+		self thread maps\leon\_character::choose(); // "Press KNIFE to switch character"
+	}
+	self thread leon_down_no_weapons();
+	self thread leon_pain_heard();
+	level thread maps\leon\_pickup::init( self ); // RE4's pickup sound on a gun or ammo
+	self maps\leon\_kick::player_init();
+	self maps\leon\_merchant::player_init();
+	self thread maps\leon\_bingo::player_init();
+	logPrint( "leon: player " + self getEntityNumber() + " model " + self.model + "\n" );
+	if ( getDvar( "leon_cooptest" ) == "1" )
+		self thread leon_coop_test(); // tests: two copies, each seeing the other
+}
+
+// Tests (co-op, headless): every player invulnerable; one who joins stands 120" in front of the host, the
+// two facing each other, each in the other's view.
+leon_coop_test()
+{
+	self enableInvulnerability();
+	players = getEntArray( "player", "classname" );
+	if ( players.size < 2 || players[0] == self )
+		return;
+	host = players[0];
+	forward = anglesToForward( ( 0, host.angles[1], 0 ) );
+	self setOrigin( host.origin + forward * 120 );
+	self setPlayerAngles( ( 0, host.angles[1] + 180, 0 ) );
+	logPrint( "leon: cooptest - player " + self getEntityNumber() + " in front of the host\n" );
+}
+
+// His pain grunt for the other players (his own client plays it on his hit: CG_RuntimeXModel_PlayerHit), at most every
+// half second, his character's
+leon_pain_heard()
+{
+	self endon( "disconnect" );
+	last = -1000;
+	for ( ;; )
+	{
+		self waittill( "damage", amount, attacker );
+		if ( getTime() - last < 500 || isDefined( self.revivetrigger ) )
+			continue;
+		last = getTime();
+		alias = self maps\leon\_character::current() + "_pain";
+		if ( !soundExists( alias ) )
+			alias = "leon_pain";
+		if ( !soundExists( alias ) )
+			continue;
+		players = getEntArray( "player", "classname" );
+		for ( i = 0; i < players.size; i++ )
+			if ( players[i] != self )
+				self playSoundToPlayer( alias, players[i] );
+	}
 }
 
 leon_spawn_test()
@@ -56,7 +143,9 @@ leon_spawn_test()
 		players = getEntArray( "player", "classname" );
 	}
 	player = players[0];
-	// as soon as the game has given him his character (it sets the model at the spawn), not a few seconds later
+	// (the host: the tests' switches; leon_player_setup gives him his character meanwhile)
+	while ( !isDefined( player.leon_character ) && getDvar( "leon_nomodel" ) != "1" )
+		wait 0.05;
 	while ( !isDefined( player.model ) || player.model == "" )
 		wait 0.05;
 	wait 0.1;
@@ -64,17 +153,8 @@ leon_spawn_test()
 	forward = anglesToForward( ( 0, yaw, 0 ) );
 	right = anglesToRight( ( 0, yaw, 0 ) );
 	logPrint( "leon: player at " + player.origin + " yaw " + yaw + "\n" );
-
-	if ( getDvar( "leon_nomodel" ) != "1" ) // tests: BO1's own player model
-	{
-		player maps\leon\_character::apply( maps\leon\_character::current() );
-		player thread leon_keep_model();
-		player thread maps\leon\_character::choose(); // "Press KNIFE to switch character"
-	}
-	player thread leon_down_no_weapons();
-	level thread maps\leon\_pickup::init( player ); // RE4's pickup sound on a gun or ammo
 	logPrint( "leon: player model " + player.model + "\n" );
-	if ( player.model != "" && player.model == maps\leon\_character::current() )
+	if ( player.model != "" && player.model == player maps\leon\_character::current() )
 		setDvar( "leon_spawned", "1" ); // Melty's test mode (the engine's Com_MeltyTestFrame): Leon is in
 	if ( getDvar( "leon_thirdperson" ) == "1" )
 		setDvar( "cg_thirdPerson", "1" );
@@ -239,7 +319,7 @@ leon_keep_model()
 	for ( ;; )
 	{
 		wait 0.25;
-		character = maps\leon\_character::current();
+		character = self maps\leon\_character::current();
 		if ( isDefined( self.model ) && self.model != character && self.model != "" )
 		{
 			self detachAll();
