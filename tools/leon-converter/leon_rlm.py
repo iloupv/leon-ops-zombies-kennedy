@@ -25,7 +25,9 @@ motion code and IK (re4_motion.py) into the animation section; the engine picks 
 --armed: the same with the handgun's cycles (wep01.udas) and its gripping right hand, the gun
 mounted on tag_weapon_right as RE4 mounts it.
 
-usage: python -I leon_rlm.py <pl00.udas> <01000000.pack> <out.rlm> [--apose] [--anims | --armed]"""
+usage: python -I leon_rlm.py <pl00.udas> <01000000.pack>[;<more packs>] <out.rlm> [--apose] [--anims | --armed]
+(the packs by the id in their headers: a TPL texture names its pack - the RE4 HD Project's Leon points his face at the
+shared 07000000 pack)"""
 import io
 import math
 import os
@@ -165,11 +167,22 @@ def build(udas, pack_path, out_path, parts=LEON_BO1, apose=False, motions=()):
     """parts: (model entry, TPL entry, role) of pl00.udas, or with a 4th field, the archive .udas of a model from
     another archive (a weapon's gripping hand; its TPL and images stay Leon's). motions: [(name, FCV bytes)]."""
     ent = {i: data for i, _t, data in entries(open(udas, 'rb').read())}
-    pack = {i: data for i, _k, data in images(open(pack_path, 'rb').read())}
-    sources = {None: (ent, pack)}
+    packs = {}
+    for path in pack_path.split(';'):
+        data = open(path, 'rb').read()
+        if len(data) >= 8:
+            packs[struct.unpack_from('<I', data, 0)[0]] = {i: d for i, _k, d in images(data)}
+    sources = {None: ent}
     for part in parts:
         if len(part) > 3 and part[3] not in sources:
-            sources[part[3]] = ({i: d for i, _t, d in entries(open(part[3], 'rb').read())}, pack)
+            sources[part[3]] = {i: d for i, _t, d in entries(open(part[3], 'rb').read())}
+
+    def image(refs, k):
+        """The k-th TPL texture's image data from its own pack, or None."""
+        if k >= len(refs):
+            return None
+        pack_id, image_id = refs[k]
+        return packs.get(pack_id, {}).get(image_id)
     body = read_bin(ent[parts[0][0]])
     bones = skeleton(body, apose)
     body_ids = {bone[0] for bone in body['bones']}
@@ -181,7 +194,7 @@ def build(udas, pack_path, out_path, parts=LEON_BO1, apose=False, motions=()):
     for part in parts:
         model_entry, tpl_entry, role = part[:3]
         source = part[3] if len(part) > 3 else None
-        part_ent, pack = sources[source]
+        part_ent = sources[source]
         b = read_bin(part_ent[model_entry])
         refs = tpl_refs(ent[tpl_entry])
         for mat, tris in b['faces']:
@@ -190,11 +203,13 @@ def build(udas, pack_path, out_path, parts=LEON_BO1, apose=False, motions=()):
             key = (tpl_entry, mat[12], mat[14])
             if key not in tex_index:
                 img = None
-                if mat[12] < len(refs) and refs[mat[12]][1] in pack:
-                    img = Image.open(io.BytesIO(pack[refs[mat[12]][1]])).convert('RGBA')
+                colour = image(refs, mat[12])
+                if colour is not None:
+                    img = Image.open(io.BytesIO(colour)).convert('RGBA')
                 masked = False
-                if img is not None and mat[14] < len(refs) and mat[14] != mat[12] and refs[mat[14]][1] in pack:
-                    img.putalpha(Image.open(io.BytesIO(pack[refs[mat[14]][1]])).convert('L').resize(img.size))
+                opacity = image(refs, mat[14]) if mat[14] != mat[12] else None
+                if img is not None and opacity is not None:
+                    img.putalpha(Image.open(io.BytesIO(opacity)).convert('L').resize(img.size))
                     masked = True
                 if img is None:
                     img = Image.new('RGBA', (4, 4), (160, 160, 160, 255))

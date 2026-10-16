@@ -70,7 +70,7 @@ def is_texture_pack(path):
         return False
 
 
-def pack_candidates(bio4):
+def pack_candidates(bio4, pack='01000000'):
     """Where Leon's texture pack (his TPLs' pack 0x01000000) may be, best first: ImagePackHD's, then ImagePack's, packed
     (.lfs) or plain, under any letter case - and as a texture mod or repack left it: the original renamed out of the way
     (.bak, .old, ...: mods that replace a pack set the .lfs aside so the game reads theirs), or moved deeper into BIO4."""
@@ -81,11 +81,11 @@ def pack_candidates(bio4):
             continue
         names = sorted(os.listdir(d), key=lambda n: (not n.lower().endswith('.pack.yz2.lfs'),
                                                      not n.lower().endswith('.pack.yz2'), n.lower()))
-        found += [os.path.join(d, n) for n in names if n.lower().startswith('01000000.pack')]
+        found += [os.path.join(d, n) for n in names if n.lower().startswith(pack + '.pack')]
     for root, dirs, files in os.walk(bio4):
         if root.count(os.sep) - bio4.count(os.sep) >= 3:
             dirs[:] = []
-        found += [os.path.join(root, n) for n in sorted(files) if n.lower().startswith('01000000.pack')
+        found += [os.path.join(root, n) for n in sorted(files) if n.lower().startswith(pack + '.pack')
                   and os.path.join(root, n) not in found]
     return found
 
@@ -169,21 +169,29 @@ def main():
                 log(f'no {name}.udas: its motions are left out')
         # Leon's textures: the first candidate that is a real pack once read (a packed one unpacked first); with none,
         # he is built grey and the player still plays (installs with the RE4 HD Project failed the whole setup here)
+        def fetch_pack(name, dest):
+            for src in pack_candidates(bio4, name):
+                try:
+                    if '.lfs' in os.path.basename(src).lower():
+                        unpack(src, dest)
+                    else:
+                        shutil.copyfile(src, dest)
+                except (OSError, subprocess.CalledProcessError) as e:
+                    log(f'  {src}: not read ({e})')
+                    continue
+                if is_texture_pack(dest):
+                    return src
+                log(f'  {src}: not a texture pack')
+            return None
+
         pack_dest = os.path.join(work, '01000000.pack.yz2')
-        pack = None
-        for src in pack_candidates(bio4):
-            try:
-                if '.lfs' in os.path.basename(src).lower():
-                    unpack(src, pack_dest)
-                else:
-                    shutil.copyfile(src, pack_dest)
-            except (OSError, subprocess.CalledProcessError) as e:
-                log(f'  {src}: not read ({e})')
-                continue
-            if is_texture_pack(pack_dest):
-                pack = src
-                break
-            log(f'  {src}: not a texture pack')
+        pack = fetch_pack('01000000', pack_dest)
+        # and the shared pack, where a TPL may point too (the RE4 HD Project's Leon has his face and eyes there)
+        shared_dest = os.path.join(work, '07000000.pack')
+        shared = fetch_pack('07000000', shared_dest)
+        packs_arg = pack_dest + (';' + shared_dest if shared else '')
+        if shared:
+            log(f'shared textures: {shared}')
         if pack:
             log(f'unpacked (textures: {pack})')
         else:
@@ -195,8 +203,7 @@ def main():
 
         os.makedirs(rtmodels, exist_ok=True)
         rlm = os.path.join(rtmodels, 'leon.rlm')
-        run_tool('leon_rlm', [os.path.join(work, 'pl00.udas'), os.path.join(work, '01000000.pack.yz2'),
-                              rlm + '.tmp', '--armed'])
+        run_tool('leon_rlm', [os.path.join(work, 'pl00.udas'), packs_arg, rlm + '.tmp', '--armed'])
         os.replace(rlm + '.tmp', rlm)
         log(f'leon.rlm: {os.path.getsize(rlm)} bytes')
 
