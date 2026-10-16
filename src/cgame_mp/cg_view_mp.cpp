@@ -3015,90 +3015,10 @@ static void CG_LeonAimSound(int localClientNum)
     }
 }
 
-// mod: Resident Evil 4's laser sight: while the local player aims over the shoulder, a laser from the muzzle of the
-// weapon in his hand (its tag_flash) to the point the view line hits - where the shots land
-void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
+// the laser's beam and dot (CG_ShoulderLaser, a player's): from the muzzle (orient's origin) along orient's forward
+// axis to where that line hits; lighting: that player's own handles (200)
+static void CG_DrawLaser(const cg_s *cgameGlob, int entNum, const orientation_t &orient, unsigned __int16 *lighting)
 {
-    cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
-    if (cent->nextState.number == cgameGlob->predictedPlayerState.clientNum)
-    {
-        CG_LeonKickHalos(localClientNum); // (once a frame: with the local player's own model)
-        CG_LeonFootsteps(localClientNum);
-        CG_LeonAimSound(localClientNum);
-        CG_LeonReloadClip(obj);
-    }
-    if (!CG_ShoulderCameraActive(cgameGlob) || cent->nextState.number != cgameGlob->predictedPlayerState.clientNum
-        || CG_ShoulderAimFrac(cgameGlob) < 0.98f // on once the aim is raised (firing too: PM_TankControls)
-        || cgameGlob->predictedPlayerState.pm_type == 6 || cgameGlob->predictedPlayerState.pm_type == 7) // not down
-        return;
-    const int weaponState = cgameGlob->predictedPlayerState.weaponstate;
-    if ((weaponState >= WEAPON_RELOADING_RIGHT && weaponState <= WEAPON_RELOAD_QUICK_EMPTY)
-        || cg_thirdPersonActionTest->current.integer == 2)
-        return; // off while reloading, as in RE4
-    // straight out of the barrel (the muzzle tag's forward axis), as RE4's; the aim correction turns the upper body
-    // until the barrel points where the shots land (the view line's hit), so the dot settles there
-    orientation_t orient;
-    if (!CG_DObjGetWorldTagMatrix(&cent->pose, obj, scr_const.tag_flash, orient.axis, orient.origin))
-        return;
-    float eye[3], fwd[3], aim[3];
-    CG_ShoulderAimPoint(cgameGlob, eye, fwd, aim);
-    float want[3] = { aim[0] - orient.origin[0], aim[1] - orient.origin[1], aim[2] - orient.origin[2] };
-    const bool wantValid = Vec3Normalize(want) > 1.0f;
-    static float s_lastWantAngles[2];
-    if (wantValid)
-    {
-        float wantAngles[3], barrelAngles[3];
-        vectoangles(want, wantAngles);
-        vectoangles(orient.axis[0], barrelAngles);
-        if (R_RuntimeXModel_DvarOn("leon_barrellog")) // (tests: the barrel's way each frame, its recoil's smoothness)
-            Com_Printf(0, "leon: barrel at %d pitch %.2f yaw %.2f\n", cgameGlob->time, barrelAngles[0], barrelAngles[1]);
-        const float dt = (float)cgameGlob->frametime * 0.001f;
-        const float k = dt * 20.0f < 1.0f ? dt * 20.0f : 1.0f; // tight: a swing leaves the barrel little behind
-        // the body's own turn this frame (the shoulder camera's yaw, which turns him past the dead zone)
-        static float s_lastBodyYaw;
-        const float bodyTurn = AngleNormalize180(s_shoulderCameraYaw - s_lastBodyYaw);
-        s_lastBodyYaw = s_shoulderCameraYaw;
-        for (int i = 0; i < 2; ++i)
-        {
-            // the barrel's error closes in; through a shot's motion (a shotgun's pump: 1.3 s) its kick is not aim
-            // error, so the upper body only follows the aim's own moves instead - the yaw's part the body did not
-            // turn with (past the dead zone the camera and the body turn with the mouse), the pitch's none (the aim
-            // poses follow the view pitch): counted twice, it came back after the shot as a jump of the dot
-            float corr = s_shoulderRecoil > 0.0f
-                ? s_shoulderAimCorrection[i]
-                      + (i == 1 ? AngleNormalize180(AngleNormalize180(wantAngles[i] - s_lastWantAngles[i]) - bodyTurn) : 0.0f)
-                : s_shoulderAimCorrection[i] + AngleNormalize180(wantAngles[i] - barrelAngles[i]) * k;
-            s_shoulderAimCorrection[i] = corr > 45.0f ? 45.0f : (corr < -45.0f ? -45.0f : corr);
-            s_lastWantAngles[i] = wantAngles[i];
-        }
-    }
-    // always straight out of the barrel; a single-shot weapon's is off while it cannot fire again (the shot, a pump or
-    // bolt) and after a shot until the barrel has settled back onto the aim (within 2.5 degrees of where the shots
-    // land); an automatic's stays on through its fire
-    const weapFireType_t fireType = BG_GetWeaponDef(cgameGlob->predictedPlayerState.weapon)->fireType;
-    const bool automatic = fireType == WEAPON_FIRETYPE_FULLAUTO || fireType == WEAPON_FIRETYPE_MINIGUN
-        || (fireType >= WEAPON_FIRETYPE_BURSTFIRE2 && fireType <= WEAPON_FIRETYPE_BURSTFIRE4);
-    if (!automatic && (weaponState == WEAPON_FIRING || weaponState == WEAPON_RECHAMBERING
-                       || weaponState == WEAPON_FIRING_LEFT || weaponState == WEAPON_FIRING_BOTH))
-        return;
-    if (!automatic && s_shoulderRecoil > 0.0f && (!wantValid || Vec3Dot(want, orient.axis[0]) < 0.99905f))
-        return;
-    // raised: on once the barrel has settled onto the aim (within 4 degrees), then kept through swings until the aim
-    // drops (it lit while the pistol was still coming up)
-    static bool s_laserSettled;
-    static int s_laserSettledTime = -100000;
-    if (cgameGlob->time - s_laserSettledTime > 100 || cgameGlob->time < s_laserSettledTime)
-        s_laserSettled = false; // not drawn last frame: the aim dropped (or a reload, a shot...)
-    s_laserSettledTime = cgameGlob->time;
-    if (!s_laserSettled)
-    {
-        if (!wantValid || Vec3Dot(want, orient.axis[0]) < 0.99756f)
-            return;
-        s_laserSettled = true;
-    }
-    // none on a launcher (the aim correction above still points it)
-    if (BG_GetWeaponDef(cgameGlob->predictedPlayerState.weapon)->weapClass == WEAPCLASS_ROCKETLAUNCHER)
-        return;
     // the beam: the laser models made with the runtime models (r_runtime_xmodel.cpp), segments end to end from the
     // muzzle to where the line hits, and the dot there (the engine's FX beam / sprite laser draws nothing here)
     const XModel *beam = R_RuntimeXModel_Laser(false), *dot = R_RuntimeXModel_Laser(true);
@@ -3111,9 +3031,8 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
     float end[3];
     for (int k = 0; k < 3; ++k)
         end[k] = orient.origin[k] + orient.axis[0][k] * 2048.0f;
-    CG_TraceCapsule(&trace, orient.origin, zero, zero, end, cent->nextState.number, 0x280E833, &context);
+    CG_TraceCapsule(&trace, orient.origin, zero, zero, end, entNum, 0x280E833, &context);
     const float length = 2048.0f * trace.fraction - 0.5f;
-    static unsigned __int16 lighting[200];
     GfxScaledPlacement placement;
     AxisToQuat(orient.axis, placement.base.quat);
     // RE4's line (esp19's Draw_line3d_local_222) fades out over max_laser_dist (12000 mm: 472"); here the fade thins
@@ -3192,6 +3111,141 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
     for (int k = 0; k < 3; ++k)
         placement.base.origin[k] = hit[k] + toCamera[k] * 1.0f; // off the surface, toward the camera
     R_FilterXModelIntoScene(dot, &placement, 0, &lighting[199], 0.0f);
+}
+
+static unsigned __int16 s_laserLighting[64][200]; // (each player's laser its own lighting handles)
+
+// mod (co-op): another player's laser sight, as his aim reaches this client (CG_RuntimeXModel_RemoteLaserOn): from his
+// muzzle to where his view line hits - his shots' line, from his eye along his (interpolated) view angles. His aim
+// correction does not reach here (his upper body follows his view pitch alone), so the line runs from the muzzle to
+// that point rather than straight out of his barrel: the dot sits where his shots land
+static void CG_RemoteLaser(int localClientNum, centity_s *cent, DObj *obj)
+{
+    const cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+    const entityState_s *es = &cent->nextState;
+    if (cent->pose.eType != ET_PLAYER || (unsigned int)es->clientNum >= 64 || !es->weapon
+        || !CG_RuntimeXModel_RemoteLaserOn(localClientNum, es->number)
+        || BG_GetWeaponDef(es->weapon)->weapClass == WEAPCLASS_ROCKETLAUNCHER)
+        return;
+    orientation_t orient;
+    if (!CG_DObjGetWorldTagMatrix(&cent->pose, obj, scr_const.tag_flash, orient.axis, orient.origin))
+        return;
+    const float *viewAngles = cgameGlob->bgs.clientinfo[es->clientNum].playerAngles;
+    float eye[3], fwd[3], farPoint[3];
+    Vec3Copy(cent->pose.origin, eye);
+    eye[2] += (es->lerp.eFlags & 8) ? 22.0f : ((es->lerp.eFlags & 4) ? 40.0f : 60.0f); // (prone, crouched, standing)
+    AngleVectors(viewAngles, fwd, 0, 0);
+    for (int k = 0; k < 3; ++k)
+        farPoint[k] = eye[k] + fwd[k] * 8192.0f;
+    trace_t trace;
+    col_context_t context;
+    memset(&context, 0, sizeof(context));
+    const float zero[3] = { 0.0f, 0.0f, 0.0f };
+    CG_TraceCapsule(&trace, eye, zero, zero, farPoint, es->number, 0x2806831, &context);
+    float dir[3];
+    for (int k = 0; k < 3; ++k)
+        dir[k] = eye[k] + fwd[k] * 8192.0f * trace.fraction - orient.origin[k];
+    if (Vec3Normalize(dir) < 1.0f || Vec3Dot(dir, fwd) < 0.5f)
+        return; // (a wall at his eye: the point behind the muzzle)
+    // the beam's axes: forward to that point, the others from the muzzle's (crossed quads: its roll hardly shows)
+    Vec3Copy(dir, orient.axis[0]);
+    Vec3Cross(orient.axis[0], orient.axis[1], orient.axis[2]);
+    if (Vec3Normalize(orient.axis[2]) < 0.001f)
+        PerpendicularVector(orient.axis[0], orient.axis[2]);
+    Vec3Cross(orient.axis[2], orient.axis[0], orient.axis[1]);
+    CG_DrawLaser(cgameGlob, es->number, orient, s_laserLighting[es->number & 63]);
+}
+
+// mod: Resident Evil 4's laser sight: while the local player aims over the shoulder, a laser from the muzzle of the
+// weapon in his hand (its tag_flash) to the point the view line hits - where the shots land
+void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
+{
+    cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
+    if (cent->nextState.number == cgameGlob->predictedPlayerState.clientNum)
+    {
+        CG_LeonKickHalos(localClientNum); // (once a frame: with the local player's own model)
+        CG_LeonFootsteps(localClientNum);
+        CG_LeonAimSound(localClientNum);
+        CG_LeonReloadClip(obj);
+    }
+    else
+    {
+        CG_RemoteLaser(localClientNum, cent, obj);
+        return;
+    }
+    if (!CG_ShoulderCameraActive(cgameGlob) || cent->nextState.number != cgameGlob->predictedPlayerState.clientNum
+        || CG_ShoulderAimFrac(cgameGlob) < 0.98f // on once the aim is raised (firing too: PM_TankControls)
+        || cgameGlob->predictedPlayerState.pm_type == 6 || cgameGlob->predictedPlayerState.pm_type == 7) // not down
+        return;
+    const int weaponState = cgameGlob->predictedPlayerState.weaponstate;
+    if ((weaponState >= WEAPON_RELOADING_RIGHT && weaponState <= WEAPON_RELOAD_QUICK_EMPTY)
+        || cg_thirdPersonActionTest->current.integer == 2)
+        return; // off while reloading, as in RE4
+    // straight out of the barrel (the muzzle tag's forward axis), as RE4's; the aim correction turns the upper body
+    // until the barrel points where the shots land (the view line's hit), so the dot settles there
+    orientation_t orient;
+    if (!CG_DObjGetWorldTagMatrix(&cent->pose, obj, scr_const.tag_flash, orient.axis, orient.origin))
+        return;
+    float eye[3], fwd[3], aim[3];
+    CG_ShoulderAimPoint(cgameGlob, eye, fwd, aim);
+    float want[3] = { aim[0] - orient.origin[0], aim[1] - orient.origin[1], aim[2] - orient.origin[2] };
+    const bool wantValid = Vec3Normalize(want) > 1.0f;
+    static float s_lastWantAngles[2];
+    if (wantValid)
+    {
+        float wantAngles[3], barrelAngles[3];
+        vectoangles(want, wantAngles);
+        vectoangles(orient.axis[0], barrelAngles);
+        if (R_RuntimeXModel_DvarOn("leon_barrellog")) // (tests: the barrel's way each frame, its recoil's smoothness)
+            Com_Printf(0, "leon: barrel at %d pitch %.2f yaw %.2f\n", cgameGlob->time, barrelAngles[0], barrelAngles[1]);
+        const float dt = (float)cgameGlob->frametime * 0.001f;
+        const float k = dt * 20.0f < 1.0f ? dt * 20.0f : 1.0f; // tight: a swing leaves the barrel little behind
+        // the body's own turn this frame (the shoulder camera's yaw, which turns him past the dead zone)
+        static float s_lastBodyYaw;
+        const float bodyTurn = AngleNormalize180(s_shoulderCameraYaw - s_lastBodyYaw);
+        s_lastBodyYaw = s_shoulderCameraYaw;
+        for (int i = 0; i < 2; ++i)
+        {
+            // the barrel's error closes in; through a shot's motion (a shotgun's pump: 1.3 s) its kick is not aim
+            // error, so the upper body only follows the aim's own moves instead - the yaw's part the body did not
+            // turn with (past the dead zone the camera and the body turn with the mouse), the pitch's none (the aim
+            // poses follow the view pitch): counted twice, it came back after the shot as a jump of the dot
+            float corr = s_shoulderRecoil > 0.0f
+                ? s_shoulderAimCorrection[i]
+                      + (i == 1 ? AngleNormalize180(AngleNormalize180(wantAngles[i] - s_lastWantAngles[i]) - bodyTurn) : 0.0f)
+                : s_shoulderAimCorrection[i] + AngleNormalize180(wantAngles[i] - barrelAngles[i]) * k;
+            s_shoulderAimCorrection[i] = corr > 45.0f ? 45.0f : (corr < -45.0f ? -45.0f : corr);
+            s_lastWantAngles[i] = wantAngles[i];
+        }
+    }
+    // always straight out of the barrel; a single-shot weapon's is off while it cannot fire again (the shot, a pump or
+    // bolt) and after a shot until the barrel has settled back onto the aim (within 2.5 degrees of where the shots
+    // land); an automatic's stays on through its fire
+    const weapFireType_t fireType = BG_GetWeaponDef(cgameGlob->predictedPlayerState.weapon)->fireType;
+    const bool automatic = fireType == WEAPON_FIRETYPE_FULLAUTO || fireType == WEAPON_FIRETYPE_MINIGUN
+        || (fireType >= WEAPON_FIRETYPE_BURSTFIRE2 && fireType <= WEAPON_FIRETYPE_BURSTFIRE4);
+    if (!automatic && (weaponState == WEAPON_FIRING || weaponState == WEAPON_RECHAMBERING
+                       || weaponState == WEAPON_FIRING_LEFT || weaponState == WEAPON_FIRING_BOTH))
+        return;
+    if (!automatic && s_shoulderRecoil > 0.0f && (!wantValid || Vec3Dot(want, orient.axis[0]) < 0.99905f))
+        return;
+    // raised: on once the barrel has settled onto the aim (within 4 degrees), then kept through swings until the aim
+    // drops (it lit while the pistol was still coming up)
+    static bool s_laserSettled;
+    static int s_laserSettledTime = -100000;
+    if (cgameGlob->time - s_laserSettledTime > 100 || cgameGlob->time < s_laserSettledTime)
+        s_laserSettled = false; // not drawn last frame: the aim dropped (or a reload, a shot...)
+    s_laserSettledTime = cgameGlob->time;
+    if (!s_laserSettled)
+    {
+        if (!wantValid || Vec3Dot(want, orient.axis[0]) < 0.99756f)
+            return;
+        s_laserSettled = true;
+    }
+    // none on a launcher (the aim correction above still points it)
+    if (BG_GetWeaponDef(cgameGlob->predictedPlayerState.weapon)->weapClass == WEAPCLASS_ROCKETLAUNCHER)
+        return;
+    CG_DrawLaser(cgameGlob, cent->nextState.number, orient, s_laserLighting[cent->nextState.number & 63]);
 }
 
 void CG_OffsetThirdPersonView(int localClientNum)

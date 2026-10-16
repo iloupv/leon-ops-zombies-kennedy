@@ -20,4 +20,5 @@ bool __cdecl CG_RuntimeXModel_ClipOut(); // mod: the local player's magazine out
 bool __cdecl CG_RuntimeXModel_GrenadeOut(); // mod
 // mod (co-op): another player's weapon event (CG_EntityEvent), for his runtime model's actions
 void __cdecl CG_RuntimeXModel_RemoteEvent(int localClientNum, int clientNum, int event, unsigned int weapon);
+bool __cdecl CG_RuntimeXModel_RemoteLaserOn(int localClientNum, int clientNum);
 DObjAnimMat *__cdecl CG_DObjCalcPose(const cpose_t *remote_pose, DObj *obj, int *partBits);

@@ -1115,6 +1115,20 @@ void __cdecl CG_RuntimeXModel_RemoteEvent(int localClientNum, int clientNum, int
     }
 }
 
+// mod (co-op): whether another player's laser sight is on (CG_ShoulderLaser), as the local player's: aimed in all the
+// way, and not down, kicking, slashing, throwing or reloading (off while reloading, as in RE4); posed this last 1/4 s
+bool __cdecl CG_RuntimeXModel_RemoteLaserOn(int localClientNum, int clientNum)
+{
+    const int now = CG_GetLocalClientGlobals(localClientNum)->time;
+    const RtRemoteActions &r = s_remoteActions[clientNum & 63];
+    if ( !r.frame || now < r.frame || now - r.frame > 250 )
+        return false;
+    const int reloadAgo = now - r.reloadStart, knifeAgo = now - r.knifeStart, throwAgo = now - r.throwStart,
+              kickAgo = now - r.kickStart;
+    return r.aim >= 0.98f && !r.down && !r.kicking && (reloadAgo < 0 || reloadAgo >= r.reloadLength)
+        && (knifeAgo < 0 || knifeAgo >= 1000) && (throwAgo < 0 || throwAgo >= 1000) && (kickAgo < 0 || kickAgo >= 2000);
+}
+
 // another player's voice: his character's runtime sound (his model's name: ada_pain...), else Leon's, on his entity
 static void CG_RemoteVoice(int localClientNum, const DObj *obj, const char *sound)
 {
