@@ -55,8 +55,16 @@ def load_leon(udas_path):
 
 
 def player(model, motion_bytes, loop=True, ik=True):
-    """ik: the game's arm / leg IK (the hands and toes reach the motion's targets; the floor is flat)."""
-    return evalhost.Player(model, fcv.parse(motion_bytes, '<'), loop=loop, ik=ik)
+    """ik: the game's arm / leg IK (the hands and toes reach the motion's targets; the floor is flat).
+    The joints for parts the model lacks are left out: Leon's motions on a smaller skeleton (Ada, Luis) move his
+    extra parts too."""
+    motion = fcv.parse(motion_bytes, '<')
+    keep = [i for i, j in enumerate(motion.joints) if j.target() is None or j.parts_no < model.n_parts]
+    if len(keep) < len(motion.joints):
+        index = {old: new for new, old in enumerate(keep)}
+        motion.joints = [motion.joints[i] for i in keep]
+        motion.layout = [index[i] for i in motion.layout if i in index]
+    return evalhost.Player(model, motion, loop=loop, ik=ik)
 
 
 if __name__ == '__main__':

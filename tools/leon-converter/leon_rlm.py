@@ -26,6 +26,7 @@ motion code and IK (re4_motion.py) into the animation section; the engine picks 
 mounted on tag_weapon_right as RE4 mounts it.
 
 usage: python -I leon_rlm.py <pl00.udas> <01000000.pack>[;<more packs>] <out.rlm> [--apose] [--anims | --armed]
+       [--character leon|ada|hunk|luis]   (the archive given is that character's: pl00, pl0c, pl06, pl14)
 (the packs by the id in their headers: a TPL texture names its pack - the RE4 HD Project's Leon points his face at the
 shared 07000000 pack)"""
 import io
@@ -55,6 +56,18 @@ def to_bo1(v):
 def to_bo1_dir(v):
     x, y, z = v
     return (z, x, y)
+
+
+# the largest texture side kept: the RE4 HD Project's 4096 x 4096 ones are halved (uncompressed, with every character
+# loaded at once, they cost the 32-bit game's memory what a third-person view never shows)
+MAX_TEXTURE = 2048
+
+
+def capped(img):
+    if max(img.size) <= MAX_TEXTURE:
+        return img
+    scale = MAX_TEXTURE / max(img.size)
+    return img.resize((max(1, int(img.size[0] * scale)), max(1, int(img.size[1] * scale))), Image.LANCZOS)
 
 
 def mips_bgra(img):
@@ -132,8 +145,9 @@ def tag_quat(axes):
     return quat_from_axes(to_bo1_dir(axes[0]), to_bo1_dir(axes[1]))
 
 
-def skeleton(body, apose):
-    """[(name, parent index, local trans, local quat)]: tag_origin, then RE4 bone id N at index N + 1, then TAGS."""
+def skeleton(body, apose, eyelid=True):
+    """[(name, parent index, local trans, local quat)]: tag_origin, then RE4 bone id N at index N + 1, then TAGS.
+    eyelid False: bone 0x1C is not one (HUNK's is on his knee), so it is not named as the engine's blink finds it."""
     bones = [('tag_origin', -1, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0))]
     for bone_id, parent, _pad, x, y, z in body['bones']:
         quat = (0.0, 0.0, 0.0, 1.0)
@@ -141,6 +155,8 @@ def skeleton(body, apose):
             half = math.radians(APOSE_BONES[bone_id]) / 2
             quat = (math.sin(half), 0.0, 0.0, math.cos(half))
         name = BO1_BONE_NAMES.get(bone_id, f'j_re4_{bone_id:03d}')
+        if bone_id == 0x1C and not eyelid:
+            name += '_not_eyelid'
         bones.append((name, 0 if parent == 0xFF else parent + 1, to_bo1((x, y, z)), quat))
     for name, parent_id, offset, axes in TAGS:
         bones.append((name, parent_id + 1, to_bo1(offset), tag_quat(axes)))
@@ -163,7 +179,7 @@ def vertex_weights(b, v, bone_of):
     return [(bone, wt / total) for bone, wt in pairs]
 
 
-def build(udas, pack_path, out_path, parts=LEON_BO1, apose=False, motions=()):
+def build(udas, pack_path, out_path, parts=LEON_BO1, apose=False, motions=(), eyelid=True):
     """parts: (model entry, TPL entry, role) of pl00.udas, or with a 4th field, the archive .udas of a model from
     another archive (a weapon's gripping hand; its TPL and images stay Leon's). motions: [(name, FCV bytes)]."""
     ent = {i: data for i, _t, data in entries(open(udas, 'rb').read())}
@@ -184,7 +200,7 @@ def build(udas, pack_path, out_path, parts=LEON_BO1, apose=False, motions=()):
         pack_id, image_id = refs[k]
         return packs.get(pack_id, {}).get(image_id)
     body = read_bin(ent[parts[0][0]])
-    bones = skeleton(body, apose)
+    bones = skeleton(body, apose, eyelid)
     body_ids = {bone[0] for bone in body['bones']}
 
     def bone_of(re4_id):
@@ -240,6 +256,7 @@ def build(udas, pack_path, out_path, parts=LEON_BO1, apose=False, motions=()):
 
     out = bytearray(b'RLM1' + struct.pack('<IIII', 2, len(textures), len(surfaces), len(bones)))
     for name, img, masked in textures:
+        img = capped(img)
         levels = mips_bgra(img)
         out += name.encode()[:31].ljust(32, b'\0')
         out += struct.pack('<HHBBH', img.size[0], img.size[1], len(levels), int(masked), 0)
@@ -304,6 +321,23 @@ WEP01_MOTIONS = [('idle', 7), ('walk', 13), ('back', 15), ('run', 17),
 # others leave at identity: the engine reads it back to turn the player along it (R_RuntimeXModel_RootYaw)
 ROOT_YAW_MOTIONS = {'turn180'}
 WEP01_HAND = (6, 13, 'right_hand_grip')
+# The other playable characters (--character): their own archive's models - (model entry, TPL entry, role), from each
+# one's setModel / setRightHand / setLeftHand in the RE4 decomp (tools/motion/character.py; Luis: pl14/pl14.cpp
+# cPl14::setModel) - and Leon's motions on their bodies (every RE4 player shares the skeleton's numbering), but for
+# their own knife, hit reactions and death (their archive's, at Leon's entries: the shared pl_knife / pl_dmg code).
+# The kick is em10's for all. They keep their own hands: Leon's gripping hand is wep01's, in his hand texture.
+CHARACTERS = {
+    'leon': {'parts': LEON_BO1, 'grip': True},
+    'ada': {'parts': [(0, 1, 'body'), (2, 3, 'hair'), (4, 3, 'head'), (5, 6, 'eyes'), (13, 1, 'right_hand'),
+                      (14, 1, 'left_hand')], 'grip': False},
+    'hunk': {'parts': [(0, 1, 'body'), (2, 3, 'mask'), (15, 13, 'right_hand'), (17, 13, 'left_hand')], 'grip': False,
+             'eyelid': False},
+    'luis': {'parts': [(0, 1, 'body'), (2, 3, 'head'), (4, 3, 'face'), (5, 1, 'coat'), (6, 1, 'right_hand'),
+                      (7, 1, 'left_hand')], 'grip': False,
+             # (a partner, never the player: his own archive's motions elsewhere - 36 his fall to the floor, as long
+             # as Leon's death; 39 a stagger he stays up through - and no knife: Leon's)
+             'actions': {'hit_front': 39, 'hit_back': 39, 'death': 36}},
+}
 # The other weapons' sets, baked next to the handgun's as "<set>:<name>" (the engine picks a set by the BO1 weapon's
 # class, CG_RuntimeXModel_AnimSet, and falls back to the handgun's motion a set lacks): (set, archive, motions) with
 # the same names as WEP01_MOTIONS, sub-file numbers from each weapon's setMotion and state code in the RE4 decomp.
@@ -451,22 +485,34 @@ def anim_section(anims):
 
 
 if __name__ == '__main__':
-    parts, motions = LEON_BO1, ()
+    character = sys.argv[sys.argv.index('--character') + 1] if '--character' in sys.argv else 'leon'
+    spec = CHARACTERS[character]
+    parts, motions = spec['parts'], ()
     here = os.path.dirname(os.path.abspath(sys.argv[1]))
+    own = os.path.basename(sys.argv[1]) # (the character's own archive: its knife, hits and death)
     if '--armed' in sys.argv[4:]:
         wep = os.path.join(here, 'wep01.udas')
-        hand = WEP01_HAND + (wep,)
-        parts = [hand if role == 'right_hand' else (entry, tpl, role) for entry, tpl, role in LEON_BO1]
+        if spec['grip']:
+            hand = WEP01_HAND + (wep,)
+            parts = [hand if role == 'right_hand' else (entry, tpl, role) for entry, tpl, role in parts]
         arc = {i: data for i, _t, data in entries(open(wep, 'rb').read())}
         motions = [(name, arc[entry]) for name, entry in WEP01_MOTIONS]
         archives = {}
         for name, archive, entry in ACTION_MOTIONS:
+            archive = own if archive == 'pl00.udas' else archive
+            entry = spec.get('actions', {}).get(name, entry)
             path = os.path.join(here, archive)
             if not os.path.exists(path):
                 print(f'{name}: no {archive}, skipped')
                 continue
             if archive not in archives:
                 archives[archive] = {i: data for i, _t, data in entries(open(path, 'rb').read())}
+            if entry not in archives[archive] and archive == own != 'pl00.udas':
+                # (not in the character's own archive - Luis's has no player actions: Leon's)
+                archive = 'pl00.udas'
+                if archive not in archives:
+                    archives[archive] = {i: data for i, _t, data in entries(open(os.path.join(here, archive), 'rb').read())}
+                print(f"{name}: not in {own}, Leon's")
             motions.append((name, archives[archive][entry]))
         for set_name, archive, set_motions in WEAPON_SETS:
             path = os.path.join(here, archive)
@@ -478,4 +524,5 @@ if __name__ == '__main__':
     elif '--anims' in sys.argv[4:]:
         arc = {i: data for i, _t, data in entries(open(os.path.join(here, 'wep00.udas'), 'rb').read())}
         motions = [(name, arc[entry]) for name, entry in WEP00_MOTIONS]
-    build(sys.argv[1], sys.argv[2], sys.argv[3], parts=parts, apose='--apose' in sys.argv[4:], motions=motions)
+    build(sys.argv[1], sys.argv[2], sys.argv[3], parts=parts, apose='--apose' in sys.argv[4:], motions=motions,
+          eyelid=spec.get('eyelid', True))

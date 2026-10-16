@@ -247,9 +247,12 @@ void __cdecl SND_Runtime_LoadForLevel()
             a.probability = 0;
             a.pitchMin = a.pitchMax = 32767;
             a.volMin = a.volMax = 65535;
-            // the kick's grunt (leon_kicka / leon_kickb) in the voice group (2, full) at 0.6: in the template's (the ui
-            // group's 0.32, as his pain and death) it was too quiet against the fight
-            if ( !_strnicmp(alias->name.c_str(), "leon_kick", 9) && alias->name != "leon_kickhit" )
+            // the kick's grunt (leon_kicka / leon_kickb, and the other characters': ada_kicka...) in the voice group
+            // (2, full) at 0.6: in the template's (the ui group's 0.32, as his pain and death) it was too quiet against
+            // the fight
+            const size_t len = alias->name.size();
+            if ( len > 6 && (!_stricmp(alias->name.c_str() + len - 6, "_kicka")
+                             || !_stricmp(alias->name.c_str() + len - 6, "_kickb")) )
             {
                 a.flags = (a.flags & ~0x3F0000u) | (2u << 16);
                 a.volMin = a.volMax = (unsigned __int16)(0.6f * 65535.0f);

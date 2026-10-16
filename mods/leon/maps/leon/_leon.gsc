@@ -12,7 +12,7 @@
 init()
 {
 	logPrint( "leon: init on " + getDvar( "mapname" ) + "\n" );
-	precacheModel( "leon" );
+	maps\leon\_character::precache(); // Leon, and Ada, HUNK and Luis where they were built
 	precacheModel( "t5_weapon_m14_world" ); // the npc test's weapon (common_zombie: on every map)
 	level thread leon_spawn_test();
 	level thread maps\leon\_kick::init(); // RE4's stagger and kick
@@ -67,14 +67,14 @@ leon_spawn_test()
 
 	if ( getDvar( "leon_nomodel" ) != "1" ) // tests: BO1's own player model
 	{
-		player detachAll();
-		player setModel( "leon" );
+		player maps\leon\_character::apply( maps\leon\_character::current() );
 		player thread leon_keep_model();
+		player thread maps\leon\_character::choose(); // "Press KNIFE to switch character"
 	}
 	player thread leon_down_no_weapons();
 	level thread maps\leon\_pickup::init( player ); // RE4's pickup sound on a gun or ammo
 	logPrint( "leon: player model " + player.model + "\n" );
-	if ( player.model == "leon" )
+	if ( player.model != "" && player.model == maps\leon\_character::current() )
 		setDvar( "leon_spawned", "1" ); // Melty's test mode (the engine's Com_MeltyTestFrame): Leon is in
 	if ( getDvar( "leon_thirdperson" ) == "1" )
 		setDvar( "cg_thirdPerson", "1" );
@@ -239,10 +239,11 @@ leon_keep_model()
 	for ( ;; )
 	{
 		wait 0.25;
-		if ( isDefined( self.model ) && self.model != "leon" && self.model != "" )
+		character = maps\leon\_character::current();
+		if ( isDefined( self.model ) && self.model != character && self.model != "" )
 		{
 			self detachAll();
-			self setModel( "leon" );
+			self setModel( character );
 		}
 	}
 }
