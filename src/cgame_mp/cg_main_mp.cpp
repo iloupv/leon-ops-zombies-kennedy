@@ -2476,6 +2476,26 @@ char __cdecl CGScr_LoadScriptAndLabel(
 
 void __cdecl CGScr_LoadScripts(const char *mapname, const char *gametype, ScriptFunctions *functions)
 {
+    // zombies (LAN co-op): a client joined to another's game runs no server, so it compiles the level's server scripts
+    // itself for their animation trees, as MP's clients do - the SP game's (GScr_SP_LoadScripts: the zombie
+    // animscripts, maps/<mapname>), not MP's gametype ones (they are not in zombies: the join failed to compile
+    // maps/mp/_utility) - and finds the actors' tree as the server does (G_SP_FindActorAnimTree, which
+    // CG_LoadAnimTreeInstances' G_SP_GetActorAnims reads)
+    if ( Com_IsSPLevel() )
+    {
+        Scr_BeginLoadScripts(SCRIPTINSTANCE_SERVER, 0);
+        CGScr_LoadScriptAndLabel(SCRIPTINSTANCE_SERVER, "codescripts/delete", "main", functions);
+        CGScr_LoadScriptAndLabel(SCRIPTINSTANCE_SERVER, "codescripts/struct", "initstructs", functions);
+        CGScr_LoadScriptAndLabel(SCRIPTINSTANCE_SERVER, "codescripts/struct", "createstruct", functions);
+        CGScr_LoadScriptAndLabel(SCRIPTINSTANCE_SERVER, "codescripts/struct", "findstruct", functions);
+        GScr_SP_LoadScripts(SCRIPTINSTANCE_SERVER);
+        G_ResetEntityParsePoint();
+        Scr_PostCompileScripts(SCRIPTINSTANCE_SERVER);
+        Scr_EndLoadScripts(SCRIPTINSTANCE_SERVER);
+        Scr_PrecacheAnimTrees(SCRIPTINSTANCE_SERVER, (void *(__cdecl *)(int))Hunk_AllocXAnimCreate, 0, 1);
+        G_SP_FindActorAnimTree();
+        return;
+    }
     Scr_BeginLoadScripts(SCRIPTINSTANCE_SERVER, 0);
     CGScr_LoadScriptAndLabel(SCRIPTINSTANCE_SERVER, "codescripts/delete", "main", functions);
     CGScr_LoadScriptAndLabel(SCRIPTINSTANCE_SERVER, "codescripts/struct", "initstructs", functions);

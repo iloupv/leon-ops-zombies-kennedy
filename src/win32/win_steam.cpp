@@ -269,9 +269,17 @@ bool Steam_CheckClientTicket(const void* pAuthTicket, uint32 authTicketLen, uint
 	id.SetFromUint64(steamID64);
 
 	EBeginAuthSessionResult res = SteamUser()->BeginAuthSession(pAuthTicket, authTicketLen, id);
-	
+
+	// mod (LAN co-op): a second copy of the game on the host's own account (another one on this PC or the LAN) - Steam
+	// answers that the account's session is already open: it is the host's, so it is let in
+	if (res == k_EBeginAuthSessionResultDuplicateRequest && SteamUser()->GetSteamID() == id)
+	{
+		Com_Printf(0, "[BO1] Steam: a second copy on the host's own account (%llu) let in\n", steamID64);
+		return true;
+	}
 	if (res != k_EBeginAuthSessionResultOK)
 	{
+		Com_Printf(0, "[BO1] Steam: BeginAuthSession for %llu refused (%d)\n", steamID64, (int)res);
 		return false;
 	}
 

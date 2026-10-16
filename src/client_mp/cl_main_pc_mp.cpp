@@ -370,7 +370,12 @@ void __cdecl CL_Connect_f()
         clc = CL_GetLocalClientConnection(0);
         clc->serverMessage[0] = 0;
         server = Cmd_Argv(1);
-        if ( !strcmp(server, "localhost") )
+        // mod (LAN co-op): a server of our own running - zombies' front end is a running level - is shut down for a
+        // network address too: while it runs, every network packet goes to it (Com_ClientPacketEvent), and the host's
+        // challenge answer never reached this client
+        netadr_t target;
+        if ( !strcmp(server, "localhost")
+             || (com_sv_running->current.enabled && NET_StringToAdr(server, &target) && target.type != NA_LOOPBACK) )
             SV_KillLocalServer();
         cl_serverLoadingMap = 0;
         g_waitingForServer = 0;
