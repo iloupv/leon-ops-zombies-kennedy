@@ -738,6 +738,43 @@ char __cdecl R_DuplicateTexture(GfxImage *dstImage, const GfxImage *srcImage)
     return 1;
 }
 
+// mod: Load_Texture's stand-in for an image file the install lacks: the default texture (Image_AssignDefaultTexture),
+// or before the built-in images have theirs (the front end's first images) a solid texel of its own in the default's
+// colour. It makes a texture: on the render thread, or through RB_Resource_Callback as Image_LoadFromFileWithReader
+// does off it (Load_Texture runs on the database thread through a level's load)
+static GfxImage *s_missingImage;
+
+static void __cdecl Image_LoadMissingCallback()
+{
+    GfxImage *image = s_missingImage;
+    if ( Image_AssignDefaultTexture(image) )
+        return;
+    if ( image->semantic == 5 )
+        Image_LoadSolid(image, 0x80u, 0x80u, 0xFFu, 0xFFu);
+    else if ( image->semantic == 8 )
+        Image_LoadSolid(image, 0, 0, 0, 0xFFu);
+    else
+        Image_LoadSolid(image, 0xFFu, 0xFFu, 0xFFu, 0xFFu);
+}
+
+static void Image_LoadMissing(GfxImage *image)
+{
+    if ( image->mapType != 3 ) // (a cube or volume: no stand-in of its own; the default, or the old error)
+    {
+        if ( !Image_AssignDefaultTexture(image) )
+            Com_Error(ERR_DROP, "Couldn't load image '%s'\n", image->name);
+        return;
+    }
+    s_missingImage = image;
+    if ( Sys_IsRenderThread() )
+    {
+        Image_LoadMissingCallback();
+        return;
+    }
+    RB_Resource_Callback(Image_LoadMissingCallback);
+    RB_Resource_Flush();
+}
+
 void __cdecl Load_Texture(GfxTexture *remoteLoadDef, GfxImage *image)
 {
     unsigned int v2; // [esp+0h] [ebp-68h]
@@ -890,8 +927,26 @@ void __cdecl Load_Texture(GfxTexture *remoteLoadDef, GfxImage *image)
                 externalDataSize = image->cardMemory.platform[0];
                 image->cardMemory.platform[0] = 0;
                 image->cardMemory.platform[1] = 0;
-                if ( !Image_LoadFromFile(image, 0) )
-                    Com_Error(ERR_DROP, "Couldn't load image '%s'\n", image->name);
+                // mod: an image file the install lacks (a damaged or partly downloaded DLC pack: players' Melty
+                // reports, Call of the Dead's '~~-gp_zom_lighthouse_door_s-r~6bed6018' at the menu) no longer ends the
+                // game: it draws as the default texture (white, a flat normal, no specular), as BO1's own lost-device
+                // rebuild does. bo1_imagefailtest <part of a name> fails those images on purpose (tests)
+                // (looked up once: Dvar_FindVar for every image a level loads made its loads several times slower; the
+                // test sets it on the command line, before any load)
+                static const dvar_s *failTest;
+                static bool failTestLooked;
+                if ( !failTestLooked )
+                {
+                    failTest = Dvar_FindVar("bo1_imagefailtest");
+                    failTestLooked = true;
+                }
+                const bool failForTest = failTest && failTest->type == DVAR_TYPE_STRING && failTest->current.string
+                                         && failTest->current.string[0] && strstr(image->name, failTest->current.string);
+                if ( failForTest || !Image_LoadFromFile(image, 0) )
+                {
+                    Com_PrintWarning(8, "Couldn't load image '%s': drawn as the default texture\n", image->name);
+                    Image_LoadMissing(image);
+                }
                 DB_LoadedExternalData(externalDataSize);
             }
         }

@@ -19,6 +19,7 @@ import argparse
 import os
 import runpy
 import shutil
+import struct
 import subprocess
 import sys
 import time
@@ -54,6 +55,51 @@ def bio4_folder(re4):
 def unpack(src, dst):
     subprocess.run([os.path.join(here, 'lfsunpack.exe'), src, dst], check=True, creationflags=NO_WINDOW,
                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+
+
+def is_texture_pack(path):
+    """An RE4 texture pack (uhd_pack: a pack id, an image count, their offsets), not some other file by its name."""
+    try:
+        with open(path, 'rb') as f:
+            head = f.read(8)
+        if len(head) < 8:
+            return False
+        _pack_id, count = struct.unpack('<II', head)
+        return 0 < count < 100000
+    except OSError:
+        return False
+
+
+def pack_candidates(bio4):
+    """Where Leon's texture pack (his TPLs' pack 0x01000000) may be, best first: ImagePackHD's, then ImagePack's, packed
+    (.lfs) or plain, under any letter case - and as a texture mod or repack left it: the original renamed out of the way
+    (.bak, .old, ...: mods that replace a pack set the .lfs aside so the game reads theirs), or moved deeper into BIO4."""
+    found = []
+    for folder in ('ImagePackHD', 'ImagePack'):
+        d = os.path.join(bio4, folder)
+        if not os.path.isdir(d):
+            continue
+        names = sorted(os.listdir(d), key=lambda n: (not n.lower().endswith('.pack.yz2.lfs'),
+                                                     not n.lower().endswith('.pack.yz2'), n.lower()))
+        found += [os.path.join(d, n) for n in names if n.lower().startswith('01000000.pack')]
+    for root, dirs, files in os.walk(bio4):
+        if root.count(os.sep) - bio4.count(os.sep) >= 3:
+            dirs[:] = []
+        found += [os.path.join(root, n) for n in sorted(files) if n.lower().startswith('01000000.pack')
+                  and os.path.join(root, n) not in found]
+    return found
+
+
+def describe_folders(bio4):
+    """What the texture folders hold (the log, when Leon's pack is not found: the next report shows the layout)."""
+    for folder in ('ImagePackHD', 'ImagePack'):
+        d = os.path.join(bio4, folder)
+        if not os.path.isdir(d):
+            log(f'  no {folder} folder')
+            continue
+        names = sorted(os.listdir(d))
+        log(f'  {folder}: {len(names)} entries, e.g. {", ".join(names[:12])}')
+    log(f'  BIO4: {", ".join(sorted(os.listdir(bio4))[:30])}')
 
 
 def run_tool(module, argv):
@@ -121,12 +167,31 @@ def main():
                 if name in REQUIRED:
                     raise SystemExit(f'missing {os.path.join(bio4, "Em", name + ".udas.lfs")}')
                 log(f'no {name}.udas: its motions are left out')
-        pack = fetch([os.path.join(bio4, 'ImagePackHD', '01000000.pack.yz2'),
-                      os.path.join(bio4, 'ImagePack', '01000000.pack.yz2')], os.path.join(work, '01000000.pack.yz2'))
-        if not pack:
-            raise SystemExit(f'missing {os.path.join(bio4, "ImagePackHD", "01000000.pack.yz2.lfs")} (nor its plain '
-                             f'.pack.yz2, nor ImagePack\'s)')
-        log(f'unpacked (textures: {pack})')
+        # Leon's textures: the first candidate that is a real pack once read (a packed one unpacked first); with none,
+        # he is built grey and the player still plays (installs with the RE4 HD Project failed the whole setup here)
+        pack_dest = os.path.join(work, '01000000.pack.yz2')
+        pack = None
+        for src in pack_candidates(bio4):
+            try:
+                if '.lfs' in os.path.basename(src).lower():
+                    unpack(src, pack_dest)
+                else:
+                    shutil.copyfile(src, pack_dest)
+            except (OSError, subprocess.CalledProcessError) as e:
+                log(f'  {src}: not read ({e})')
+                continue
+            if is_texture_pack(pack_dest):
+                pack = src
+                break
+            log(f'  {src}: not a texture pack')
+        if pack:
+            log(f'unpacked (textures: {pack})')
+        else:
+            log(f'no Leon texture pack ({os.path.join(bio4, "ImagePackHD", "01000000.pack.yz2.lfs")}, nor its plain '
+                f'.pack.yz2, nor ImagePack\'s): Leon is built without his textures (grey)')
+            describe_folders(bio4)
+            with open(pack_dest, 'wb') as f:
+                f.write(struct.pack('<II', 0x01000000, 0))
 
         os.makedirs(rtmodels, exist_ok=True)
         rlm = os.path.join(rtmodels, 'leon.rlm')
