@@ -607,6 +607,10 @@ void __cdecl CG_MapRestart(int localClientNum, int savepersist)
         ext->timeScaleLerpEnd = 0;
         Com_Printf(0, "map restart: time scale %g -> 1\n", Com_GetTimescaleForSnd());
         Com_SetTimeScale(1.0f);
+        // and missionfailed's hud_missionFailed (the server's "v hud_missionFailed 1"), which hides the zombie HUD:
+        // the host's restart clears it by resetting its 0x1000 dvars (SP_TemporaryReloadMap), in its own process -
+        // a joined client's stayed set, and it had no HUD through the next match
+        Dvar_SetBoolByName("hud_missionFailed", false);
     }
     if ( !savepersist )
     {
