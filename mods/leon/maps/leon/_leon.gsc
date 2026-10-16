@@ -463,8 +463,7 @@ leon_aim_yaws( yaws )
 leon_dog_test( seconds )
 {
 	wait seconds;
-	logPrint( "leon: dogtest - spawning dogs
-" );
+	logPrint( "leon: dogtest - spawning dogs\n" );
 	maps\_zombiemode_ai_dogs::special_dog_spawn( undefined, 2 );
 }
 
