@@ -377,6 +377,12 @@ void __cdecl CL_Connect_f()
         if ( !strcmp(server, "localhost")
              || (com_sv_running->current.enabled && NET_StringToAdr(server, &target) && target.type != NA_LOOPBACK) )
             SV_KillLocalServer();
+        // mod (LAN co-op): a zombies host's game - the client loads its zones as one (Com_LoadCommonFastFile: common_zombie,
+        // not MP's common_mp, which overflowed the font assets); the front end's zombie menu sets it too, but a
+        // command-line +connect comes before it
+        const dvar_s *zombiesBuild = Dvar_FindVar("bo1_zombies");
+        if ( zombiesBuild && zombiesBuild->current.enabled && strcmp(server, "localhost") )
+            Dvar_SetBoolByName("zombiemode", 1);
         cl_serverLoadingMap = 0;
         g_waitingForServer = 0;
         FS_DisablePureCheck(0);
