@@ -22,6 +22,19 @@ import sys
 # wep02_r3_ready10; cue 0x28 plays wave 46)
 LEON_SOUNDS = [('leon_pain_1.wav', 39), ('leon_pain_2.wav', 38), ('leon_pain_3.wav', 37), ('leon_death.wav', 33),
                ('leon_kicka.wav', 28), ('leon_kickb.wav', 29), ('leon_kickhit.wav', 41), ('leon_aim.wav', 46)]
+# The other playable characters' voices (the engine's CG_LeonVoice: "<character>_<sound>", Leon's where one has none),
+# from their own banks next to pl00.xwb, at the same cues: pain 9 / 10 / 11, death 0xD, the kick's grunt 0x10 (its
+# whoosh, cue 0x11, is the same wave in every bank: Leon's plays). Ada's bank is pl0b (no pl0c bank: the same voice);
+# Luis, never the player, has a partner's cue table: his pain and death at those cues all the same (pl14/pl14.cpp
+# SndCall 9 on a hit, 0xD as he dies), no kick - his shortest pain grunt for it. (bank, [(output file, wave)])
+CHARACTER_SOUNDS = [
+    ('pl0b.xwb', [('ada_pain_1.wav', 50), ('ada_pain_2.wav', 51), ('ada_pain_3.wav', 52), ('ada_death.wav', 56),
+                  ('ada_kickb.wav', 59)]),
+    ('pl06.xwb', [('hunk_pain_1.wav', 52), ('hunk_pain_2.wav', 53), ('hunk_pain_3.wav', 54), ('hunk_death.wav', 58),
+                  ('hunk_kickb.wav', 62)]),
+    ('pl14.xwb', [('luis_pain_1.wav', 4), ('luis_pain_2.wav', 5), ('luis_pain_3.wav', 6), ('luis_death.wav', 8),
+                  ('luis_kickb.wav', 4)]),
+]
 # the levels some are brought to (loud: dB RMS): the aim's soft rustle is mastered ~24 dB under his voice, for RE4's quiet
 # - lost under BO1's fight, it is brought up ~15 dB, still well under his voice
 LEVELS = {'leon_aim.wav': -22.0}
@@ -196,6 +209,12 @@ def wav(channels, rate, bits, pcm):
 if __name__ == '__main__':
     os.makedirs(sys.argv[2], exist_ok=True)
     sounds = [(sys.argv[1], name, index) for name, index in LEON_SOUNDS]
+    for bank, bank_sounds in CHARACTER_SOUNDS:
+        path = os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), bank)
+        if os.path.exists(path):
+            sounds += [(path, name, index) for name, index in bank_sounds]
+        else:
+            print(f"no {path}: {bank_sounds[0][0].split('_')[0]} has Leon's voice")
     core = os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), 'core.xwb')
     if os.path.exists(core):
         sounds += [(core, name, index) for name, index in CORE_SOUNDS]

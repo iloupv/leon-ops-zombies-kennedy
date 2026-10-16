@@ -9,7 +9,8 @@
 // round's stinger, zmb_dog_round_start, runs 5.7 s, its announcer from 1 s in under it); no line when the sound is
 // not there. The dog round has his "Hey, it's that dog." instead (leon_that_dog: the village square's dog, RE4's
 // r119s10), and the Nuke his "Hasta luego!" (leon_hasta_luego: to Mendez in the barn, r11fs02) as he grabs it
-// (_zombiemode_powerups' powerup_grab: "nuke_triggered" on the player who took it).
+// (_zombiemode_powerups' powerup_grab: "nuke_triggered" on the player who took it). Leon's lines: none when the player
+// plays another character (maps\leon\_character).
 //   leon_bingo 0     off (the special rounds' and the map start's lines)
 //   leon_bingostart 0  not at the start of the map
 //   leon_soundlen "<alias> ..."  test: each alias played in turn, its length logged (headless: bo1_snd_nodevice_length)
@@ -85,6 +86,8 @@ leon_bingo_start()
 leon_bingo_say( why )
 {
 	wait 6.5;
+	if ( maps\leon\_character::current() != "leon" )
+		return;
 	alias = "leon_bingo";
 	if ( why == "dog_round" && soundExists( "leon_that_dog" ) )
 		alias = "leon_that_dog";
@@ -108,6 +111,8 @@ leon_nuke_line()
 	for ( ;; )
 	{
 		player waittill( "nuke_triggered" );
+		if ( maps\leon\_character::current() != "leon" )
+			continue;
 		if ( soundExists( "leon_hasta_luego" ) )
 			player playLocalSound( "leon_hasta_luego" );
 		logPrint( "leon: hasta luego\n" );

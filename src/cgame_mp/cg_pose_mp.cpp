@@ -894,6 +894,18 @@ static const char *CG_RuntimeXModel_ReloadSet(unsigned int weapon)
     return CG_RuntimeXModel_AnimSet(weapon);
 }
 
+// mod: the local player's voice: the runtime sound "<character>_<sound>" for the character the mod's scripts gave him
+// (leon_character: maps\leon\_character.gsc - ada_pain, hunk_death...), else Leon's ("leon_<sound>")
+static bool CG_LeonVoice(int localClientNum, const char *sound)
+{
+    const dvar_s *character = Dvar_FindVar("leon_character");
+    if ( character && character->type == DVAR_TYPE_STRING && character->current.string
+         && character->current.string[0] && I_stricmp(character->current.string, "leon")
+         && SND_Runtime_PlayLocal(localClientNum, va("%s_%s", character->current.string, sound)) )
+        return true;
+    return SND_Runtime_PlayLocal(localClientNum, va("leon_%s", sound));
+}
+
 // mod: the local player's hit (CG_TransitionPlayerState's damage feedback): RE4's front or back reaction, by where the
 // damage came from against his facing, and his pain grunt (the runtime sound "leon_pain": RE4's SE 9 / 10 / 11);
 // not again while the last one still plays its first half second
@@ -1000,7 +1012,7 @@ void __cdecl CG_RuntimeXModel_PlayerState(int localClientNum, const playerState_
     {
         s_leonDownStart = cgameGlob->time;
         s_leonDownYaw = CG_ShoulderCameraActive(cgameGlob) ? CG_ShoulderCameraYaw(cgameGlob) : cgameGlob->refdefViewAngles[1];
-        const bool voiced = SND_Runtime_PlayLocal(localClientNum, "leon_death");
+        const bool voiced = CG_LeonVoice(localClientNum, "death");
         Com_Printf(0, "leon: down (pm_type %d%s)%s\n", ps->pm_type, died ? ", game over" : "",
                    voiced ? ", death scream" : "");
     }
@@ -1017,7 +1029,7 @@ void __cdecl CG_RuntimeXModel_PlayerHit(int localClientNum, int yawByte, int pit
     // aimed in (or raising / lowering the aim) a hit is only his grunt: he keeps aiming, as RE4's Leon does
     if ( CG_ShoulderAimFrac(cgameGlob) > 0.01f )
     {
-        SND_Runtime_PlayLocal(localClientNum, "leon_pain");
+        CG_LeonVoice(localClientNum, "pain");
         return;
     }
     s_leonHitStart = cgameGlob->time;
@@ -1028,7 +1040,7 @@ void __cdecl CG_RuntimeXModel_PlayerHit(int localClientNum, int yawByte, int pit
         const float yaw = (float)yawByte / 255.0f * 360.0f;
         s_leonHitBack = cosf((yaw - cgameGlob->predictedPlayerState.viewangles[1]) * 0.017453292f) > 0.0f;
     }
-    SND_Runtime_PlayLocal(localClientNum, "leon_pain");
+    CG_LeonVoice(localClientNum, "pain");
 }
 
 // mod: poses a runtime model's DObj (R_RuntimeXModel_PoseDObj) before DObjCalcSkel, with the entity's origin and
@@ -1212,8 +1224,8 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             if ( s_kickVoiced != s_kickStart && cgameGlob->time - s_kickStart >= 300 )
             {
                 s_kickVoiced = s_kickStart;
-                SND_Runtime_PlayLocal(pose->localClientNum, "leon_kicka");
-                SND_Runtime_PlayLocal(pose->localClientNum, "leon_kickb");
+                CG_LeonVoice(pose->localClientNum, "kicka");
+                CG_LeonVoice(pose->localClientNum, "kickb");
             }
         }
         // (a hit does not break a reload: the reload carried on under it and came back halfway)

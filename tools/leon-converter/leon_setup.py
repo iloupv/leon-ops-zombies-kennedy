@@ -7,7 +7,8 @@ own Black Ops. Nothing of either game is shipped; both installs are only read.
   1. unpacks Leon's archives (BIO4/Em/pl00, em10, wep00..wep19 .udas.lfs) and his HD textures
      (BIO4/ImagePackHD/01000000.pack.yz2.lfs) into a work folder (lfsunpack.exe)
   2. converts him (leon_rlm.py --armed: model, textures, RE4's motions baked with the game's own motion code)
-     into <out>/mods/leon/rtmodels/leon.rlm
+     into <out>/mods/leon/rtmodels/leon.rlm, and Ada, HUNK and Luis (pl0c, pl06, pl14: --character) into ada.rlm,
+     hunk.rlm and luis.rlm (any that fails is left out; Leon still plays)
   3. writes his voice (leon_sounds.py: BIO4/snd/pl00.xwb, core.xwb) into <out>/mods/leon/sound/rt
   4. extracts d3dx9_43.dll and xinput1_3.dll from Black Ops' Redist/DirectX next to the game's exe
   5. writes <out>/mods/leon/rtmodels/leon_ready_v<SETUP_VERSION>.txt (what Melty and the launcher wait for: a new
@@ -25,9 +26,12 @@ import sys
 import time
 
 # 2: the guns 20 mm further out in his hand, the shotgun's close with its whole pump; 3: Leon's "Bingo?"; 4: the gun's
-# raise to aim (leon_aim)
-SETUP_VERSION = '4'
-ARCHIVES = ['pl00', 'em10'] + [f'wep{n:02d}' for n in (0, 1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19)]
+# raise to aim (leon_aim); 5: Ada, HUNK and Luis (CHARACTERS), "Hasta luego!" and "Hey, it's that dog."
+SETUP_VERSION = '5'
+# the other playable characters: (name, their archive, their texture pack) - leon_rlm.py --character
+CHARACTERS = [('ada', 'pl0c', '0100000c'), ('hunk', 'pl06', '01000006'), ('luis', 'pl14', '01000014')]
+ARCHIVES = (['pl00', 'em10'] + [f'wep{n:02d}' for n in (0, 1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19)]
+            + [archive for _name, archive, _pack in CHARACTERS])
 REQUIRED = {'pl00', 'wep01'}
 DIRECTX = [('Jun2010_d3dx9_43_x86.cab', 'd3dx9_43.dll'), ('APR2007_xinput_x86.cab', 'xinput1_3.dll')]
 NO_WINDOW = 0x08000000  # CREATE_NO_WINDOW
@@ -206,6 +210,26 @@ def main():
         run_tool('leon_rlm', [os.path.join(work, 'pl00.udas'), packs_arg, rlm + '.tmp', '--armed'])
         os.replace(rlm + '.tmp', rlm)
         log(f'leon.rlm: {os.path.getsize(rlm)} bytes')
+
+        # the others, each on its own: one that fails is left out of the game's choice (bo1_rtmodels_loaded), Leon
+        # still plays
+        for name, archive, pack_name in CHARACTERS:
+            udas = os.path.join(work, f'{archive}.udas')
+            if not os.path.isfile(udas):
+                continue
+            try:
+                own_dest = os.path.join(work, f'{pack_name}.pack')
+                if not fetch_pack(pack_name, own_dest):
+                    log(f'no {pack_name} texture pack: {name} is built grey')
+                    with open(own_dest, 'wb') as f:
+                        f.write(struct.pack('<II', int(pack_name, 16), 0))
+                char_rlm = os.path.join(rtmodels, f'{name}.rlm')
+                run_tool('leon_rlm', [udas, own_dest + (';' + shared_dest if shared else ''), char_rlm + '.tmp',
+                                      '--armed', '--character', name])
+                os.replace(char_rlm + '.tmp', char_rlm)
+                log(f'{name}.rlm: {os.path.getsize(char_rlm)} bytes')
+            except Exception as e:  # noqa: BLE001 - Leon still plays without this one
+                log(f'{name}: not built ({e!r})')
 
         run_tool('leon_sounds', [os.path.join(bio4, 'snd', 'pl00.xwb'), os.path.join(out, 'mods', 'leon', 'sound', 'rt')])
         log('sounds written')

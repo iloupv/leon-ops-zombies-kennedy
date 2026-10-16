@@ -61,6 +61,7 @@ extern XZoneName g_zoneNames[33];
 extern unsigned int g_zoneIndex;
 
 static const dvar_t *bo1_rtmodels;
+static const dvar_t *bo1_rtmodels_loaded;
 
 // the template's material: in common_zombie, so on every zombies level
 static const char *const s_templateModels[] = { "t5_weapon_m14_world", "defaultactor" };
@@ -148,6 +149,14 @@ void __cdecl R_RuntimeXModel_RegisterDvars()
     if ( !bo1_rtmodels )
         bo1_rtmodels = _Dvar_RegisterString("bo1_rtmodels", "", 0,
             "mod: runtime models built at level load from rtmodels/<name>.rlm (space-separated names)");
+    if ( !bo1_rtmodels_loaded )
+        bo1_rtmodels_loaded = _Dvar_RegisterString("bo1_rtmodels_loaded", "", 0,
+            "mod: the bo1_rtmodels built for this level (the Leon mod's scripts offer these characters)");
+    // (archived: the player config keeps the last character picked)
+    static bool s_characterRegistered;
+    if ( !s_characterRegistered )
+        s_characterRegistered = !!_Dvar_RegisterString("leon_character", "leon", 1,
+            "mod: the Leon mod's character (maps\\leon\\_character.gsc): leon, ada, hunk or luis");
 }
 
 static int RtLevelZoneIndex(const char *mapName)
@@ -1223,10 +1232,28 @@ bool __cdecl R_RuntimeXModel_RootYaw(const char *name, float time, float *yaw, f
     return false;
 }
 
+// bo1_rtmodels_loaded: the names of bo1_rtmodels built in the level's zone (one without its .rlm is left out)
+static void RtPublishLoaded(int zoneIndex)
+{
+    char names[1024], loaded[1024] = "";
+    I_strncpyz(names, bo1_rtmodels->current.string, sizeof(names));
+    for ( char *tok = strtok(names, " ,"); tok; tok = strtok(0, " ,") )
+    {
+        const XAssetEntryPoolEntry *e = DB_FindXAssetEntry(ASSET_TYPE_XMODEL, tok);
+        if ( !e || e->entry.zoneIndex != zoneIndex )
+            continue;
+        if ( loaded[0] )
+            I_strncat(loaded, sizeof(loaded), " ");
+        I_strncat(loaded, sizeof(loaded), tok);
+    }
+    Dvar_SetString((dvar_s *)bo1_rtmodels_loaded, loaded);
+}
+
 // Called by CL_InitCGame once the level's fastfiles are queued, before CG_Init registers the models.
 void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
 {
     R_RuntimeXModel_RegisterDvars();
+    Dvar_SetString((dvar_s *)bo1_rtmodels_loaded, "");
     // (not on the SP front end: its menus' level, launched into with the mod's dvars set)
     if ( !bo1_rtmodels->current.string[0] || IsDedicatedServer() || !I_stricmp(mapName, "frontend") )
         return;
@@ -1249,7 +1276,10 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
             built = false;
     }
     if ( built )
+    {
+        RtPublishLoaded(zoneIndex);
         return;
+    }
 
     // a character's cloth material first (the zombies' gear: the characters' own lit shader, matte where a prop's is
     // shiny), else a plain lit prop's
@@ -1283,6 +1313,7 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
     const XAssetEntryPoolEntry *laser = DB_FindXAssetEntry(ASSET_TYPE_XMODEL, "leon_laser");
     if ( loaded && !(laser && laser->entry.zoneIndex == zoneIndex) )
         RtBuildLaserModels(zoneIndex, gpu);
+    RtPublishLoaded(zoneIndex);
     if ( gpu )
         RB_Resource_Flush();
 }
