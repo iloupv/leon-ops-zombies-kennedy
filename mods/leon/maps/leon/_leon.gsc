@@ -91,18 +91,66 @@ leon_player_setup()
 	self maps\leon\_merchant::player_init();
 	self thread maps\leon\_bingo::player_init();
 	logPrint( "leon: player " + self getEntityNumber() + " model " + self.model + "\n" );
+	players = getEntArray( "player", "classname" );
+	if ( players.size > 1 && players[0] != self )
+		self thread leon_join_in_progress();
 	if ( getDvar( "leon_cooptest" ) == "1" )
 		self thread leon_coop_test(); // tests: two copies, each seeing the other
+}
+
+// tests: where the joiner is every 5 s (his own input moves him: the test's keys walk him)
+leon_coop_test_moves()
+{
+	self endon( "disconnect" );
+	for ( i = 0; i < 6; i++ )
+	{
+		wait 5;
+		logPrint( "leon: cooptest - player " + self getEntityNumber() + " at " + self.origin + "\n" );
+	}
+}
+
+// A player who joins a game under way (co-op): BO1 has no join in progress - its lobby starts everyone together. Its
+// first spawn freezes him for the intro's black screen, which has gone (_zombiemode onPlayerSpawned), and only the
+// match's start puts the players on the map's spawn points (coop_player_spawn_placement): he stood frozen at the
+// world's origin. He is put where a player coming back from spectating is - near his team (check_for_valid_spawn_near_team)
+// - else beside a teammate, and let go.
+leon_join_in_progress()
+{
+	self endon( "disconnect" );
+	wait 0.5; // (after _zombiemode's first spawn)
+	spot = maps\_zombiemode::check_for_valid_spawn_near_team( self );
+	mate = undefined;
+	players = getEntArray( "player", "classname" );
+	for ( i = 0; i < players.size; i++ )
+	{
+		if ( players[i] != self && isAlive( players[i] ) && players[i].sessionstate == "playing" )
+		{
+			mate = players[i];
+			break;
+		}
+	}
+	if ( !isDefined( spot ) && isDefined( mate ) )
+		spot = mate.origin + anglesToRight( ( 0, mate.angles[1], 0 ) ) * 40;
+	if ( isDefined( spot ) )
+		self setOrigin( spot );
+	if ( isDefined( mate ) )
+		self setPlayerAngles( ( 0, mate.angles[1], 0 ) );
+	self freezeControls( false );
+	logPrint( "leon: player " + self getEntityNumber() + " joined in progress, at " + self.origin + "\n" );
 }
 
 // Tests (co-op, headless): every player invulnerable; one who joins stands 120" in front of the host, the
 // two facing each other, each in the other's view.
 leon_coop_test()
 {
+	self endon( "disconnect" );
 	self enableInvulnerability();
 	players = getEntArray( "player", "classname" );
 	if ( players.size < 2 || players[0] == self )
 		return;
+	wait 1; // (after leon_join_in_progress has placed him)
+	logPrint( "leon: cooptest - player " + self getEntityNumber() + " placed at " + self.origin + "\n" );
+	self thread leon_coop_test_moves();
 	host = players[0];
 	forward = anglesToForward( ( 0, host.angles[1], 0 ) );
 	self setOrigin( host.origin + forward * 120 );
