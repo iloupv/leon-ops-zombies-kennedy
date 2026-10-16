@@ -2489,6 +2489,10 @@ void __cdecl CGScr_LoadScripts(const char *mapname, const char *gametype, Script
         CGScr_LoadScriptAndLabel(SCRIPTINSTANCE_SERVER, "codescripts/struct", "createstruct", functions);
         CGScr_LoadScriptAndLabel(SCRIPTINSTANCE_SERVER, "codescripts/struct", "findstruct", functions);
         GScr_SP_LoadScripts(SCRIPTINSTANCE_SERVER);
+        // and the path nodes' traverse scripts, as the server's GScr_LoadScripts does: their anims are in the actors'
+        // tree too, which the server's anim commands index - without them the joiner's had 912 anims to the host's
+        // 947, every index past them off (crawls, a T pose)
+        GScr_SetScriptsForPathNodes();
         G_ResetEntityParsePoint();
         Scr_PostCompileScripts(SCRIPTINSTANCE_SERVER);
         Scr_EndLoadScripts(SCRIPTINSTANCE_SERVER);
@@ -2813,7 +2817,9 @@ int __cdecl CachedTag_UpdateTagInternal(
     }
     else
     {
-        Com_Error(ERR_DROP, "CachedTag_UpdateTagInternal: Cannot find dobj on entity\n");
+        // mod (co-op): no tag this frame - a teammate's model not made yet. Through a map's restart the name over a
+        // teammate (CG_DrawFriendlyNames: his j_head) asked before his DObj was back, and this ERR_DROP ended the game
+        // for everyone; the cached position (or none) stands
         return 0;
     }
 }
@@ -2833,8 +2839,7 @@ int __cdecl CachedTag_NoCache_GetTagPos(const centity_s *ent, unsigned int tagNa
     DObj *dobj; // [esp+4h] [ebp-8h]
 
     dobj = Com_GetClientDObj(ent->nextState.number, ent->pose.localClientNum);
-    if ( !dobj && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_main_mp.cpp", 2646, 0, "%s", "dobj") )
-        __debugbreak();
+    // mod (co-op): a teammate's model not made yet (a map's restart): his origin, below - no assert
     if ( dobj )
     {
         if ( CG_DObjGetWorldTagPos(&ent->pose, dobj, tagName, pos) )
