@@ -2483,9 +2483,7 @@ void __cdecl CGScr_LoadScripts(const char *mapname, const char *gametype, Script
     // CG_LoadAnimTreeInstances' G_SP_GetActorAnims reads)
     if ( Com_IsSPLevel() )
     {
-        // (into the server's anim tree list, user 1, as the host's game compiles them - G_InitGame's - where the
-        // entities' es.animtreeIndex is looked up: Scr_GetAnims, a dog's tree; in user 0's the first dog asserted)
-        Scr_BeginLoadScripts(SCRIPTINSTANCE_SERVER, 1);
+        Scr_BeginLoadScripts(SCRIPTINSTANCE_SERVER, 0);
         CGScr_LoadScriptAndLabel(SCRIPTINSTANCE_SERVER, "codescripts/delete", "main", functions);
         CGScr_LoadScriptAndLabel(SCRIPTINSTANCE_SERVER, "codescripts/struct", "initstructs", functions);
         CGScr_LoadScriptAndLabel(SCRIPTINSTANCE_SERVER, "codescripts/struct", "createstruct", functions);
@@ -2498,7 +2496,7 @@ void __cdecl CGScr_LoadScripts(const char *mapname, const char *gametype, Script
         G_ResetEntityParsePoint();
         Scr_PostCompileScripts(SCRIPTINSTANCE_SERVER);
         Scr_EndLoadScripts(SCRIPTINSTANCE_SERVER);
-        Scr_PrecacheAnimTrees(SCRIPTINSTANCE_SERVER, (void *(__cdecl *)(int))Hunk_AllocXAnimCreate, 1, 1);
+        Scr_PrecacheAnimTrees(SCRIPTINSTANCE_SERVER, (void *(__cdecl *)(int))Hunk_AllocXAnimCreate, 0, 1);
         G_SP_FindActorAnimTree();
         return;
     }
@@ -3155,11 +3153,11 @@ void __cdecl CG_Init(int localClientNum, int serverMessageNum, int serverCommand
     if ( loaded_server_scripts )
     {
         // mod (co-op): a joined client's server scripts are freed, their anim trees kept (hunk memory, the level's):
-        // the list's count too, which the free zeroed - Scr_GetAnims' lookup of a dog's tree (es.animtreeIndex) then
-        // asserted on the first dog (9 not in [1, 0])
-        const unsigned int serverTrees = Com_IsSPLevel() ? gScrAnimPub[SCRIPTINSTANCE_SERVER].xanim_num[1] : 0;
+        // the list's count too (user 0's, CGScr_LoadScripts), which the free zeroed - the lookup of a dog's tree
+        // (es.animtreeIndex: CG_SP_GetActorClientAnims) then asserted on the first dog (9 not in [1, 0])
+        const unsigned int serverTrees = Com_IsSPLevel() ? gScrAnimPub[SCRIPTINSTANCE_SERVER].xanim_num[0] : 0;
         Scr_FreeScripts(SCRIPTINSTANCE_SERVER, 1u);
-        gScrAnimPub[SCRIPTINSTANCE_SERVER].xanim_num[1] = serverTrees;
+        gScrAnimPub[SCRIPTINSTANCE_SERVER].xanim_num[0] = serverTrees;
     }
     if ( !cgs->localServer )
         GScr_LoadConsts();

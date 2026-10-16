@@ -68,6 +68,14 @@ static XAnimTree_s **CG_SP_GetActorClientTreeSlot(int localClientNum, centity_s 
     return &CG_GetLocalClientStaticGlobals(localClientNum)->actorCorpseInfo[cent->nextState.lerp.u.actor.corpseNum].pXAnimTree;
 }
 
+// mod (co-op): the anims of an entity's es.animtreeIndex in the server instance's list: on the host its game's (user
+// 1), on a joined client its own load of the level's scripts (CGScr_LoadScripts: user 0) - the same order either way
+XAnim_s *__cdecl CG_SP_ServerAnims(unsigned int animtreeIndex)
+{
+    return com_sv_running->current.enabled ? Scr_GetAnims(animtreeIndex, SCRIPTINSTANCE_SERVER)
+                                           : Scr_GetClientAnims(animtreeIndex, SCRIPTINSTANCE_SERVER);
+}
+
 // zombies: SP 0x00646710 (unnamed) - the anims of an entity's es.animtreeIndex: the server's anim tree list while
 // sv_running (0x00519160), else the client's (0x00583C90). 0 means the default actor anims (cg+0xBB618 -> +0x8D39C;
 // KB uses the listen server's actor anims, the MEASURED choice of CG_LoadAnimTreeInstances, cg_main_mp.cpp).
@@ -75,10 +83,9 @@ static XAnim_s *CG_SP_GetActorClientAnims(const centity_s *cent)
 {
     if ( !cent->nextState.animtreeIndex )
         return G_SP_GetActorAnims();
-    // mod (co-op): a joined client too - its trees are where the server's are, in the server's order (its own load of
-    // the level's scripts: CGScr_LoadScripts); SP's client list (0x004BD6F0's) is not ported and stayed empty - the
-    // first dog asserted (index 9 not in [1, 0])
-    return Scr_GetAnims(cent->nextState.animtreeIndex, SCRIPTINSTANCE_SERVER);
+    // mod (co-op): a joined client's are its own load of the level's scripts (CGScr_LoadScripts), in the server's
+    // order, in the server instance's user 0 list (SP's client list, 0x004BD6F0's, is not ported)
+    return CG_SP_ServerAnims(cent->nextState.animtreeIndex);
 }
 
 // zombies: SP 0x00454430 (unnamed, called by CG_UpdateActorDObj 0x005F9920 and 0x005D8BA0) with 0x0060A060 - the

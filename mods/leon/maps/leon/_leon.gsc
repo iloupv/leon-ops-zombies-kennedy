@@ -258,6 +258,8 @@ leon_spawn_test()
 		level thread leon_end_test( getDvarFloat( "leon_endtest" ) ); // tests: the game ends after that many seconds
 	if ( getDvar( "leon_hurttest" ) != "" )
 		player thread leon_hurt_loop( getDvarInt( "leon_hurttest" ) ); // tests: hits (and going down) without zombies
+	if ( getDvar( "leon_dogtest" ) != "" )
+		level thread leon_dog_test( getDvarFloat( "leon_dogtest" ) ); // tests: two dogs after that many seconds
 
 	test = getDvar( "leon_test" );
 	if ( test == "" )
@@ -457,6 +459,15 @@ leon_aim_yaws( yaws )
 }
 
 // Tests: the game over (_zombiemode's end_game: its slow motion, then the restart), once, after that many seconds
+// tests (co-op): two dogs after that many seconds - a joined client's first dog asserted
+leon_dog_test( seconds )
+{
+	wait seconds;
+	logPrint( "leon: dogtest - spawning dogs
+" );
+	maps\_zombiemode_ai_dogs::special_dog_spawn( undefined, 2 );
+}
+
 leon_end_test( seconds )
 {
 	if ( isDefined( level.leon_end_tested ) || getDvar( "leon_end_tested" ) == "1" )
