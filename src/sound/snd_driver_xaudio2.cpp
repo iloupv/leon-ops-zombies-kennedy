@@ -736,6 +736,70 @@ void SD_SwitchDevice()
     }
 }
 
+// BO1FIX: a new output device picked in a running level (zombies always runs a listen server, so snd_restart there
+// was refused: the device changed only from the main menu). Only the mastering voice moves to the device - the buses,
+// the playing voices and the level's sound state (its loops, music, ambience) stay as they are. The buses keep their
+// channel layout, so the new device must have the same channel count; false otherwise (or on a failure: the old
+// device kept), and the choice (sd_xa2_device_guid, saved) applies at the next start.
+bool SD_SwitchOutputDevice()
+{
+    if ( !g_sd.xa2 || !g_sd.masterVoice || !g_sd.masterBus || !sd_xa2_num_devices || !sd_xa2_num_devices->current.integer )
+        return false;
+    const int deviceIndex = sd_xa2_device_indices[sd_xa2_device_guid->current.integer];
+    if ( deviceIndex == g_sd.deviceIndex )
+        return true;
+    XAUDIO2_DEVICE_DETAILS details;
+    if ( FAILED(g_sd.xa2->GetDeviceDetails(deviceIndex, &details)) )
+        return false;
+    const unsigned int channels = g_sd.masterVoiceDetails.InputChannels;
+    const unsigned int deviceChannels = details.OutputFormat.Format.nChannels <= 8u ? details.OutputFormat.Format.nChannels : 8u;
+    if ( deviceChannels != channels )
+    {
+        Com_Printf(9, "sound device: '%s' has %u channels, the mix %u - it applies at the next start\n",
+                   sd_xa2_device_names[sd_xa2_device_guid->current.integer], deviceChannels, channels);
+        return false;
+    }
+
+    g_sd.xa2->StopEngine();
+    XAUDIO2_VOICE_SENDS noSends = { 0, 0 };
+    g_sd.masterBus->SetOutputVoices(&noSends); // (a mastering voice is destroyed with nothing sending to it)
+    g_sd.masterVoice->DestroyVoice();
+    g_sd.masterVoice = 0;
+    IXAudio2MasteringVoice *voice = 0;
+    bool switched = SUCCEEDED(g_sd.xa2->CreateMasteringVoice(&voice, channels, g_sd.masterVoiceDetails.InputSampleRate, 0,
+                                                             deviceIndex, 0));
+    if ( !switched )
+        g_sd.xa2->CreateMasteringVoice(&voice, channels, g_sd.masterVoiceDetails.InputSampleRate, 0,
+                                       g_sd.deviceIndex < 0 ? 0 : g_sd.deviceIndex, 0);
+    if ( voice )
+    {
+        XAUDIO2_SEND_DESCRIPTOR send = { 0, voice };
+        XAUDIO2_VOICE_SENDS sends = { 1, &send };
+        g_sd.masterBus->SetOutputVoices(&sends);
+        float matrix[64] = {};
+        for ( unsigned int i = 0; i < channels; ++i )
+            matrix[i + i * channels] = 1.0f;
+        g_sd.masterBus->SetOutputMatrix(voice, channels, channels, matrix, 0);
+        g_sd.masterVoice = voice;
+    }
+    else
+    {
+        switched = false;
+    }
+    if ( switched )
+    {
+        g_sd.deviceIndex = deviceIndex;
+        g_sd.details = details;
+        g_sd.deviceGUID = sd_deviceGUIDs[sd_xa2_device_guid->current.integer]; // (by the list's index, as enumerated)
+        g_sd.deviceGUIDValid = 1;
+        R_CinematicInitSound(&g_sd.deviceGUID);
+    }
+    g_sd.xa2->StartEngine();
+    Com_Printf(9, "sound device: %s '%s'\n", switched ? "now" : "could not switch to",
+               sd_xa2_device_names[sd_xa2_device_guid->current.integer]);
+    return switched;
+}
+
 void SND_InitMasterVoice()
 {
     unsigned int index; // [esp+8h] [ebp-11Ch]

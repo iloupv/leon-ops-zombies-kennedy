@@ -1816,15 +1816,15 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     else if ( action == RT_ACTION_TURN )
     {
         // the quick turn: the whole body, at its own rate (the view turns along its root yaw: CL_LeonQuickTurn), to
-        // frame 16 (the turn is done at 13; CL_LeonQuickTurn ends it there), its last 2 frames blending back into the
-        // locomotion
+        // frame 20 (the turn is done at 13; CL_LeonQuickTurn ends it there), blending back into the locomotion from
+        // frame 14, as he may move again - over 2 frames, a run started out of it popped from the turn's last pose
         actionAnim = RtFindSetAnim(model, animSet, "turn180");
         if ( actionAnim >= 0 )
         {
             const RtAnim &turn = s_anims[actionAnim];
             const float full = (float)(turn.frameCount - 1) / turn.fps;
-            const float length = full < 16.0f / turn.fps ? full : 16.0f / turn.fps;
-            const float blend = 2.0f / turn.fps;
+            const float length = full < 20.0f / turn.fps ? full : 20.0f / turn.fps;
+            const float blend = length > 16.0f / turn.fps ? length - 14.0f / turn.fps : 2.0f / turn.fps;
             actionPhase = actionTime * turn.fps;
             if ( actionTime >= length )
                 actionAnim = -1;
