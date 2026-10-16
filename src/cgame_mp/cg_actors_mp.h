@@ -16,3 +16,4 @@ void __cdecl CG_SP_PlayAIFootstep(int localClientNum, centity_s *cent, int isLef
 void __cdecl CG_SP_DoAIFootsteps(int localClientNum, centity_s *cent);
 bool __cdecl CG_EntityNeedsScriptThread(int localClientNum, centity_s *cent);
 void __cdecl CG_ActorCorpse(int localClientNum, centity_s *cent);
+struct XAnim_s *__cdecl CG_SP_ServerAnims(unsigned int animtreeIndex); // mod (co-op)
