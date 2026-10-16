@@ -610,7 +610,7 @@ static void CL_HeadlessKeys(int localClientNum, usercmd_s *cmd)
 // mod (the Leon mod, player_tankControls): RE4's quick turn (pl_R1_Turn180), on RE4's back + run (CL_LeonRun: the run
 // key pressed going back, not aiming). The view turns along the turn motion's own root yaw (half a turn in its first 14 frames)
 // and he stands until frame 14, the turn done (RE4 holds him to frame 19 and plays on to 22: it felt slow), the motion
-// ending at frame 16 (R_RuntimeXModel_PoseDObj blends it out over 14..16); cgame plays the motion on the body meanwhile
+// ending at frame 20 (R_RuntimeXModel_PoseDObj blends it out over 14..20); cgame plays the motion on the body meanwhile
 // (CL_LeonQuickTurnTime). On the client's input, as a mouse turn, so the server and the prediction just follow it.
 static int cl_quickTurnStart = -1;
 static float cl_quickTurnYaw, cl_quickTurnTurned;
@@ -827,7 +827,11 @@ static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
     cmd->button_bits.resetBit(0xAu);
     if ( cl_quickTurnStart < 0 )
     {
-        if ( !pressed || !R_RuntimeXModel_RootYaw("turn180", 0.0f, &yaw, &length) )
+        // not through a reload, as in RE4 (its reload runs to its end first): the turn took the whole body over it and
+        // the reload came back part way through after it
+        const int state = CG_GetLocalClientGlobals(localClientNum)->predictedPlayerState.weaponstate;
+        const bool reloading = state >= WEAPON_RELOADING_RIGHT && state <= WEAPON_RELOAD_QUICK_EMPTY;
+        if ( !pressed || reloading || !R_RuntimeXModel_RootYaw("turn180", 0.0f, &yaw, &length) )
             return;
         cl_quickTurnStart = (int)Sys_Milliseconds();
         Com_Printf(0, "leon: quick turn (back + run)\n");
@@ -835,7 +839,7 @@ static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
         cl_quickTurnTurned = 0.0f;
     }
     const float t = CL_LeonQuickTurnTime();
-    if ( !R_RuntimeXModel_RootYaw("turn180", t, &yaw, &length) || t >= (length < 16.0f / 30.0f ? length : 16.0f / 30.0f) )
+    if ( !R_RuntimeXModel_RootYaw("turn180", t, &yaw, &length) || t >= (length < 20.0f / 30.0f ? length : 20.0f / 30.0f) )
     {
         cl_quickTurnStart = -1; // the motion is over (cgame's blend out ends with it)
         return;
@@ -846,12 +850,13 @@ static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
     cl_quickTurnTurned += turn;
     cl->viewangles[1] = AngleNormalize360(cl->viewangles[1] + turn);
     cmd->angles[1] = (unsigned __int16)(int)((cl->viewangles[1] + cl->cgameKickAngles[1]) * 182.04445f);
-    if ( t < 14.0f / 30.0f ) // he stands (no move, aim or shot) until the turn is done (frame 14)
+    if ( t < 14.0f / 30.0f ) // he stands (no move, aim, shot or reload) until the turn is done (frame 14)
     {
         cmd->forwardmove = 0;
         cmd->rightmove = 0;
         cmd->button_bits.resetBit(0);
         cmd->button_bits.resetBit(1u);
+        cmd->button_bits.resetBit(4u);
         cmd->button_bits.resetBit(0xBu);
     }
 }

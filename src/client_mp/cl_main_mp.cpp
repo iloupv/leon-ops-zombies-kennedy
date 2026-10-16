@@ -31,6 +31,7 @@
 #include <live/live_storage_win.h>
 #include <client/splitscreen.h>
 #include <sound/snd_public_async.h>
+#include <sound/snd_driver_xaudio2.h>
 #include <server_mp/sv_init_mp.h>
 #include <qcommon/dl_main.h>
 #include <qcommon/dobj_management.h>
@@ -1664,7 +1665,12 @@ void __cdecl CL_Snd_Restart_f()
     }
     else
     {
-        Com_Printf(0, "Listen server cannot sound restart.\n");
+        // BO1FIX: in a running level (zombies is always a listen server) the options' new sound device was dropped
+        // with the refused restart: it is stored, and the output moves to it in place (SD_SwitchOutputDevice)
+        Dvar_SetIntByName("sd_xa2_device_guid", Dvar_GetInt("sd_xa2_device_name"));
+        SND_UpdateWait();
+        if ( !SD_SwitchOutputDevice() )
+            Com_Printf(0, "Listen server cannot sound restart: the sound device applies at the next start.\n");
     }
 }
 

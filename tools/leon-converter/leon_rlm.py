@@ -334,9 +334,10 @@ CHARACTERS = {
              'eyelid': False},
     'luis': {'parts': [(0, 1, 'body'), (2, 3, 'head'), (4, 3, 'face'), (5, 1, 'coat'), (6, 1, 'right_hand'),
                       (7, 1, 'left_hand')], 'grip': False,
-             # (a partner, never the player: his own archive's motions elsewhere - 36 his fall to the floor, as long
-             # as Leon's death; 39 a stagger he stays up through - and no knife: Leon's)
-             'actions': {'hit_front': 39, 'hit_back': 39, 'death': 36}},
+             # (a partner, never the player: his own fall to the floor, entry 36, as long as Leon's death; his
+             # archive has no standing flinch - its hits knock him down, which played on the upper body flailed - nor
+             # a knife: Leon's)
+             'actions': {'death': 36}},
 }
 # The other weapons' sets, baked next to the handgun's as "<set>:<name>" (the engine picks a set by the BO1 weapon's
 # class, CG_RuntimeXModel_AnimSet, and falls back to the handgun's motion a set lacks): (set, archive, motions) with

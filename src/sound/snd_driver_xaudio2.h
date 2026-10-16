@@ -166,6 +166,7 @@ char __cdecl SD_XAudio2CheckDevice(
                 const XAUDIO2_DEVICE_DETAILS *deviceDetails,
                 unsigned int deviceIndex);
 void SD_SwitchDevice();
+bool SD_SwitchOutputDevice();
 void SND_InitMasterVoice();
 void SD_Shutdown();
 void SND_ShutdownMasterVoice();
