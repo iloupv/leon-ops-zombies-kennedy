@@ -75,9 +75,10 @@ static XAnim_s *CG_SP_GetActorClientAnims(const centity_s *cent)
 {
     if ( !cent->nextState.animtreeIndex )
         return G_SP_GetActorAnims();
-    if ( com_sv_running->current.enabled )
-        return Scr_GetAnims(cent->nextState.animtreeIndex, SCRIPTINSTANCE_SERVER);
-    return Scr_GetClientAnims(cent->nextState.animtreeIndex, SCRIPTINSTANCE_SERVER);
+    // mod (co-op): a joined client too - its trees are where the server's are, in the server's order (its own load of
+    // the level's scripts: CGScr_LoadScripts); SP's client list (0x004BD6F0's) is not ported and stayed empty - the
+    // first dog asserted (index 9 not in [1, 0])
+    return Scr_GetAnims(cent->nextState.animtreeIndex, SCRIPTINSTANCE_SERVER);
 }
 
 // zombies: SP 0x00454430 (unnamed, called by CG_UpdateActorDObj 0x005F9920 and 0x005D8BA0) with 0x0060A060 - the

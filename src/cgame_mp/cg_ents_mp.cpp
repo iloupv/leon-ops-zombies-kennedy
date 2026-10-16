@@ -3666,9 +3666,9 @@ XAnim_s *__cdecl CG_GetAnimations(int localClientNum, int entIndex, int entType)
         cent = CG_GetEntity(localClientNum, entIndex);
         if ( !cent->nextState.animtreeIndex )
             return 0;
-        if ( com_sv_running->current.enabled )
-            return Scr_GetAnims(cent->nextState.animtreeIndex, SCRIPTINSTANCE_SERVER);
-        return Scr_GetClientAnims(cent->nextState.animtreeIndex, SCRIPTINSTANCE_SERVER);
+        // mod (co-op): a joined client's trees are the server instance's too (CGScr_LoadScripts), in the server's
+        // order; SP's client list is not ported (empty: an assert on the first animated script model)
+        return Scr_GetAnims(cent->nextState.animtreeIndex, SCRIPTINSTANCE_SERVER);
     }
     else if ( entType == 17 || entType == 19 )
     {
