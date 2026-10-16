@@ -330,7 +330,7 @@ CHARACTERS = {
     'leon': {'parts': LEON_BO1, 'grip': True},
     'ada': {'parts': [(0, 1, 'body'), (2, 3, 'hair'), (4, 3, 'head'), (5, 6, 'eyes'), (13, 1, 'right_hand'),
                       (14, 1, 'left_hand')], 'grip': False},
-    'hunk': {'parts': [(0, 1, 'body'), (2, 3, 'mask'), (15, 13, 'right_hand'), (17, 13, 'left_hand')], 'grip': False,
+    'hunk': {'parts': [(0, 1, 'body'), (2, 3, 'mask'), (14, 13, 'right_hand'), (17, 13, 'left_hand')], 'grip': False,
              'eyelid': False},
     'luis': {'parts': [(0, 1, 'body'), (2, 3, 'head'), (4, 3, 'face'), (5, 1, 'coat'), (6, 1, 'right_hand'),
                       (7, 1, 'left_hand')], 'grip': False,
