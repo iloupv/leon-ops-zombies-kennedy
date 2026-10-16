@@ -1,5 +1,6 @@
 #include <bgame/bg_leon.h>
 #include "cg_weapons.h"
+#include <client_mp/cl_input_mp.h>
 #include <bgame/bg_local.h>
 #include <cgame_mp/cg_local_mp.h>
 #include <bgame/bg_weapons.h>
@@ -4057,6 +4058,16 @@ void __cdecl CG_SaveWeaponState(const weaponState_t *ws, cg_s *cgameGlob)
 void __cdecl CG_NextWeapon_f()
 {
     cg_s *cgameGlob; // [esp+0h] [ebp-8h]
+
+    // mod (the Leon mod): while the character prompt is up (maps\leon\_character.gsc sets leon_charprompt on this
+    // client) the weapon switch goes to the next character instead - the change-seat button, which its script reads
+    const dvar_s *charPrompt = Dvar_FindVar("leon_charprompt");
+    if ( charPrompt && charPrompt->type == DVAR_TYPE_STRING && charPrompt->current.string
+         && !strcmp(charPrompt->current.string, "1") )
+    {
+        CL_LeonPressSwitchSeat(0);
+        return;
+    }
 
     cgameGlob = CG_GetLocalClientGlobals(0);
     if ( cgameGlob->nextSnap )

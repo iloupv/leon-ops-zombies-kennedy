@@ -803,6 +803,13 @@ static void CL_LeonRun(int localClientNum, usercmd_s *cmd)
 // standing still when he reverses
 static int cl_leonMoveIntent;
 
+// mod (the Leon mod): the change-seat button (+switchseat: usercmd bit 28, the script's changeSeatButtonPressed) pressed
+// for one command - the weapon switch's while the character prompt is up (CG_NextWeapon_f, maps\leon\_character.gsc)
+void __cdecl CL_LeonPressSwitchSeat(int localClientNum)
+{
+    playersKb[localClientNum][35].wasPressed = 1;
+}
+
 int __cdecl CL_LeonMoveIntent()
 {
     return cl_leonMoveIntent;
