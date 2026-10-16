@@ -28,6 +28,7 @@
 #include <cgame/cg_laser.h>
 #include <gfx_d3d/r_runtime_xmodel.h>
 #include <sound/snd_runtime.h>
+#include <bgame/bg_leon.h>
 #include "cg_ents_mp.h"
 #include "cg_pose_mp.h"
 #include <xanim/dobj_utils.h>
@@ -2840,6 +2841,59 @@ float __cdecl CG_ShoulderAimFrac(const cg_s *cgameGlob)
                                                        : cgameGlob->predictedPlayerState.fWeaponPosFrac;
 }
 
+// mod (co-op): a line (the laser's, the aim's) against the other players' bodies, from start along dir (unit) up to
+// *dist: cgame's traces hit a player only by the box his entity's solid gives, which reached one copy and not the
+// other - aimed at a teammate, the dot showed on him on one screen and on the wall behind him on the other. Each one
+// here an upright box round his origin (crouched, prone or down a lower one); *dist cut where the line enters one.
+static bool CG_LineHitsPlayer(const cg_s *cgameGlob, const float *start, const float *dir, float *dist, int passEntityNum)
+{
+    bool hit = false;
+    for (int i = 0; i < (int)ARRAYSIZE(cgameGlob->bgs.clientinfo); ++i)
+    {
+        if (i == passEntityNum || !cgameGlob->bgs.clientinfo[i].infoValid)
+            continue;
+        // (the view's own player is the predicted one: his entity is not in the snapshot)
+        const centity_s *cent = i == cgameGlob->predictedPlayerState.clientNum ? &cgameGlob->predictedPlayerEntity
+                                                                             : CG_GetEntity(cgameGlob->localClientNum, i);
+        const entityState_s *es = &cent->nextState;
+        if (cent != &cgameGlob->predictedPlayerEntity && !((*((const unsigned int *)cent + 201) >> 1) & 1))
+            continue; // (not in this snapshot)
+        if (es->eType != ET_PLAYER || (es->lerp.eFlags & 0x40000))
+            continue; // (dead)
+        const bool down = ((unsigned int)es->lerp.eFlags2 & LEON_EF2_ENT_DOWN) != 0;
+        const float radius = down ? 28.0f : 13.0f;
+        const float height = down ? 18.0f : ((es->lerp.eFlags & 8) ? 30.0f : ((es->lerp.eFlags & 4) ? 50.0f : 70.0f));
+        const float mins[3] = { cent->pose.origin[0] - radius, cent->pose.origin[1] - radius, cent->pose.origin[2] };
+        const float maxs[3] = { cent->pose.origin[0] + radius, cent->pose.origin[1] + radius, cent->pose.origin[2] + height };
+        float enter = 0.0f, leave = *dist;
+        bool miss = false;
+        for (int k = 0; k < 3 && !miss; ++k)
+        {
+            if (fabsf(dir[k]) < 1e-6f)
+            {
+                miss = start[k] < mins[k] || start[k] > maxs[k];
+                continue;
+            }
+            float t0 = (mins[k] - start[k]) / dir[k], t1 = (maxs[k] - start[k]) / dir[k];
+            if (t0 > t1)
+            {
+                const float t = t0;
+                t0 = t1;
+                t1 = t;
+            }
+            enter = t0 > enter ? t0 : enter;
+            leave = t1 < leave ? t1 : leave;
+            miss = enter > leave;
+        }
+        if (!miss && enter > 0.0f && enter < *dist)
+        {
+            *dist = enter;
+            hit = true;
+        }
+    }
+    return hit;
+}
+
 // where the player's view line (from the eye of the drawn player) hits
 static void CG_ShoulderAimPoint(cg_s *cgameGlob, float *eye, float *fwd, float *aim)
 {
@@ -2867,8 +2921,11 @@ static void CG_ShoulderAimPoint(cg_s *cgameGlob, float *eye, float *fwd, float *
         onZombie = hit < 1022 /* ENTITYNUM_WORLD */
                    && CG_GetEntity(cgameGlob->localClientNum, hit)->nextState.eType == ET_ACTOR;
     }
+    // (and on a teammate as on a zombie: CG_LineHitsPlayer)
+    float dist = 8192.0f * trace.fraction;
+    if (CG_LineHitsPlayer(cgameGlob, eye, fwd, &dist, cgameGlob->predictedPlayerState.clientNum))
+        onZombie = true;
     const float minDist = onZombie ? 48.0f : 150.0f;
-    const float dist = 8192.0f * trace.fraction;
     const float target = dist > minDist ? dist : minDist;
     // the distance glides there (its log, ~0.12 s), never jumps: with a zombie close the line hit it one frame and the
     // wall behind it the next (it moves, the aim sways), the aim point jumped between ~50" and the wall, and the aim
@@ -3040,7 +3097,9 @@ static void CG_DrawLaser(const cg_s *cgameGlob, int entNum, const orientation_t 
     for (int k = 0; k < 3; ++k)
         end[k] = orient.origin[k] + orient.axis[0][k] * 2048.0f;
     CG_TraceCapsule(&trace, orient.origin, zero, zero, end, entNum, 0x280E833, &context);
-    const float length = 2048.0f * trace.fraction - 0.5f;
+    float hitDist = 2048.0f * trace.fraction;
+    const bool onPlayer = CG_LineHitsPlayer(cgameGlob, orient.origin, orient.axis[0], &hitDist, entNum);
+    const float length = hitDist - 0.5f;
     GfxScaledPlacement placement;
     AxisToQuat(orient.axis, placement.base.quat);
     // RE4's line (esp19's Draw_line3d_local_222) fades out over max_laser_dist (12000 mm: 472"); here the fade thins
@@ -3086,7 +3145,7 @@ static void CG_DrawLaser(const cg_s *cgameGlob, int entNum, const orientation_t 
     }
     // RE4's dot (drawPoint): where the line hits, facing the camera (round), sized with the camera's distance:
     // 0.8 + dist / 8000 mm (315"), at most 3
-    if (trace.fraction >= 1.0f)
+    if (trace.fraction >= 1.0f && !onPlayer)
         return;
     float hit[3], toCamera[3];
     for (int k = 0; k < 3; ++k)
@@ -3136,9 +3195,11 @@ static void CG_RemoteLaser(int localClientNum, centity_s *cent, DObj *obj)
     memset(&context, 0, sizeof(context));
     const float zero[3] = { 0.0f, 0.0f, 0.0f };
     CG_TraceCapsule(&trace, eye, zero, zero, farPoint, es->number, 0x2806831, &context);
+    float eyeDist = 8192.0f * trace.fraction;
+    CG_LineHitsPlayer(cgameGlob, eye, fwd, &eyeDist, es->number);
     float dir[3];
     for (int k = 0; k < 3; ++k)
-        dir[k] = eye[k] + fwd[k] * 8192.0f * trace.fraction - orient.origin[k];
+        dir[k] = eye[k] + fwd[k] * eyeDist - orient.origin[k];
     if (Vec3Normalize(dir) < 1.0f || Vec3Dot(dir, fwd) < 0.5f)
         return; // (a wall at his eye: the point behind the muzzle)
     // the beam's axes: forward to that point, the others from the muzzle's (crossed quads: its roll hardly shows)
