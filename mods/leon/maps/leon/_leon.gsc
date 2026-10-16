@@ -217,6 +217,8 @@ leon_spawn_test()
 		setDvar( "cg_thirdPersonAimTest", getDvar( "leon_aimtest" ) ); // tests: aiming without input
 	if ( getDvar( "leon_aimpitch" ) != "" )
 		player setPlayerAngles( ( getDvarFloat( "leon_aimpitch" ), yaw, 0 ) ); // tests: the view pitch (+ down)
+	if ( getDvar( "leon_aimyaws" ) != "" )
+		player thread leon_aim_yaws( strTok( getDvar( "leon_aimyaws" ), " " ) ); // tests: the view turned to each, 6 s apart
 	if ( getDvar( "leon_damagelog" ) == "1" )
 		player thread leon_damage_log(); // tests: the damage the player takes (zombie attacks)
 	if ( getDvar( "leon_power" ) != "" )
@@ -429,6 +431,19 @@ leon_powerup_test( name )
 }
 
 // Damages the player every 3 s from a point in front of him (tests: his hit reaction, voice and going down).
+// Tests: the view's yaw set to each of these in turn (from 15 s, 6 s apart), the pitch level (the laser's far line)
+leon_aim_yaws( yaws )
+{
+	self endon( "disconnect" );
+	wait 15;
+	for ( i = 0; i < yaws.size; i++ )
+	{
+		self setPlayerAngles( ( 0, int( yaws[i] ), 0 ) );
+		logPrint( "leon: aim yaw " + yaws[i] + " at " + getTime() + "\n" );
+		wait 6;
+	}
+}
+
 // Tests: the game over (_zombiemode's end_game: its slow motion, then the restart), once, after that many seconds
 leon_end_test( seconds )
 {
