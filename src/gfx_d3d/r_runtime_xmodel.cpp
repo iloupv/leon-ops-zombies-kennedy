@@ -92,7 +92,6 @@ static float s_lookYaw;
 static std::vector<RtAnim> s_anims; // this level's
 static const XModel *s_laserModels[2]; // this level's laser sight beam segment and dot (R_RuntimeXModel_Laser)
 static const XModel *s_laserPieces[4]; // the beam's shorter pieces: 8, 4, 2 and 1 units (R_RuntimeXModel_LaserPiece)
-static const XModel *s_laserFar[4]; // its thin far stretch: 128, 64, 32 and 16 units at its faded width (R_RuntimeXModel_LaserFar)
 static const XModel *s_haloModel;      // the kick's halo on a staggered zombie (R_RuntimeXModel_Halo)
 
 // Per entity locomotion state (by DObj entnum): the measured ground speed and the playing / fading-out cycles.
@@ -132,7 +131,6 @@ static void RtFreeAll()
     memset(s_animStates, 0, sizeof(s_animStates));
     s_laserModels[0] = s_laserModels[1] = 0;
     memset(s_laserPieces, 0, sizeof(s_laserPieces));
-    memset(s_laserFar, 0, sizeof(s_laserFar));
     s_haloModel = 0;
     for ( void *p : s_allocs )
         _aligned_free(p);
@@ -1129,7 +1127,6 @@ static void RtBuildLaserModels(int zoneIndex, bool gpu)
 {
     s_laserModels[0] = s_laserModels[1] = 0;
     memset(s_laserPieces, 0, sizeof(s_laserPieces));
-    memset(s_laserFar, 0, sizeof(s_laserFar));
     s_haloModel = 0;
     const Material *effect = RtFindTemplateMaterial(s_effectTechsets, ARRAYSIZE(s_effectTechsets));
     if ( !effect )
@@ -1161,21 +1158,6 @@ static void RtBuildLaserModels(int zoneIndex, bool gpu)
         data = RtMakeQuadModel(&piece[0][0], 4, RT_GLOW_BEAM);
         s_laserPieces[p] = RtBuildModel(s_pieceNames[p], data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
     }
-    // and its far stretch, past RE4's fade (CG_ShoulderLaser): long segments as thin as the faded beam (15 %), halving
-    // (128 to 16), so the line runs on to a far dot in a few dozen models - the faded segments, 2.4 units each, ended it
-    // at RE4's 472 units: it stopped midway, the dot on far beyond
-    static const char *const s_farNames[4] = { "leon_laser_far128", "leon_laser_far64", "leon_laser_far32", "leon_laser_far16" };
-    for ( int p = 0; p < 4; ++p )
-    {
-        const float l = 128.0f / (float)(1 << p), fw = w * 0.15f;
-        const float piece[4][4][3] = {
-            { { 0, -fw, 0 }, { l, -fw, 0 }, { l, fw, 0 }, { 0, fw, 0 } },
-            { { 0, 0, -fw }, { l, 0, -fw }, { l, 0, fw }, { 0, 0, fw } },
-            { { 0, -fw * 0.5f, -fw * 0.5f }, { l, -fw * 0.5f, -fw * 0.5f }, { l, fw * 0.5f, fw * 0.5f }, { 0, fw * 0.5f, fw * 0.5f } },
-            { { 0, -fw * 0.5f, fw * 0.5f }, { l, -fw * 0.5f, fw * 0.5f }, { l, fw * 0.5f, -fw * 0.5f }, { 0, fw * 0.5f, -fw * 0.5f } } };
-        data = RtMakeQuadModel(&piece[0][0], 4, RT_GLOW_BEAM);
-        s_laserFar[p] = RtBuildModel(s_farNames[p], data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
-    }
     data = RtMakeQuadModel(&dot[0][0], 1, RT_GLOW_DOT);
     s_laserModels[1] = RtBuildModel("leon_laser_dot", data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
     // the kick's halo: one quad facing +X, 20 units across (CG_LeonKickHalos turns it to the camera and scales it)
@@ -1196,12 +1178,6 @@ const XModel *__cdecl R_RuntimeXModel_Laser(bool dot)
 const XModel *__cdecl R_RuntimeXModel_LaserPiece(int piece)
 {
     return piece >= 0 && piece < 4 ? s_laserPieces[piece] : 0;
-}
-
-// the beam's far stretch: 0..3, 128 / 64 / 32 / 16 units along +X at its faded width, or 0
-const XModel *__cdecl R_RuntimeXModel_LaserFar(int piece)
-{
-    return piece >= 0 && piece < 4 ? s_laserFar[piece] : 0;
 }
 
 // the kick's halo on a staggered zombie (a dull yellow glow quad facing +X, 20 units across), or 0
