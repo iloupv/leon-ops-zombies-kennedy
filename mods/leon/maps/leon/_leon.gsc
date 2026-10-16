@@ -144,8 +144,10 @@ leon_join_in_progress()
 leon_coop_test()
 {
 	self endon( "disconnect" );
-	self enableInvulnerability();
 	players = getEntArray( "player", "classname" );
+	if ( players.size > 0 && players[0] == self && getDvar( "leon_hurttest" ) != "" )
+		return; // (the host goes down under the hurt test: the joiner sees him down)
+	self enableInvulnerability();
 	if ( players.size < 2 || players[0] == self )
 		return;
 	wait 1; // (after leon_join_in_progress has placed him)
