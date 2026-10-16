@@ -1805,12 +1805,20 @@ void __cdecl Com_Init(char *commandLine)
     }
 #endif
 
+    // mod (LAN co-op): a +connect on the command line is made again once the front end is up - its level, a server of
+    // its own, took the connection over (the joiner sat in the menu); without the front end the joiner asserted on the
+    // host's first snapshot (msg_mp.cpp: the front end's load readies the zombies' network fields)
+    extern char g_comPendingConnect[256];
+    if ( !IsDedicatedServer() && CL_GetLocalClientConnectionState(0) >= CA_CONNECTING && cls.servername[0] )
+        I_strncpyz(g_comPendingConnect, cls.servername, sizeof(g_comPendingConnect));
     if ( !com_sv_running->current.enabled )
     {
         if ( *Dvar_GetString("com_errorMessage") )
             Com_LoadUiFastFile();
         //BLOPS_NULLSUB();
         Com_LoadFrontEnd();
+        if ( g_comPendingConnect[0] )
+            Com_Printf(0, "connecting to %s once the front end is up\n", g_comPendingConnect);
     }
 
     if (IsDedicatedServer())
@@ -3528,6 +3536,19 @@ static void Com_MeltyTestReport(const char *line)
     Com_Printf(16, "melty test: %s\n", line);
 }
 
+// mod (LAN co-op): Com_Init's +connect, made once this client is in the front end (Com_PendingConnectFrame): made at
+// once, while the front end's fastfiles still loaded, the two loads overflowed the font assets (Sys_Error)
+char g_comPendingConnect[256];
+
+static void Com_PendingConnectFrame()
+{
+    if ( !g_comPendingConnect[0] || CL_GetLocalClientConnectionState(0) != CA_ACTIVE
+         || I_stricmp(Dvar_GetString("mapname"), "frontend") )
+        return;
+    Cbuf_AddText(0, va("connect %s\n", g_comPendingConnect));
+    g_comPendingConnect[0] = 0;
+}
+
 static void Com_MeltyTestFrame()
 {
     if ( !s_meltyTestState )
@@ -3605,6 +3626,7 @@ unsigned int Com_Frame_Try_Block_Function()
 
     Com_WriteConfiguration(0);
     Com_MeltyTestFrame(); // mod: the Leon mod's Melty test mode
+    Com_PendingConnectFrame(); // mod: a command-line +connect, once the front end is up
     Sys_UpdateHotkeyBlock();
     SetAnimCheck(com_animCheck->current.color[0], SCRIPTINSTANCE_SERVER);
 
