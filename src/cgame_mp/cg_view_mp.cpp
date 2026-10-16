@@ -3113,30 +3113,56 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
         end[k] = orient.origin[k] + orient.axis[0][k] * 2048.0f;
     CG_TraceCapsule(&trace, orient.origin, zero, zero, end, cent->nextState.number, 0x280E833, &context);
     const float length = 2048.0f * trace.fraction - 0.5f;
-    static unsigned __int16 lighting[130];
+    static unsigned __int16 lighting[200];
     GfxScaledPlacement placement;
     AxisToQuat(orient.axis, placement.base.quat);
-    // RE4's line (esp19's Draw_line3d_local_222) fades out over max_laser_dist (12000 mm: 472"), where it ends; here
-    // the fade thins the segments (each as long as it is wide), so they stay end to end. It starts at the muzzle
-    // (RE4's starts 500 mm past it, which leaves a gap behind the shoulder camera). Whole segments up to the end, the
-    // rest in halving pieces (8, 4, 2, 1 at the segment's scale): a whole last segment ran on up to 16 units past the
-    // dot - through a zombie close in front
-    const float laserMax = 472.0f;
-    const float lineEnd = length < laserMax ? length : laserMax;
+    // RE4's line (esp19's Draw_line3d_local_222) fades out over max_laser_dist (12000 mm: 472"); here the fade thins
+    // the segments (each as long as it is wide), so they stay end to end, to 15 % of its width - and the line then
+    // runs on at that width to the dot (it ended at 472": aimed far it stopped midway, the dot on far beyond): the far
+    // stretch's long segments (128 to 16 units, R_RuntimeXModel_LaserFar), then faded segments. It starts at the
+    // muzzle (RE4's starts 500 mm past it, which leaves a gap behind the shoulder camera). Whole segments up to the
+    // end, the rest in halving pieces (8, 4, 2, 1 at the segment's scale): a whole last segment ran on up to 16 units
+    // past the dot - through a zombie close in front
+    const float laserMax = 472.0f, thinScale = 0.15f;
+    const float lineEnd = length;
     int segment = 0;
     float d = 0.0f;
-    for (; segment < 124; ++segment)
+    for (; segment < 70; ++segment)
     {
         const float rate = 1.0f - d / laserMax;
-        placement.scale = rate > 0.15f ? rate : 0.15f;
-        if (d + 16.0f * placement.scale > lineEnd)
+        placement.scale = rate > thinScale ? rate : thinScale;
+        if (rate <= thinScale || d + 16.0f * placement.scale > lineEnd)
             break;
         for (int k = 0; k < 3; ++k)
             placement.base.origin[k] = orient.origin[k] + orient.axis[0][k] * d;
         R_FilterXModelIntoScene(beam, &placement, 0, &lighting[segment], 0.0f);
         d += 16.0f * placement.scale;
     }
-    for (int p = 0; p < 4 && segment < 128; ++p)
+    if (placement.scale <= thinScale)
+    {
+        GfxScaledPlacement farPlacement = placement;
+        farPlacement.scale = 1.0f; // (the far pieces are built thin)
+        for (int f = 0; f < 4; ++f)
+        {
+            const XModel *farPiece = R_RuntimeXModel_LaserFar(f);
+            const float farLength = 128.0f / (float)(1 << f);
+            while (farPiece && segment < 180 && d + farLength <= lineEnd)
+            {
+                for (int k = 0; k < 3; ++k)
+                    farPlacement.base.origin[k] = orient.origin[k] + orient.axis[0][k] * d;
+                R_FilterXModelIntoScene(farPiece, &farPlacement, 0, &lighting[segment++], 0.0f);
+                d += farLength;
+            }
+        }
+        while (segment < 190 && d + 16.0f * placement.scale <= lineEnd)
+        {
+            for (int k = 0; k < 3; ++k)
+                placement.base.origin[k] = orient.origin[k] + orient.axis[0][k] * d;
+            R_FilterXModelIntoScene(beam, &placement, 0, &lighting[segment++], 0.0f);
+            d += 16.0f * placement.scale;
+        }
+    }
+    for (int p = 0; p < 4 && segment < 199; ++p)
     {
         const XModel *piece = R_RuntimeXModel_LaserPiece(p);
         const float pieceLength = (float)(8 >> p) * placement.scale;
@@ -3165,7 +3191,7 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
     placement.scale = mul < 3.0f ? mul : 3.0f;
     for (int k = 0; k < 3; ++k)
         placement.base.origin[k] = hit[k] + toCamera[k] * 1.0f; // off the surface, toward the camera
-    R_FilterXModelIntoScene(dot, &placement, 0, &lighting[129], 0.0f);
+    R_FilterXModelIntoScene(dot, &placement, 0, &lighting[199], 0.0f);
 }
 
 void CG_OffsetThirdPersonView(int localClientNum)
