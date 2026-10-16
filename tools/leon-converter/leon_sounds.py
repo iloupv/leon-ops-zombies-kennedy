@@ -106,6 +106,16 @@ def loud(pcm, target_db=-12.0, knee=0.7):
     return out.tobytes()
 
 
+def peaked(pcm, target_db=-1.0):
+    """16-bit PCM scaled so its peak sits at target_db (no limiting). For a line cut from a scene's mix (EVT_CLIPS):
+    brought to an even loudness (loud) its pauses counted as quiet, so the voice was pushed far over the knee and
+    sounded saturated."""
+    samples = array.array('h', bytes(pcm))
+    top = max((abs(x) for x in samples), default=0) / 32768.0
+    gain = 10.0 ** (target_db / 20.0) / top if top > 0 else 1.0
+    return array.array('h', [int(max(-32768, min(32767, round(x * gain)))) for x in samples]).tobytes()
+
+
 def fft(x, inverse=False):
     """In-place iterative radix-2 FFT of a list of complex numbers (its length a power of two)."""
     n = len(x)
@@ -238,7 +248,7 @@ if __name__ == '__main__':
         assert bits == 16, f'{name}: {bits}-bit'
         if clip:
             assert channels == 2, f'{name}: a clip needs the stereo mix'
-            pcm = loud(clip_voice(pcm, rate, *clip[2:]))
+            pcm = peaked(clip_voice(pcm, rate, *clip[2:]))
             channels = 1
         elif channels == 2:
             # mono, as every other runtime sound (the Merchant's lines are stereo)

@@ -2283,6 +2283,12 @@ void __cdecl SV_BuildClientSnapshot(client_t *client)
                             v12 = &svs.snapshotClients[svs.nextSnapshotClients % svs.numSnapshotClients];
                             ClientState = G_GetClientState(i);
                             memcpy(v12, ClientState, sizeof(clientState_s));
+                            // mod (co-op): a player still loading in, before his spawn: the SP game sets his vehicle
+                            // (none, 1023) only then, and the 0 sent tripped every client's cgame assert
+                            // (attachedVehEntNum != 0) - the host crashed as a second player joined. Entity 0 is a
+                            // player, never a vehicle: 0 is "not set yet"
+                            if ( !v12->attachedVehEntNum )
+                                v12->attachedVehEntNum = 1023;
                             if ( v12->clientIndex != i
                                 && !Assert_MyHandler(
                                             "C:\\projects_pc\\cod\\codsrc\\src\\server_mp\\sv_snapshot_mp.cpp",
