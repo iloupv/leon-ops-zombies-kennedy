@@ -3278,15 +3278,26 @@ void CG_OffsetThirdPersonView(int localClientNum)
     Vec3Copy(cgameGlob->predictedPlayerEntity.pose.origin, eye);
     eye[2] += cgameGlob->predictedPlayerState.viewHeightCurrent;
     // under RE4's tank controls (no crouch, no prone) the camera keeps the height he stands at: down he lies in RE4's
-    // death, and BO1's prone eye took the camera to the floor with him (and back up after a revive)
-    static float s_standViewHeight = 60.0f;
+    // death, and BO1's prone eye took the camera to the floor with him (and back up after a revive);
+    // in his last stand at a crouch's height, so it looks down on him lying there - eased
+    // (~0.15 s) going down and coming back up
+    static float s_standViewHeight = 60.0f, s_eyeHeight = -1.0f;
+    static int s_eyeTime;
     if (player_tankControls && player_tankControls->current.enabled)
     {
-        const float height = cgameGlob->predictedPlayerState.viewHeightCurrent;
-        if (cgameGlob->predictedPlayerState.pm_type < 5 && height >= 50.0f)
+        const playerState_s *ps = &cgameGlob->predictedPlayerState;
+        const float height = ps->viewHeightCurrent;
+        if (ps->pm_type < 5 && height >= 50.0f)
             s_standViewHeight = height;
-        else if (height < s_standViewHeight)
-            eye[2] += s_standViewHeight - height;
+        const float want = ps->pm_type == 6 || ps->pm_type == 7 ? 40.0f
+                           : (height < s_standViewHeight ? s_standViewHeight : height);
+        const int gap = cgameGlob->time - s_eyeTime;
+        s_eyeTime = cgameGlob->time;
+        if (s_eyeHeight < 0.0f || gap < 0 || gap > 250)
+            s_eyeHeight = want;
+        else
+            s_eyeHeight += (want - s_eyeHeight) * (1.0f - expf(-(float)gap / 150.0f));
+        eye[2] += s_eyeHeight - height;
     }
 
     if (!(cgameGlob->predictedPlayerState.eFlags & 0x300))

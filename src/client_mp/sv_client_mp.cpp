@@ -2432,6 +2432,12 @@ void __cdecl SV_UserinfoChanged(client_t *cl)
         v2 = va("%s", cleanName);
         Info_SetValueForKey(cl->userinfo, "name", v2);
     }
+    // mod (co-op): a name another player already has (two copies of the game on one Steam account: one persona) is kept
+    // with the player's number after it - it became "Unknown Soldier 1"
+    else if ( validCharCount && SV_ValidateName(cl, va("%.28s %d", cleanName, (int)(cl - svs.clients) + 1)) )
+    {
+        Info_SetValueForKey(cl->userinfo, "name", va("%.28s %d", cleanName, (int)(cl - svs.clients) + 1));
+    }
     else
     {
         String = Dvar_GetString("sv_noname");
