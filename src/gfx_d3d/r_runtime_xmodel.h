@@ -8,7 +8,6 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName);
 bool __cdecl R_RuntimeXModel_IsAnimated(const struct XModel *model);
 const struct XModel *__cdecl R_RuntimeXModel_Laser(bool dot);
 const struct XModel *__cdecl R_RuntimeXModel_LaserPiece(int piece); // the beam's 8 / 4 / 2 / 1 unit pieces (0..3)
-const struct XModel *__cdecl R_RuntimeXModel_LaserFar(int piece); // its thin far stretch: 128 / 64 / 32 / 16 units (0..3)
 // mod: the kick's halo on a staggered zombie (cg_view_mp.cpp CG_LeonKickHalos), or 0
 const struct XModel *__cdecl R_RuntimeXModel_Halo();
 // an upper-body action over the locomotion / aim (the local player's weapon): a shot, timed from it, or a reload,
