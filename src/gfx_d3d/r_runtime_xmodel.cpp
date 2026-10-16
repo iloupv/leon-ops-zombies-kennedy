@@ -419,15 +419,23 @@ static Material *RtCreateMaterial(const Material *templ, GfxImage *colorMap, con
     material.textureTable = table;
     // the template's environment reflection (envMapParms: the reflection probe's min / max by the view's angle, its
     // falloff and the sun's specular) is its own surface's (the zombies templates are polished steel and the like):
-    // Leon's cloth, leather and skin take none, or they look wet
+    // Leon's cloth, leather and skin take no sun specular, or they look wet - and half the probe's reflection. With
+    // no specular map it is most of their light (none, they went black), at its full strength a polished sheen: under
+    // a bright light a character looked like metal (leon_matrefl sets the scale: tests)
     if ( templ->constantCount && templ->constantTable )
     {
+        const dvar_s *reflDvar = Dvar_FindVar("leon_matrefl");
+        const float refl = reflDvar && *reflDvar->current.string ? (float)atof(reflDvar->current.string) : 0.5f;
         MaterialConstantDef *constants = (MaterialConstantDef *)RtAlloc(sizeof(MaterialConstantDef) * templ->constantCount);
         for ( int i = 0; i < templ->constantCount; ++i )
         {
             constants[i] = templ->constantTable[i];
             if ( !strncmp(constants[i].name, "envMapParms", 11) )
+            {
+                constants[i].literal[0] *= refl;
+                constants[i].literal[1] *= refl;
                 constants[i].literal[3] = 0.0f;
+            }
         }
         material.constantTable = constants;
     }
@@ -1300,6 +1308,21 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
     Com_Printf(0, "runtime models: templates '%s' (%s), alpha-tested '%s' (%s)\n", templ->info.name,
         templ->techniqueSet->name, atestTempl ? atestTempl->info.name : "none: masked textures draw opaque",
         atestTempl ? atestTempl->techniqueSet->name : "-");
+    if ( R_RuntimeXModel_DvarOn("leon_matlog") ) // (tests: what the template brings besides the colour map)
+    {
+        for ( int i = 0; i < templ->textureCount; ++i )
+        {
+            const MaterialTextureDef &t = templ->textureTable[i];
+            Com_Printf(0, "runtime models: template texture %c..%c hash %08x semantic %d image %s\n", t.nameStart,
+                       t.nameEnd, t.nameHash, t.semantic, t.semantic != 1 && t.u.image ? t.u.image->name : "-");
+        }
+        for ( int i = 0; i < templ->constantCount; ++i )
+        {
+            const MaterialConstantDef &c = templ->constantTable[i];
+            Com_Printf(0, "runtime models: template constant %.12s %g %g %g %g\n", c.name, c.literal[0], c.literal[1],
+                       c.literal[2], c.literal[3]);
+        }
+    }
     RtFreeAll(); // the previous level's arrays; its zone (and the GPU side) is gone
     const bool gpu = !r_loadForRenderer || r_loadForRenderer->current.enabled;
     I_strncpyz(names, bo1_rtmodels->current.string, sizeof(names));
