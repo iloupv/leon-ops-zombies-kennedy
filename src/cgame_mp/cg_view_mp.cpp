@@ -2747,6 +2747,14 @@ void    CG_OffsetThirdPersonView(int localClientNum)
 }
 #endif
 
+// mod: whether the view is this client's own player's - not another's it follows spectating (his actions then come
+// from his state, as any other player's; this client's inputs - the camera's orbit, the quick turn, the aim sway -
+// are not his)
+bool __cdecl CG_LeonOwnView(const cg_s *cgameGlob)
+{
+    return cgameGlob->predictedPlayerState.clientNum == cgameGlob->clientNum;
+}
+
 // mod: the over-the-shoulder camera is the view (cg_thirdPersonShoulder set, third person, alive): no ADS blur, the
 // laser sight while aiming (third person draws no crosshair: the laser is the aim, as in RE4)
 bool __cdecl CG_ShoulderCameraActive(const cg_s *cgameGlob)
@@ -3114,7 +3122,9 @@ static void CG_RemoteLaser(int localClientNum, centity_s *cent, DObj *obj)
     orientation_t orient;
     if (!CG_DObjGetWorldTagMatrix(&cent->pose, obj, scr_const.tag_flash, orient.axis, orient.origin))
         return;
-    const float *viewAngles = cgameGlob->bgs.clientinfo[es->clientNum].playerAngles;
+    // (the one followed spectating: his player state's)
+    const float *viewAngles = es->number == cgameGlob->predictedPlayerState.clientNum
+        ? cgameGlob->predictedPlayerState.viewangles : cgameGlob->bgs.clientinfo[es->clientNum].playerAngles;
     float eye[3], fwd[3], farPoint[3];
     Vec3Copy(cent->pose.origin, eye);
     eye[2] += (es->lerp.eFlags & 8) ? 22.0f : ((es->lerp.eFlags & 4) ? 40.0f : 60.0f); // (prone, crouched, standing)
@@ -3152,9 +3162,9 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
         CG_LeonAimSound(localClientNum);
         CG_LeonReloadClip(obj);
     }
-    else
+    if (cent->nextState.number != cgameGlob->predictedPlayerState.clientNum || !CG_LeonOwnView(cgameGlob))
     {
-        CG_RemoteLaser(localClientNum, cent, obj);
+        CG_RemoteLaser(localClientNum, cent, obj); // (another player's, or the one followed spectating)
         return;
     }
     if (!CG_ShoulderCameraActive(cgameGlob) || cent->nextState.number != cgameGlob->predictedPlayerState.clientNum
@@ -3318,8 +3328,10 @@ void CG_OffsetThirdPersonView(int localClientNum)
         const float ads = CG_ShoulderCameraAds(cgameGlob);
         // the camera's yaw trails the aim inside the dead zone (in by the aim; out of it the camera is the view), aimed
         // in without RE4's sway (CL_LeonAimSway: it moves the laser, not the camera)
-        float swayPitch, swayYaw;
-        CL_LeonAimSway(&swayPitch, &swayYaw);
+        float swayPitch = 0.0f, swayYaw = 0.0f;
+        const bool ownView = CG_LeonOwnView(cgameGlob); // (spectating: none of this client's own camera moves)
+        if (ownView)
+            CL_LeonAimSway(&swayPitch, &swayYaw);
         const float viewYaw = AngleNormalize360(cgameGlob->refdefViewAngles[1] - swayYaw);
         if (!s_shoulderCameraYawSet)
             s_shoulderCameraYaw = viewYaw;
@@ -3333,8 +3345,9 @@ void CG_OffsetThirdPersonView(int localClientNum)
         // through RE4's quick turn the camera trails the view, so his turn shows (CL_LeonQuickTurnCameraLag); standing
         // still the mouse orbits it round him (CL_LeonCameraOrbit)
         const float cameraAngles[3] = { cgameGlob->refdefViewAngles[0] - swayPitch,
-                                        AngleNormalize360(s_shoulderCameraYaw - CL_LeonQuickTurnCameraLag()
-                                                          + CL_LeonCameraOrbit()), 0.0f };
+                                        AngleNormalize360(s_shoulderCameraYaw
+                                                          + (ownView ? CL_LeonCameraOrbit() - CL_LeonQuickTurnCameraLag() : 0.0f)),
+                                        0.0f };
         AngleVectors(cameraAngles, fwd, right, up);
         const float side = cg_thirdPersonShoulder->current.value * (1.0f - 0.1f * ads);
         const float lift = cg_thirdPersonShoulderUp->current.value * (1.0f - 0.15f * ads);

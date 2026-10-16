@@ -137,7 +137,19 @@ leon_join_in_progress()
 	if ( isDefined( mate ) )
 		self setPlayerAngles( ( 0, mate.angles[1], 0 ) );
 	self freezeControls( false );
+	// his spot to come back at from spectating (round's end: _zombiemode spectator_respawn), which only the match's
+	// start gives (coop_player_spawn_placement): without it his respawn broke halfway, and he came back with no gun
+	if ( !isDefined( self.spectator_respawn ) )
+	{
+		structs = getstructarray( "initial_spawn_points", "targetname" );
+		if ( structs.size > 0 )
+			self.spectator_respawn = structs[ self getEntityNumber() % structs.size ];
+	}
 	logPrint( "leon: player " + self getEntityNumber() + " joined in progress, at " + self.origin + "\n" );
+	// and his HUD: hidden as he connects (_zombiemode onPlayerConnect_clientDvars), shown by round_start to the players
+	// there then - one joining later (or reloading slower after a restart) had none
+	flag_wait( "begin_spawning" );
+	self setClientDvars( "ammoCounterHide", "0", "miniscoreboardhide", "0" );
 }
 
 // Tests (co-op, headless): every player invulnerable; one who joins stands 120" in front of the host, the
