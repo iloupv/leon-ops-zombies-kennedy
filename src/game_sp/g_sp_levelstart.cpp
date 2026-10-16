@@ -540,6 +540,21 @@ void G_SP_FindActorAnimTree()
     g_actorAnimsSP = Scr_FindAnimTree(SCRIPTINSTANCE_SERVER, "generic_human").anims;
     if ( !g_actorAnimsSP )
         Com_Error(ERR_DROP, "Could not find animation tree '%s'", "generic_human");
+    // mod (co-op): the tree's anims in their order - the server's anim commands name them by index, so a joining
+    // client's (CGScr_LoadScripts) must match the host's: their sizes and this hash are logged to compare
+    unsigned int hash = 2166136261u;
+    for ( unsigned int i = 0; i < g_actorAnimsSP->size; ++i )
+    {
+        const char *name = XAnimGetAnimName(g_actorAnimsSP, i);
+        for ( const char *c = name ? name : ""; *c; ++c )
+            hash = (hash ^ (unsigned char)*c) * 16777619u;
+        hash = (hash ^ 0xFFu) * 16777619u;
+    }
+    Com_Printf(0, "generic_human: %u anims, order hash %08x\n", g_actorAnimsSP->size, hash);
+    const dvar_s *dump = Dvar_FindVar("bo1_animtree_dump"); // tests: every anim, in order
+    if ( dump && dump->current.enabled )
+        for ( unsigned int i = 0; i < g_actorAnimsSP->size; ++i )
+            Com_Printf(0, "generic_human[%u] %s\n", i, XAnimGetAnimName(g_actorAnimsSP, i));
 }
 
 XAnim_s *G_SP_GetActorAnims()
