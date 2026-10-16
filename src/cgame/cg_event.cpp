@@ -529,7 +529,8 @@ void __cdecl CG_EntityEvent(int localClientNum, centity_s *cent, int event)
         quiet = (cgameGlob->bgs.clientinfo[clientNum].perks[1] & 0x40) != 0;
         offset = quiet ? 0x1F : 0;
         // mod (the Leon mod, co-op): another player's weapon events play his runtime model's actions
-        if (p_nextState->eType == ET_PLAYER && p_nextState->number != cgameGlob->predictedPlayerState.clientNum)
+        // (the one followed spectating too: his events come with his player state)
+        if (p_nextState->eType == ET_PLAYER && p_nextState->number != cgameGlob->clientNum)
             CG_RuntimeXModel_RemoteEvent(localClientNum, p_nextState->number, event, weaponIdx);
         if (event < 111 || event > 141)
         {

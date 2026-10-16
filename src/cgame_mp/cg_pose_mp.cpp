@@ -1144,10 +1144,15 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
 {
     const cg_s *cgameGlob = CG_GetLocalClientGlobals(pose->localClientNum);
     const bool isPlayer = pose->eType == 1;
+    // the view's player, and whether he is this client's own: spectating, the view follows another player, posed as
+    // any other is (from his state: RtRemoteActions) - the local player's actions come from this client's own (its
+    // script stamps, its keys), which were the spectator's, and his kicks did not show
+    const bool viewed = isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum;
+    const bool own = viewed && CG_LeonOwnView(cgameGlob);
     float aimFrac = 0.0f, aimPitch = 0.0f;
     const float *origin = pose->origin, *angles = pose->angles;
     float viewYaw[3];
-    if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
+    if ( own )
     {
         // the local player: posed from the predicted origin and the view's yaw, as the camera is - the entity's
         // interpolated angles trail a fast turn, and the gun (and its laser) swung against the view
@@ -1174,7 +1179,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     float actionTime = 0.0f, actionDuration = 0.0f;
     float reloadFrom = 0.0f; // where in RE4's reload a reload action starts (R_RuntimeXModel_SetReloadFrom)
     float firePrev = -1.0f; // a shot's: seconds since the shot before it (R_RuntimeXModel_SetFirePrev)
-    if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
+    if ( own )
     {
         static int s_frame = -1, s_lastState, s_lastWeaponTime, s_fireStart = -100000, s_reloadStart = -100000;
         static int s_prevFireStart = -100000; // the shot before (its motion crossfades into the new one's)
@@ -1437,8 +1442,9 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     }
     else if ( isPlayer && obj->entnum > 0 )
     {
-        // another player (co-op): his actions as they reach this client (RtRemoteActions), once per frame
-        const centity_s *cent = CG_GetEntity(pose->localClientNum, obj->entnum - 1);
+        // another player (co-op): his actions as they reach this client (RtRemoteActions), once per frame; the one
+        // followed while spectating from his player state (his entity is not in the snapshot then: it is the view's)
+        const centity_s *cent = viewed ? &cgameGlob->predictedPlayerEntity : CG_GetEntity(pose->localClientNum, obj->entnum - 1);
         const entityState_s *es = &cent->nextState;
         const int now = cgameGlob->time;
         RtRemoteActions &r = CG_RemoteActions(obj->entnum - 1, now);
@@ -1530,7 +1536,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     // the aim correction (CG_ShoulderLaser): the upper body turned so the barrel points where the shots land; it
     // fades while not aimed in
     float aimCorrection[2] = { 0.0f, 0.0f };
-    if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
+    if ( own )
     {
         if ( aimFrac < 0.98f )
             CG_ShoulderAimCorrectionDecay(cgameGlob);
@@ -1541,7 +1547,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     // motion, nor for 1.5 s after the aim is let go (his head swung off the aim at once). It moves as a spring (eased
     // in and out, ~0.25 s to a look, ~0.15 s back): at RE4's even 180 degrees a second it set off and stopped dead,
     // and snapped back in a frame as the aim came up - the head jerked toward a zombie and back
-    if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
+    if ( own )
     {
         static float s_look, s_lookSpeed;
         static int s_lookTime = -1, s_aimTime = -100000;
@@ -1630,7 +1636,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     // the local player under RE4's controls: aimed in, his legs follow a strafe (PM_TankControls); not aimed, a turn on
     // the spot plays RE4's turn in place (not through the quick turn or down, nor 0.35 s after a quick turn: its turn
     // still shows in the measured turn rate)
-    if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum && player_tankControls
+    if ( own && player_tankControls
          && player_tankControls->current.enabled )
     {
         // (nor 0.4 s after the aim: its body yaw is the shoulder camera's, out of it the view's - the switch reads as a
@@ -1660,7 +1666,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                                                   action, actionTime, actionDuration, aimCorrection,
                                                   !(isPlayer && player_tankControls && player_tankControls->current.enabled),
                                                   isPlayer ? CG_RuntimeXModel_AnimSet(animWeapon) : 0);
-    if ( isPlayer && obj->entnum - 1 == cgameGlob->predictedPlayerState.clientNum )
+    if ( own )
         CG_ShoulderRecoil(recoil);
 }
 

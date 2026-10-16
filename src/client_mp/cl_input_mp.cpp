@@ -607,6 +607,15 @@ static void CL_HeadlessKeys(int localClientNum, usercmd_s *cmd)
     }
 }
 
+// mod (the Leon mod): RE4's controls are on for this client's own player - not while it spectates another (the view's
+// player is his then: this client's keys and mouse are a spectator's - its mouse orbited the camera round him, and
+// Space, its third person toggle, became the knife)
+static bool CL_LeonControls(int localClientNum)
+{
+    return player_tankControls && player_tankControls->current.enabled
+        && CG_LeonOwnView(CG_GetLocalClientGlobals(localClientNum));
+}
+
 // mod (the Leon mod, player_tankControls): RE4's quick turn (pl_R1_Turn180), on RE4's back + run (CL_LeonRun: the run
 // key pressed going back, not aiming). The view turns along the turn motion's own root yaw (half a turn in its first 14 frames)
 // and he stands until frame 14, the turn done (RE4 holds him to frame 19 and plays on to 22: it felt slow), the motion
@@ -653,7 +662,7 @@ static void CL_LeonOrbit(int localClientNum, usercmd_s *cmd)
 {
     clientActive_t *cl = CL_GetLocalClientGlobals(localClientNum);
     const int now = (int)Sys_Milliseconds();
-    if ( !player_tankControls || !player_tankControls->current.enabled || cl_leonOrbitTime < 0 )
+    if ( !CL_LeonControls(localClientNum) || cl_leonOrbitTime < 0 )
     {
         cl_leonOrbit = 0.0f;
         cl_leonOrbitLastYaw = cl->viewangles[1];
@@ -711,7 +720,7 @@ static void CL_LeonSway(int localClientNum, usercmd_s *cmd)
 {
     clientActive_t *cl = CL_GetLocalClientGlobals(localClientNum);
     const int now = (int)Sys_Milliseconds();
-    const bool aimed = player_tankControls && player_tankControls->current.enabled && cmd->button_bits.testBit(0xBu)
+    const bool aimed = CL_LeonControls(localClientNum) && cmd->button_bits.testBit(0xBu)
                        && CG_ShoulderAimFrac(CG_GetLocalClientGlobals(localClientNum)) >= 0.98f;
     const bool moved = fabsf(AngleNormalize180(cl->viewangles[0] - cl_swayLast[0])) > 0.001f
                        || fabsf(AngleNormalize180(cl->viewangles[1] - cl_swayLast[1])) > 0.001f;
@@ -776,7 +785,7 @@ static void CL_LeonRun(int localClientNum, usercmd_s *cmd)
     const bool pressed = down && !cl_leonRunWasDown && !menu;
     cl_leonRunWasDown = down;
     cl_leonRunTurn = false;
-    if ( !player_tankControls || !player_tankControls->current.enabled )
+    if ( !CL_LeonControls(localClientNum) )
     {
         cl_leonRunLatched = false;
         return;
@@ -821,7 +830,7 @@ static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
     // pad's stick flicked down through the pause menu, and from back held as a right click (a dual wield's) let go
     const bool pressed = cl_leonRunTurn;
     float yaw, length;
-    if ( !player_tankControls || !player_tankControls->current.enabled )
+    if ( !CL_LeonControls(localClientNum) )
     {
         cl_quickTurnStart = -1;
         return;
