@@ -239,6 +239,8 @@ leon_spawn_test()
 		player thread leon_goto_wallbuy(); // tests: in front of a wall weapon (its use hint)
 	if ( getDvar( "leon_emptyclip" ) == "1" )
 		player thread leon_empty_clip(); // tests: a reload to make (a headless client fires only aimed in)
+	if ( getDvar( "leon_endtest" ) != "" )
+		level thread leon_end_test( getDvarFloat( "leon_endtest" ) ); // tests: the game ends after that many seconds
 	if ( getDvar( "leon_hurttest" ) != "" )
 		player thread leon_hurt_loop( getDvarInt( "leon_hurttest" ) ); // tests: hits (and going down) without zombies
 
@@ -426,6 +428,17 @@ leon_powerup_test( name )
 }
 
 // Damages the player every 3 s from a point in front of him (tests: his hit reaction, voice and going down).
+// Tests: the game over (_zombiemode's end_game: its slow motion, then the restart), once, after that many seconds
+leon_end_test( seconds )
+{
+	if ( isDefined( level.leon_end_tested ) || getDvar( "leon_end_tested" ) == "1" )
+		return;
+	wait seconds;
+	setDvar( "leon_end_tested", "1" ); // (once: the restart runs the scripts again)
+	logPrint( "leon: endtest - game over\n" );
+	level notify( "end_game" );
+}
+
 leon_hurt_loop( damage )
 {
 	self endon( "disconnect" );

@@ -596,6 +596,18 @@ void __cdecl CG_MapRestart(int localClientNum, int savepersist)
     // zombies: SP CG_MapRestart clears the hideviewmodel flag here (SP 0x00490a9e, cg+0xa9d44).
     if (Dvar_GetBool("zombiemode"))
         CG_SP_GetClientExt(localClientNum)->hideViewModel = 0;
+    // mod (co-op): the game over's slow motion (missionfailed's 'X' lerp to 0.1: CG_SP_TimeScaleLerpCommand) undone on
+    // every client. SP's restart reset the code time scale through SV_SpawnServer / CL_InitCGame, and KB's fast restart
+    // does it in the host's process only (SP_TemporaryReloadMap): a joined client went on at a tenth of the speed -
+    // its sound distorted, its frames and the zombies' anims choppy, their ragdolls stretched
+    if (Dvar_GetBool("zombiemode"))
+    {
+        CgSPClientExt *ext = CG_SP_GetClientExt(localClientNum);
+        ext->timeScaleLerpStart = 0;
+        ext->timeScaleLerpEnd = 0;
+        Com_Printf(0, "map restart: time scale %g -> 1\n", Com_GetTimescaleForSnd());
+        Com_SetTimeScale(1.0f);
+    }
     if ( !savepersist )
     {
         CG_CloseScriptMenu(localClientNum, 0);
