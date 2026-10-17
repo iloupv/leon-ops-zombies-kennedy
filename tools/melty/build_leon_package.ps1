@@ -11,7 +11,7 @@
 # binkw32's install copy, DirectX cabs stay in the player's install) and nothing converted from RE4 (the setup writes
 # mods\leon\rtmodels and mods\leon\sound on the player's PC).
 param(
-    [string]$Version = '0.1.14',
+    [string]$Version = '0.1.15',
     [string]$LfsUnpack = 'C:\dev\refs\leon-tools\lfsunpack.exe',
     [string]$Re4Decomp = 'C:\dev\refs\re4'
 )
