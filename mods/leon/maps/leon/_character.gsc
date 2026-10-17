@@ -80,7 +80,8 @@ apply( name )
 //   Leon: a tenth faster again (maps\leon\_leon.gsc leon_move_speed) and one more hit (50 more health over the game's
 //         own: 100, Juggernog's 250)
 //   HUNK: aims, reloads, switches guns and throws grenades faster (the engine's handling flag: leonsethandy)
-//   Ada:  a second roll for a power-up drop on each kill, and a wider, harder kick (maps\leon\_kick.gsc)
+//   Ada:  a second roll for a power-up drop on each kill, a wider, harder kick (maps\leon\_kick.gsc), and 15% back on
+//         everything she buys (ada_discount)
 //   Luis: a quarter more damage, and his grenades' and launchers' / wonder weapons' blasts reach further
 // self: the player
 perks()
@@ -88,6 +89,7 @@ perks()
 	self endon( "disconnect" );
 	self thread luis_blasts( "grenade_fire" );
 	self thread luis_blasts( "missile_fire" );
+	self thread ada_discount();
 	for ( ;; )
 	{
 		name = self current();
@@ -111,6 +113,47 @@ perks()
 			self.leon_max = target;
 		}
 		wait 0.25;
+	}
+}
+
+// Ada's discount: each purchase (a gun, the box, a perk, a door, Pack-a-Punch, a trap - _zombiemode_score's
+// minus_to_player_score, the price taken whole: the triggers check it whole first) gives her 15% of it back at once,
+// in tens as the prices are; not the down penalty (it notifies I_am_down first), nor while she is down or out
+ada_discount()
+{
+	self endon( "disconnect" );
+	self thread ada_discount_downs();
+	last = self.score;
+	for ( ;; )
+	{
+		wait 0.05;
+		if ( !isDefined( self.score ) )
+			continue;
+		spent = 0;
+		if ( isDefined( last ) )
+			spent = last - self.score;
+		penalty = isDefined( self.leon_no_refund_until ) && getTime() < self.leon_no_refund_until;
+		if ( spent > 0 && !penalty && self current() == "ada" && self.sessionstate == "playing"
+			&& !isDefined( self.revivetrigger ) )
+		{
+			refund = int( spent * 0.15 / 10 ) * 10;
+			if ( refund > 0 )
+			{
+				self maps\_zombiemode_score::add_to_player_score( refund, false ); // (not toward the drops' total)
+				logPrint( "leon: ada's discount " + refund + " of " + spent + "\n" );
+			}
+		}
+		last = self.score;
+	}
+}
+
+ada_discount_downs()
+{
+	self endon( "disconnect" );
+	for ( ;; )
+	{
+		self waittill( "I_am_down" );
+		self.leon_no_refund_until = getTime() + 500;
 	}
 }
 
