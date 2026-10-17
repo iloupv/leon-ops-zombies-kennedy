@@ -3639,8 +3639,13 @@ unsigned __int16 __cdecl CG_AttachWeapon(DObjModel_s *dobjModels, unsigned __int
         const WeaponVariantDef *heldVariant = BG_GetWeaponVariantDef(ci->iDObjWeapon);
         const bool helmetEquipment = runtimeBody && heldVariant && heldVariant->szInternalName
                                      && strstr(heldVariant->szInternalName, "gasmask");
-        if ( weapDef->worldModel[weaponModel] && !weapDef->bHideThirdPerson && !(runtimeBody && ci->usingKnife)
-             && !helmetEquipment )
+        // (and a new knife's flourish - the Bowie's: zombie_bowie_flourish - is that knife in his fist, on the knife's
+        // tag, through RE4's slash that shows it off (cg_pose_mp.cpp): on the gun's tag it floated above his hand)
+        const bool knifeFlourish = runtimeBody && heldVariant && heldVariant->szInternalName
+                                   && strstr(heldVariant->szInternalName, "flourish");
+        const unsigned int flourishTag = knifeFlourish ? SL_FindString("tag_knife", SCRIPTINSTANCE_SERVER) : 0;
+        if ( weapDef->worldModel[weaponModel] && !weapDef->bHideThirdPerson
+             && (!(runtimeBody && ci->usingKnife) || knifeFlourish) && !helmetEquipment )
         {
             if ( numModels >= 0x20u
                 && !Assert_MyHandler(
@@ -3653,7 +3658,8 @@ unsigned __int16 __cdecl CG_AttachWeapon(DObjModel_s *dobjModels, unsigned __int
                 __debugbreak();
             }
             dobjModels[numModels].model = weapDef->worldModel[weaponModel];
-            dobjModels[numModels].boneName = CG_GetWeaponAttachBone(ci, weapDef->weapType, weapDef->inventoryType);
+            dobjModels[numModels].boneName = flourishTag ? flourishTag
+                                                         : CG_GetWeaponAttachBone(ci, weapDef->weapType, weapDef->inventoryType);
             dobjModels[numModels++].ignoreCollision = 0;
         }
         if ( weapDef->bDualWield )
@@ -3698,7 +3704,7 @@ unsigned __int16 __cdecl CG_AttachWeapon(DObjModel_s *dobjModels, unsigned __int
             dobjModels[numModels].boneName = scr_const.tag_weapon_left;
             dobjModels[numModels++].ignoreCollision = 0;
         }
-        else if ( ci->usingKnife && ci->iDObjMeleeWeapon )
+        else if ( ci->usingKnife && ci->iDObjMeleeWeapon && !knifeFlourish )
         {
             weapDefa = BG_GetWeaponDef(ci->iDObjMeleeWeapon);
             if ( weapDefa->worldModel )

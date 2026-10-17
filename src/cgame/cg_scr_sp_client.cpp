@@ -1124,6 +1124,20 @@ static void __cdecl CScr_SetClientDvar()
     char *value = Scr_GetString(1, SCRIPTINSTANCE_CLIENT);
     if (!value || !*value)
         Scr_ParamError(1, "SetClientDvar: unknown dvar value", SCRIPTINSTANCE_CLIENT);
+    // mod (bo1_mod_fov): a client script's field of view is the retail game's (65 its normal view), scaled to the
+    // player's own, and one within a degree of it is exactly it - Kino's teleporter lerps 30 -> 65 and its last step
+    // is 64.5: left there, CG_ModFov_Update (which puts back only the retail default) never restored the player's
+    // field of view and the camera stayed zoomed in until a respawn
+    const dvar_s *fovDvar = Dvar_FindVar("cg_fov");
+    if (fovDvar && bo1_mod_fov && bo1_mod_fov->current.value > 0.0f && !I_stricmp(dvarName, "cg_fov"))
+    {
+        const float modFov = bo1_mod_fov->current.value < 65.0f ? 65.0f : bo1_mod_fov->current.value;
+        float fov = (float)atof(value) * modFov / 65.0f;
+        if (fabsf(fov - modFov) < 1.0f)
+            fov = modFov;
+        Dvar_SetFloat((dvar_s *)fovDvar, fov);
+        return;
+    }
     Dvar_SetFromStringByName(dvarName, value);
 }
 

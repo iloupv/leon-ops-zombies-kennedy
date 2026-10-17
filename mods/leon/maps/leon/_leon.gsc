@@ -402,8 +402,9 @@ leon_move_speed()
 }
 
 // Kino's teleporter: the player sent to its black room (the flashing images) is not seen there - the shoulder camera
-// showed him standing in it - from when its script marks him (maps\zombie_theater_teleporter: inteleportation) to
-// his arrival
+// showed him standing in it - from when its script links him to the black room's mover (maps\zombie_theater_teleporter
+// teleport_players: teleport_origin) to his arrival, where it deletes it (not its inteleportation: that stays set
+// through the whole stay in the projection room, and he was invisible there until the trip back)
 leon_hide_teleporting()
 {
 	self endon( "disconnect" );
@@ -411,7 +412,7 @@ leon_hide_teleporting()
 	for ( ;; )
 	{
 		wait 0.05;
-		teleporting = isDefined( self.inteleportation ) && self.inteleportation;
+		teleporting = isDefined( self.teleport_origin );
 		if ( teleporting && !hidden )
 			self hide();
 		else if ( !teleporting && hidden )

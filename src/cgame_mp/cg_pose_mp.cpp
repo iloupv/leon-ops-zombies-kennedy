@@ -1239,6 +1239,17 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                 s_knifeStart = cgameGlob->time;
                 s_leonHitStart = s_kickStart = -100000;
             }
+            // a new knife's flourish (the Bowie's, as it is bought: zombie_bowie_flourish, BO1's first-person show of
+            // it) slashes it once, the knife in his fist (CG_AttachWeapon) - RE4 has no such motion
+            static unsigned int s_flourishWeapon;
+            const WeaponVariantDef *heldVariant = ps->weapon ? BG_GetWeaponVariantDef(ps->weapon) : 0;
+            const bool flourish = heldVariant && heldVariant->szInternalName && strstr(heldVariant->szInternalName, "flourish");
+            if ( flourish && ps->weapon != s_flourishWeapon )
+            {
+                s_knifeStart = cgameGlob->time;
+                s_leonHitStart = s_kickStart = -100000;
+            }
+            s_flourishWeapon = flourish ? ps->weapon : 0;
             const dvar_s *kickStamp = Dvar_FindVar("leon_kick_stamp");
             const int stamp = kickStamp && kickStamp->type == DVAR_TYPE_STRING && kickStamp->current.string
                 ? atoi(kickStamp->current.string) : 0;

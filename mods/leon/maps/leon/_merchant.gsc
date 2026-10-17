@@ -127,14 +127,33 @@ leon_merchant_buyables()
 
 leon_merchant_buyable( kind )
 {
+	if ( kind == "zombie_vending_upgrade" )
+		self thread leon_merchant_pap_holding();
 	for ( ;; )
 	{
 		self waittill( "trigger", who );
 		if ( !isPlayer( who ) )
 			continue;
+		// Pack-a-Punch: its use takes the finished gun too (not a buy), and a gun already upgraded is refused
+		// without a price (_zombiemode_perks vending_weapon_upgrade)
+		if ( kind == "zombie_vending_upgrade" && ( ( isDefined( self.leon_pap_holding_until ) && getTime() <= self.leon_pap_holding_until )
+			|| who maps\_zombiemode_weapons::is_weapon_upgraded( who getCurrentWeapon() ) ) )
+			continue;
 		price = self leon_merchant_price( kind, who );
 		if ( isDefined( price ) && who leon_merchant_score() < price )
 			who leon_merchant_broke();
+	}
+}
+
+// self: Pack-a-Punch's trigger - while it holds a finished gun to take (its current_weapon), and a moment after:
+// the take's own use ends the hold (current_weapon emptied) before or after this script's turn on that use
+leon_merchant_pap_holding()
+{
+	for ( ;; )
+	{
+		if ( isDefined( self.current_weapon ) && self.current_weapon != "" )
+			self.leon_pap_holding_until = getTime() + 250;
+		wait 0.05;
 	}
 }
 
