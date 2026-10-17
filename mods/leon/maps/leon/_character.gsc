@@ -245,8 +245,19 @@ choose()
 	hud.fontScale = 1.5;
 	hud.foreground = true;
 	hud.hidewheninmenu = true;
+	// and under it the character's perk (perks)
+	line = newClientHudElem( self );
+	line.alignX = "center";
+	line.alignY = "middle";
+	line.horzAlign = "center";
+	line.vertAlign = "middle";
+	line.y = 132;
+	line.fontScale = 1.2;
+	line.foreground = true;
+	line.hidewheninmenu = true;
 	until = getTime() + 15000;
 	shown = "";
+	shownPerk = "";
 	was = true; // (a press already held at the spawn is none)
 	// his weapon switch (weapnext: the mouse wheel, the pad's Y) presses the change-seat button meanwhile, not the weapon
 	// (the engine's CG_NextWeapon_f reads leon_charprompt on his client)
@@ -274,11 +285,35 @@ choose()
 			hud setText( text );
 			shown = text;
 		}
+		perk = perk_line( self current() );
+		if ( perk != shownPerk )
+		{
+			line setText( perk );
+			shownPerk = perk;
+		}
 		wait 0.05;
 	}
 	self setClientDvar( "leon_charprompt", "0" );
 	hud fadeOverTime( 0.5 );
 	hud.alpha = 0;
+	line fadeOverTime( 0.5 );
+	line.alpha = 0;
 	wait 0.5;
 	hud destroy();
+	line destroy();
+}
+
+// the character's perk in a line (the prompt's second: choose)
+perk_line( name )
+{
+	switch ( name )
+	{
+	case "ada":
+		return "Ada: 15% discount, more power-ups, stronger kick";
+	case "hunk":
+		return "HUNK: faster aim, reload, weapon switch and grenades";
+	case "luis":
+		return "Luis: more damage, bigger explosions";
+	}
+	return "Leon: faster, takes an extra hit";
 }
