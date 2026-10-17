@@ -21,7 +21,8 @@ APPS = {
     're4': ('254700', 'Resident Evil 4 (2014, Ultimate HD Edition)',
             lambda d: os.path.isfile(os.path.join(d, 'BIO4', 'Em', 'pl00.udas.lfs'))),
 }
-GAME_ARGS = ['+set', 'bo1_zombies', '1', '+set', 'net_ip', '127.0.0.1', '+set', 'fs_game', 'mods/leon',
+# (as Melty's launch, melty.json: open to friends on every address, room for 4 co-op players)
+GAME_ARGS = ['+set', 'bo1_zombies', '1', '+set', 'sv_maxclients', '4', '+set', 'fs_game', 'mods/leon',
              '+set', 'bo1_rtmodels', 'leon', '+exec', 'leon.cfg']
 
 here = os.path.dirname(os.path.abspath(sys.executable if getattr(sys, 'frozen', False) else __file__))
