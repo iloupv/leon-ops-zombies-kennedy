@@ -549,10 +549,10 @@ leon_hurt_loop( damage )
 	for ( ;; )
 	{
 		wait 3;
+		if ( getDvar( "leon_hurtonce" ) == "1" && isDefined( self.revivetrigger ) )
+			return; // (tests: hits until he is down, then a revive watched)
 		self doDamage( damage,self.origin + anglesToForward( self.angles ) * 64 + ( 0, 0, 48 ) );
 		logPrint( "leon: hurt " + damage + " health " + self.health + "\n" );
-		if ( getDvar( "leon_hurtonce" ) == "1" )
-			return; // (tests: one hit - down, then a revive watched)
 	}
 }
 
