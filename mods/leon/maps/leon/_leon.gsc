@@ -396,12 +396,7 @@ leon_move_speed()
 	for ( ;; )
 	{
 		if ( !isDefined( self.is_zombie ) || !self.is_zombie )
-		{
-			scale = 1.2;
-			if ( self maps\leon\_character::current() == "leon" )
-				scale = 1.32; // (Leon's perk: a tenth faster again - maps\leon\_character.gsc)
-			self setMoveSpeedScale( scale );
-		}
+			self setMoveSpeedScale( 1.2 );
 		wait 1;
 	}
 }

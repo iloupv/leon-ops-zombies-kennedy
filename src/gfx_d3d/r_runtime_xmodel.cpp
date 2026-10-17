@@ -127,6 +127,8 @@ struct RtPoseFade
     const DObj *obj;
     int lastTime, start;
     int action, anim; // the last pose's
+    int cycle;        // its locomotion cycle (RtAnimState::cur) and how far that cycle's crossfade had come
+    float cycleBlend;
     char set[32];
     int bones;
     float last[RT_POSE_FADE_BONES][7]; // the last pose: each bone's quat, trans
@@ -1982,6 +1984,16 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             else
                 fade->start = -100000; // (an ease under way ends too)
         }
+        else if ( st.cur != fade->cycle && fade->cycleBlend < 1.0f && action != RT_ACTION_FIRE && action != RT_ACTION_KNIFE
+                  && action != RT_ACTION_KICK && action != RT_ACTION_TURN && action != RT_ACTION_DEATH )
+        {
+            // a walk / run / idle switch before the last one's crossfade had finished (RtUpdateAnimState): the cycle
+            // it came from was dropped mid-blend - his legs jumped; eased from the pose shown instead
+            memcpy(fade->from, fade->last, sizeof(fade->from));
+            fade->start = timeMs;
+        }
+        fade->cycle = st.cur;
+        fade->cycleBlend = st.blend;
         fade->action = action;
         fade->anim = actionAnim;
         I_strncpyz(fade->set, setName, sizeof(fade->set));

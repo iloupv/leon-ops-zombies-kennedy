@@ -103,14 +103,22 @@ leon_stagger_watch()
 		self waittill( "damage", amount, attacker, dir, point, mod, modelName, tagName, partName );
 		if ( !isDefined( attacker ) || !isPlayer( attacker ) || self.health <= 0 )
 			continue;
-		// not while staggering, nor for 4 s after it
-		if ( isDefined( self.leon_stagger_end ) && getTime() < self.leon_stagger_end + 4000 )
+		// Leon's shots, his character's perk, stagger more easily: a smaller share, a shorter rest between staggers
+		leon = attacker maps\leon\_character::current() == "leon";
+		// not while staggering, nor for 4 s after it (Leon's: 2.5 s)
+		rest = 4000;
+		if ( leon )
+			rest = 2500;
+		if ( isDefined( self.leon_stagger_end ) && getTime() < self.leon_stagger_end + rest )
 			continue;
-		// only a hit that took a real share of him (15% of his full health): weak hits do not stun-lock
+		// only a hit that took a real share of him (15% of his full health; Leon's 7%): weak hits do not stun-lock
 		full = self.health + amount;
 		if ( isDefined( self.maxhealth ) && self.maxhealth > full )
 			full = self.maxhealth;
-		if ( amount < full * 0.15 )
+		share = 0.15;
+		if ( leon )
+			share = 0.07;
+		if ( amount < full * share )
 			continue;
 		if ( !isDefined( mod ) || ( mod != "MOD_PISTOL_BULLET" && mod != "MOD_RIFLE_BULLET" ) )
 			continue;
