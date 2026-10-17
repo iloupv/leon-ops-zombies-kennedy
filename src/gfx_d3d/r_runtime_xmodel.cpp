@@ -1515,6 +1515,34 @@ static float RtCycleRate(const RtAnim &anim, float speed)
 // geometric mean of the walk and run speeds, else walk; hysteresis keeps it from flickering at the thresholds.
 // where a cycle's feet plant, as fractions of it (the frames each ankle is lowest in RE4's motions, the same in nearly
 // every weapon's set: walk 0 / 15 of 28, run 0 / 11 of 21, the back step 3 / 19 of 21); 0 when not a cycle
+// The frame of cycle `to` whose pose is nearest `from`'s at fromPhase (its bones' rotations, 24 frames tried): for a
+// reversal between a step forward and a back step, whose feet plant at other points of their cycles - carried over by
+// proportion, his legs swapped through the crossfade
+static float RtMatchPhase(const RtAnim &from, float fromPhase, const RtAnim &to)
+{
+    const int bones = from.boneCount < to.boneCount ? from.boneCount : to.boneCount;
+    float best = 0.0f, bestDist = 1e30f;
+    for ( int k = 0; k < 24; ++k )
+    {
+        const float phase = (float)k / 24.0f * (float)to.frameCount;
+        float dist = 0.0f;
+        for ( int b = 1; b < bones; ++b ) // (not the root: his facing)
+        {
+            float qa[4], ta[3], qb[4], tb[3];
+            RtSampleBone(from, fromPhase, b, qa, ta);
+            RtSampleBone(to, phase, b, qb, tb);
+            const float dot = qa[0] * qb[0] + qa[1] * qb[1] + qa[2] * qb[2] + qa[3] * qb[3];
+            dist += 1.0f - fabsf(dot);
+        }
+        if ( dist < bestDist )
+        {
+            bestDist = dist;
+            best = phase;
+        }
+    }
+    return best;
+}
+
 static int RtFootPlants(const RtAnim &anim, float *plants)
 {
     const char *name = RtAnimBaseName(anim);
@@ -1651,9 +1679,16 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
                 st.prev = st.cur;
                 st.prevPhase = st.curPhase;
                 st.prevRate = RtCycleRate(from, st.speed);
-                // walk <-> run keep the stride's phase (the feet stay in step); others start at the top
+                // walk <-> run keep the stride's phase (the feet stay in step); a reversal (the back step <-> a step
+                // forward) starts where its pose is nearest (RtMatchPhase); others start at the top
                 const bool stride = from.moveSpeed > 0.0f && to.moveSpeed > 0.0f;
-                st.curPhase = stride ? st.curPhase / (float)from.frameCount * (float)to.frameCount : 0.0f;
+                const bool reversal = stride && (!strcmp(RtAnimBaseName(from), "back") != !strcmp(RtAnimBaseName(to), "back"));
+                const float fromPhase = st.curPhase;
+                st.curPhase = reversal ? RtMatchPhase(from, st.curPhase, to)
+                              : (stride ? st.curPhase / (float)from.frameCount * (float)to.frameCount : 0.0f);
+                if ( R_RuntimeXModel_DvarOn("leon_cyclelog") )
+                    Com_Printf(0, "leon_cyclelog: ent %d phase %.1f/%d -> %.1f/%d%s\n", obj->entnum, fromPhase,
+                               from.frameCount, st.curPhase, to.frameCount, reversal ? " (matched)" : "");
                 st.cur = target;
                 st.blend = 0.0f;
             }
