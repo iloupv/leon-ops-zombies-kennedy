@@ -1319,6 +1319,15 @@ void __cdecl CG_ConfigStringModified(int localClientNum)
             CG_ParseServerInfo(localClientNum);
         }
     }
+    else if ( bo1_zombies && bo1_zombies->current.enabled )
+    {
+        // zombies: a weapon registered mid-match (RegisterItem) has the server write its weapon list again
+        // (SaveRegisteredWeapons) - MP's assert here ("We do not support modified weapon files") crashed players
+        // (0.1.11, Nacht der Untoten, at the game over's restart). The host's own tables are shared and already
+        // updated (SaveRegisteredWeapons ends in CG_SetupWeaponDef); a joining player's take the entry as at
+        // connecting, the new weapon loaded in its order (a real mismatch drops him, ERR_DROP, as at connecting)
+        CG_SetupWeaponConfigString(num - 2836);
+    }
     else if ( !Assert_MyHandler(
                              "C:\\projects_pc\\cod\\codsrc\\src\\cgame_mp\\cg_servercmds_mp.cpp",
                              811,
