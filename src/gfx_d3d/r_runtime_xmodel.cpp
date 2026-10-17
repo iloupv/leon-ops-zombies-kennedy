@@ -2022,7 +2022,11 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
                 for ( int k = 0; k < 3; ++k )
                     trans[k] = prevTrans[k];
             }
-            RtBlendPose(mat->quat, mat->trans, quat, trans, actionWeight);
+            // the knife slash's own turn of the torso, at the lower spine, half taken: RE4's slash swung his whole
+            // upper body round, odd over the shoulder camera (the arm still sweeps)
+            const float weight = isPlayer && action == RT_ACTION_KNIFE && b == cur.spineBone ? actionWeight * 0.5f
+                                                                                             : actionWeight;
+            RtBlendPose(mat->quat, mat->trans, quat, trans, weight);
         }
         if ( b == cur.spineBone && aimCorrection && aimLevel >= 0 && (aimCorrection[0] != 0.0f || aimCorrection[1] != 0.0f) )
         {
@@ -2055,8 +2059,8 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
         {
             // RE4's slash holds the torso ~17 degrees turned against the hips (its knife stance; the handgun's is
             // square, measured from the shoulders against the hips in both motions): over the legs he already has, the
-            // slash swung the torso aside - taken back out, as the slash comes in
-            float twist = -17.0f;
+            // slash swung the torso aside - taken back out, as the slash comes in (half: half its turn is taken, above)
+            float twist = -8.5f;
             const dvar_s *twistTest = Dvar_FindVar("leon_knifetwist"); // tests: another twist (degrees)
             if ( twistTest && twistTest->type == DVAR_TYPE_STRING && twistTest->current.string && twistTest->current.string[0] )
                 twist = (float)atof(twistTest->current.string);
