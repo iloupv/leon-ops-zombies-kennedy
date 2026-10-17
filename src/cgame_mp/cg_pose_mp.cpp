@@ -998,6 +998,10 @@ void __cdecl CG_RuntimeXModel_PlayerState(int localClientNum, const playerState_
         s_deathStamp = deathStamp; // (the last game's, until this one's script clears it)
     }
     s_lastTime = cgameGlob->time;
+    // (spectating, the state is the followed player's: his going down is his - his voice comes as any other player's,
+    // RtRemoteActions - not this player's own death scream)
+    if ( !CG_LeonOwnView(cgameGlob) )
+        return;
     if ( ps->pm_type != s_leonLastPmType )
         Com_Printf(0, "leon: pm_type %d -> %d health %d t %d\n", s_leonLastPmType, ps->pm_type, ps->stats[0],
                    cgameGlob->time);
@@ -1024,6 +1028,8 @@ void __cdecl CG_RuntimeXModel_PlayerHit(int localClientNum, int yawByte, int pit
 {
     const cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     static int s_leonPainTime = -100000;
+    if ( !CG_LeonOwnView(cgameGlob) )
+        return; // (spectating: the followed player's hit, his grunt the server's - maps\leon\_leon.gsc)
     if ( cgameGlob->time - s_leonPainTime < 500 && cgameGlob->time >= s_leonPainTime )
         return;
     s_leonPainTime = cgameGlob->time;

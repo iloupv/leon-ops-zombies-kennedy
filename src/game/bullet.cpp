@@ -19,6 +19,7 @@ extern int g_dobjTraceDebug; // xanim/dobj.cpp (a1 c13)
 #include <server/sv_game.h>
 #include <glass/glass_server.h>
 #include "actor_events.h"
+#include <clientscript/scr_const.h>
 #include <bgame/bg_perks.h>
 #include <cgame/cg_weapons.h>
 #include <cgame_mp/cg_local_mp.h>
@@ -617,6 +618,17 @@ void __cdecl Bullet_Process(
         }
         targetWasAlive = br->hitEnt->health > 0;
         hitLoc = (hitLocation_t)br->trace.partGroup;
+        // mod (the Leon mod): a head a little more forgiving on a zombie (an actor) - a neck hit, or an upper chest
+        // hit within 7" of its head bone (the collar's top), is a head shot: shots aimed at the head with the laser
+        // landed on the neck and collar and counted as body shots
+        if ( br->hitEnt->actor && (hitLoc == HITLOC_NECK || hitLoc == HITLOC_TORSO_UPR) )
+        {
+            float headPos[3];
+            if ( hitLoc == HITLOC_NECK
+                 || (G_DObjGetWorldTagPos(br->hitEnt, scr_const.j_head, headPos)
+                     && Vec3DistanceSq(headPos, br->hitPos) < 7.0f * 7.0f) )
+                hitLoc = HITLOC_HEAD;
+        }
         if ( hitLoc == HITLOC_HEAD || hitLoc == HITLOC_HELMET )
             *outImpactFlags |= 1u;
         if ( g_debugLocDamage->current.integer > 0 )

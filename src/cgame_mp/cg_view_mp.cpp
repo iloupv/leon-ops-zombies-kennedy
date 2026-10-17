@@ -2807,11 +2807,14 @@ float __cdecl CG_ShoulderCameraAds(const cg_s *cgameGlob)
         return s_camAds;
     s_camAdsTime = cgameGlob->time;
     const WeaponDef *weapDef = BG_GetWeaponDef(cgameGlob->predictedPlayerState.weapon);
-    if (gap < 0 || gap > 250 || !weapDef || weapDef->weapClass != WEAPCLASS_PISTOL)
+    // (the player followed spectating: his aim comes with each snapshot, in steps - every shot raised it and the
+    // camera stepped in and out; eased ~0.12 s)
+    const bool followed = !CG_LeonOwnView(cgameGlob);
+    if (gap < 0 || gap > 250 || ((!weapDef || weapDef->weapClass != WEAPCLASS_PISTOL) && !followed))
         s_camAds = adsRaw;
     else
     {
-        const float k = 1.0f - expf(-(float)gap * 0.025f);
+        const float k = 1.0f - expf(-(float)gap * (followed ? 0.008f : 0.025f));
         s_camAds += (adsRaw - s_camAds) * k;
     }
     return s_camAds;
@@ -3397,7 +3400,8 @@ void CG_OffsetThirdPersonView(int localClientNum)
         if (!s_shoulderCameraYawSet)
             s_shoulderCameraYaw = viewYaw;
         s_shoulderCameraYawSet = true;
-        const float deadZone = SHOULDER_AIM_DEADZONE * adsRaw;
+        // (none for the player followed spectating: his aim, in snapshot steps, swung the camera aside at every shot)
+        const float deadZone = ownView ? SHOULDER_AIM_DEADZONE * adsRaw : 0.0f;
         const float trail = AngleNormalize180(viewYaw - s_shoulderCameraYaw);
         if (trail > deadZone)
             s_shoulderCameraYaw = AngleNormalize360(viewYaw - deadZone);

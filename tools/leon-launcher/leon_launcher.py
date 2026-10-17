@@ -5,7 +5,7 @@ release). It does what Melty's install recipe (melty.json) does:
      (steamapps/libraryfolders.vdf, each app's appmanifest), or asks for their folders once; remembered in
      leon_launcher.json
   2. the first time, builds Leon from Resident Evil 4 (leon_setup\\leon_setup.exe, until mods\\leon\\rtmodels\\
-     leon_ready_v5.txt is there: the converter's SETUP_VERSION)
+     leon_ready_v6.txt is there: the converter's SETUP_VERSION)
   3. starts BO1Zombies.exe with BO1Z_GAME_DIR = the Black Ops folder and the mod's command line
 
 Neither game's folder is changed."""
@@ -111,7 +111,7 @@ def main():
     folders = game_folders()
     if '--find' in sys.argv[1:]:  # only find the games (leon_launcher.json), start nothing
         return
-    if not os.path.isfile(os.path.join(here, 'mods', 'leon', 'rtmodels', 'leon_ready_v5.txt')):  # leon_setup's SETUP_VERSION
+    if not os.path.isfile(os.path.join(here, 'mods', 'leon', 'rtmodels', 'leon_ready_v6.txt')):  # leon_setup's SETUP_VERSION
         setup = os.path.join(here, 'leon_setup', 'leon_setup.exe')
         result = subprocess.run([setup, '--re4', folders['re4'], '--bo1', folders['bo1'], '--out', here])
         if result.returncode:
