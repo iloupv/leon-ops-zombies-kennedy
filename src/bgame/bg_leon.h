@@ -9,3 +9,11 @@
 // On his entity (what the other players see: BG_PlayerToEntitySetFlags) the kick's offer, his own business, is in its
 // place whether he is down - BO1's last stand (pm_type 6 / 7) - so their clients lay his model down in RE4's death
 #define LEON_EF2_ENT_DOWN LEON_EF2_KICK_READY
+// HUNK's handling, his character's perk (maps\leon\_character.gsc: <player> leonsethandy( on )): he aims, reloads,
+// switches guns and throws grenades faster, as with fast ADS / reload / switch (BG_LeonHandy) - not his bought perks,
+// so Speed Cola is still his to buy and a down takes nothing of it
+#define LEON_EF2_HANDY 0x2000u
+#define BG_LeonHandy(ps) ((((unsigned int)(ps)->eFlags2) & LEON_EF2_HANDY) != 0)
+// his times' multiplier where he has not bought the perk (the bought ones' is theirs: 0.5, twice as fast) - milder
+// than a perk's, so Speed Cola is still worth his points
+#define LEON_HANDY_RATE 0.7f

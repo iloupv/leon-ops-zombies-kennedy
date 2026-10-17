@@ -976,9 +976,15 @@ bool __cdecl CG_RuntimeXModel_GrenadeOut()
 // the normal speed and was cut off when the quicker reload ended
 static int CG_RuntimeXModel_ReloadMsec(const playerState_s *ps, int weaponTime)
 {
-    if ( !(ps->perks[0] & 0x40000) || !perk_weapReloadMultiplier || perk_weapReloadMultiplier->current.value <= 0.0f )
+    // (HUNK's handling too: bg_leon.h LEON_HANDY_RATE, where he has not bought it)
+    float multiplier = 1.0f;
+    if ( (ps->perks[0] & 0x40000) && perk_weapReloadMultiplier && perk_weapReloadMultiplier->current.value > 0.0f )
+        multiplier = perk_weapReloadMultiplier->current.value;
+    else if ( BG_LeonHandy(ps) )
+        multiplier = LEON_HANDY_RATE;
+    if ( multiplier >= 1.0f )
         return weaponTime;
-    const int msec = (int)((float)weaponTime * perk_weapReloadMultiplier->current.value);
+    const int msec = (int)((float)weaponTime * multiplier);
     return msec > 50 ? msec : 50;
 }
 

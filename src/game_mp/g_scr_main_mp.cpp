@@ -16824,6 +16824,19 @@ static void __cdecl GScr_LeonSetKickFlags(scr_entref_t entref)
     flags = Scr_GetInt(1, SCRIPTINSTANCE_SERVER) ? flags | LEON_EF2_KICKING : flags & ~LEON_EF2_KICKING;
 }
 
+// mod (the Leon mod): <player> leonsethandy( on ) - HUNK's handling (bg_leon.h LEON_EF2_HANDY)
+static void __cdecl GScr_LeonSetHandy(scr_entref_t entref)
+{
+    gentity_s *pSelf = GetEntity(entref);
+    if ( !pSelf->client )
+    {
+        Scr_Error(SCRIPTINSTANCE_SERVER, "leonsethandy: not a player", 0);
+        return;
+    }
+    unsigned int &flags = *(unsigned int *)&pSelf->client->ps.eFlags2;
+    flags = Scr_GetInt(0, SCRIPTINSTANCE_SERVER) ? flags | LEON_EF2_HANDY : flags & ~LEON_EF2_HANDY;
+}
+
 void __cdecl GScr_ClearClientFlag(scr_entref_t entref)
 {
     const char *v1; // eax
@@ -17440,6 +17453,7 @@ BuiltinMethodDef methods_3[] =
   // END
   { "clearclientflag", GScr_ClearClientFlag, 0 },
   { "leonsetkickflags", GScr_LeonSetKickFlags, 0 }, // mod (the Leon mod)
+  { "leonsethandy", GScr_LeonSetHandy, 0 }, // mod (the Leon mod)
   { "fakefire", GScr_FakeFire, 0 },
   { "makeusable", ScrCmd_MakeUsable, 0 },
   { "makeunusable", ScrCmd_MakeUnusable, 0 },

@@ -270,15 +270,20 @@ leon_kick()
 	wait 0.53;
 	forward = anglesToForward( ( 0, self.angles[1], 0 ) );
 	center = self.origin + forward * 30;
+	// Ada's kick, her character's perk: a wider sweep and a harder launch (maps\leon\_character.gsc)
+	strong = self maps\leon\_character::current() == "ada";
+	sweep = 82;
+	if ( strong )
+		sweep = 120;
 	zombies = getAiArray( "axis" );
 	hits = 0;
 	for ( i = 0; i < zombies.size; i++ )
 	{
 		z = zombies[i];
 		offset = z.origin - center;
-		if ( length( ( offset[0], offset[1], 0 ) ) > 82 || abs( offset[2] ) > 60 )
+		if ( length( ( offset[0], offset[1], 0 ) ) > sweep || abs( offset[2] ) > 60 )
 			continue;
-		z thread leon_kicked( self, forward );
+		z thread leon_kicked( self, forward, strong );
 		hits++;
 	}
 	hit = hits > 0;
@@ -302,7 +307,7 @@ leon_kick()
 	self.leon_kicking = undefined;
 }
 
-leon_kicked( player, forward )
+leon_kicked( player, forward, strong )
 {
 	// (no endon "death": the kill below sends it, and the ragdoll comes after)
 	// dismembered: a limb torn off (BO1's own zombie gibs)
@@ -315,6 +320,9 @@ leon_kicked( player, forward )
 	if ( self.health <= 0 || !isAlive( self ) )
 	{
 		self StartRagdoll();
-		self LaunchRagdoll( forward * 150 + ( 0, 0, 80 ) );
+		if ( isDefined( strong ) && strong )
+			self LaunchRagdoll( forward * 260 + ( 0, 0, 120 ) ); // (Ada's)
+		else
+			self LaunchRagdoll( forward * 150 + ( 0, 0, 80 ) );
 	}
 }

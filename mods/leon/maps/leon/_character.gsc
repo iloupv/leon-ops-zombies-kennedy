@@ -76,6 +76,102 @@ apply( name )
 	logPrint( "leon: " + self.playername + " plays " + name + "\n" );
 }
 
+// The characters' perks (each player's, from his character as it is now - a switch at the start changes them):
+//   Leon: a tenth faster again (maps\leon\_leon.gsc leon_move_speed) and one more hit (50 more health over the game's
+//         own: 100, Juggernog's 250)
+//   HUNK: aims, reloads, switches guns and throws grenades faster (the engine's handling flag: leonsethandy)
+//   Ada:  a second roll for a power-up drop on each kill, and a wider, harder kick (maps\leon\_kick.gsc)
+//   Luis: a quarter more damage, and his grenades' and launchers' / wonder weapons' blasts reach further
+// self: the player
+perks()
+{
+	self endon( "disconnect" );
+	self thread luis_blasts( "grenade_fire" );
+	self thread luis_blasts( "missile_fire" );
+	for ( ;; )
+	{
+		name = self current();
+		self leonsethandy( name == "hunk" );
+		if ( isDefined( self.maxhealth ) && self.maxhealth > 0 )
+		{
+			bonus = 0;
+			if ( name == "leon" )
+				bonus = 50;
+			// the game's own maximum (it sets it: a spawn, a revive, Juggernog), Leon's bonus over it
+			if ( !isDefined( self.leon_max ) || self.maxhealth != self.leon_max )
+				self.leon_base_health = self.maxhealth;
+			target = self.leon_base_health + bonus;
+			if ( self.maxhealth != target )
+			{
+				full = self.health >= self.maxhealth;
+				self.maxhealth = target;
+				if ( full || self.health > target )
+					self.health = target;
+			}
+			self.leon_max = target;
+		}
+		wait 0.25;
+	}
+}
+
+// Luis's blasts: around each of his grenades' and projectiles' explosions, the zombies out to 360" take a second
+// blast's damage (more the nearer), his own (scored as his)
+luis_blasts( note )
+{
+	self endon( "disconnect" );
+	for ( ;; )
+	{
+		self waittill( note, projectile, weapon );
+		if ( isDefined( projectile ) && self current() == "luis" )
+			projectile thread luis_blast( self );
+	}
+}
+
+luis_blast( owner )
+{
+	self waittill( "explode", position );
+	if ( !isDefined( owner ) )
+		return;
+	zombies = getAiArray( "axis" );
+	for ( i = 0; i < zombies.size; i++ )
+	{
+		if ( !isAlive( zombies[i] ) )
+			continue;
+		d = distance( zombies[i].origin, position );
+		if ( d > 360 )
+			continue;
+		zombies[i] DoDamage( int( 250 * ( 1 - d / 360 ) ) + 50, position, owner, -1, "grenadesplash" );
+	}
+}
+
+// The level's damage and kill overrides (_zombiemode's), wrapped once they are set: Luis's damage, Ada's drops
+perks_init()
+{
+	while ( !isDefined( level.overrideActorDamage ) || !isDefined( level.overrideActorKilled ) )
+		wait 0.1;
+	level.leon_actor_damage = level.overrideActorDamage;
+	level.overrideActorDamage = ::actor_damage;
+	level.leon_actor_killed = level.overrideActorKilled;
+	level.overrideActorKilled = ::actor_killed;
+}
+
+actor_damage( inflictor, attacker, damage, flags, meansofdeath, weapon, vpoint, vdir, sHitLoc, modelIndex, psOffsetTime )
+{
+	damage = self [[ level.leon_actor_damage ]]( inflictor, attacker, damage, flags, meansofdeath, weapon, vpoint, vdir,
+		sHitLoc, modelIndex, psOffsetTime );
+	if ( isDefined( damage ) && isDefined( attacker ) && isPlayer( attacker ) && attacker current() == "luis" )
+		damage = int( damage * 1.25 );
+	return damage;
+}
+
+actor_killed( eInflictor, attacker, iDamage, sMeansOfDeath, sWeapon, vDir, sHitLoc, psOffsetTime )
+{
+	self [[ level.leon_actor_killed ]]( eInflictor, attacker, iDamage, sMeansOfDeath, sWeapon, vDir, sHitLoc, psOffsetTime );
+	// Ada's kill: one more of _zombiemode's own drop rolls (its 3%, its round's cap)
+	if ( isDefined( attacker ) && isPlayer( attacker ) && attacker current() == "ada" && isDefined( self.origin ) )
+		level thread maps\_zombiemode_powerups::powerup_drop( self.origin );
+}
+
 display_name( name )
 {
 	switch ( name )
@@ -129,7 +225,7 @@ choose()
 				until = getTime() + 6000;
 		}
 		was = pressed;
-		text = "Press SWITCH WEAPON to change character: " + display_name( self current() );
+		text = "Press SWITCH WEAPON to change character"; // (no name: his model shows who he is)
 		if ( text != shown )
 		{
 			hud setText( text );

@@ -2013,11 +2013,21 @@ void CG_SP_DrawReviveWaypoints(int localClientNum)
     const cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     if ( !cgameGlob->nextSnap || !zombiemode || !zombiemode->current.enabled )
         return;
-    static Material *s_revive;
-    if ( !s_revive )
-        s_revive = Material_RegisterHandle("waypoint_revive", 7);
+    // (looked up as drawn: kept from the last level, the pointer outlived its zone - a map's reload put another asset
+    // there, and a sniper rifle's icon showed over the downed player)
+    Material *s_revive = Material_RegisterHandle("waypoint_revive", 7);
     if ( !s_revive )
         return;
+    static Material *s_logged;
+    const dvar_s *waypointLog = Dvar_FindVar("bo1_waypointlog");
+    if ( waypointLog && waypointLog->current.enabled && s_logged != s_revive )
+    {
+        // (tests: which material and image the revive icon really is)
+        s_logged = s_revive;
+        const MaterialTextureDef *t = s_revive->textureCount ? &s_revive->textureTable[0] : 0;
+        Com_Printf(0, "revive icon: material %s, %d textures, first image %s\n", s_revive->info.name,
+                   (int)s_revive->textureCount, t && t->semantic != 1 && t->u.image ? t->u.image->name : "-");
+    }
     hudelem_s elem;
     memset(&elem, 0, sizeof(elem));
     elem.type = HE_TYPE_WAYPOINT;
