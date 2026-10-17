@@ -46,9 +46,12 @@ leon_merchant_boxtest()
 	logPrint( "leon: boxtest at the box " + chest.origin + "\n" );
 }
 
+// (heard by every player, as the bingo lines: co-op heard only the buyer's)
 leon_merchant_say( player, alias )
 {
-	player playLocalSound( alias );
+	players = getEntArray( "player", "classname" );
+	for ( i = 0; i < players.size; i++ )
+		players[i] playLocalSound( alias );
 	logPrint( "leon: merchant " + alias + "\n" );
 }
 

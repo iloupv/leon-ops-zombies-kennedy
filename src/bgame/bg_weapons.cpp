@@ -793,7 +793,7 @@ void __cdecl PM_UpdateAimDownSightLerp(pmove_t *pm, pml_t *pml)
                     //lerpRate = -weapVariantDef->fOOPosAnimLength[1];
                     lerpRate = -weapVariantDef->fOOPosAnimLength[1];
                 }
-                if ( (ps->perks[0] & 0x4000) != 0
+                if ( ((ps->perks[0] & 0x4000) != 0 || BG_LeonHandy(ps)) // (mod: HUNK's handling)
                     && weapDef->playerAnimType != BG_GetPlayerAnimTypeIndex(1)
                     && weapDef->playerAnimType != BG_GetPlayerAnimTypeIndex(2) )
                 {
@@ -808,7 +808,8 @@ void __cdecl PM_UpdateAimDownSightLerp(pmove_t *pm, pml_t *pml)
                     {
                         __debugbreak();
                     }
-                    lerpRate = lerpRate / perk_weapAdsMultiplier->current.value;
+                    lerpRate = lerpRate / ((ps->perks[0] & 0x4000) != 0 ? perk_weapAdsMultiplier->current.value
+                                                                         : LEON_HANDY_RATE);
                 }
             }
             v3 = (float)((float)pml->msec * lerpRate) + ps->fWeaponPosFrac;
@@ -2735,9 +2736,11 @@ int __cdecl PM_Weapon_WeaponTimeAdjust(pmove_t *pm, pml_t *pml)
          || *weaponState == 11
          || *weaponState == 15
          || *weaponState == 16)
-        && (ps->perks[0] & 0x40000) != 0 )
+        && ((ps->perks[0] & 0x40000) != 0 || BG_LeonHandy(ps)) ) // (mod: HUNK's handling)
     {
-        if ( perk_weapReloadMultiplier->current.value == 0.0 )
+        const float reloadMultiplier = (ps->perks[0] & 0x40000) != 0 ? perk_weapReloadMultiplier->current.value
+                                                                     : LEON_HANDY_RATE;
+        if ( reloadMultiplier == 0.0 )
         {
             if ( *weaponTime < *weaponDelay )
                 v6 = *weaponDelay;
@@ -2748,7 +2751,7 @@ int __cdecl PM_Weapon_WeaponTimeAdjust(pmove_t *pm, pml_t *pml)
         else
         {
             msec = PM_Weapon_RoundTime((float)((float)((float)pml->msec * (float)(1.0 - 1.0))
-                                                 + (float)((float)((float)pml->msec / perk_weapReloadMultiplier->current.value) * 1.0)));
+                                                 + (float)((float)((float)pml->msec / reloadMultiplier) * 1.0)));
         }
     }
     else if ( (*weaponState == 6
@@ -2778,7 +2781,7 @@ int __cdecl PM_Weapon_WeaponTimeAdjust(pmove_t *pm, pml_t *pml)
             msec = PM_Weapon_RoundTime((float)pml->msec / perk_weapRateMultiplier->current.value);
         }
     }
-    else if ( (ps->perks[0] & 0x80000) != 0 && BG_CanFastSwitch(weapDef, *weaponState) )
+    else if ( ((ps->perks[0] & 0x80000) != 0 || BG_LeonHandy(ps)) && BG_CanFastSwitch(weapDef, *weaponState) )
     {
         if ( perk_weapSwitchMultiplier->current.value <= 0.0
             && !Assert_MyHandler(
@@ -2791,7 +2794,15 @@ int __cdecl PM_Weapon_WeaponTimeAdjust(pmove_t *pm, pml_t *pml)
         {
             __debugbreak();
         }
-        msec = PM_Weapon_RoundTime((float)pml->msec / perk_weapSwitchMultiplier->current.value);
+        msec = PM_Weapon_RoundTime((float)pml->msec / ((ps->perks[0] & 0x80000) != 0 ? perk_weapSwitchMultiplier->current.value
+                                                                                     : LEON_HANDY_RATE));
+    }
+    else if ( BG_LeonHandy(ps) && *weaponState >= WEAPON_OFFHAND_INIT && *weaponState <= WEAPON_OFFHAND_END
+              && *weaponState != WEAPON_OFFHAND_HOLD )
+    {
+        // mod (the Leon mod): HUNK's grenade out and thrown faster, at the fast switch's rate (not its hold: a cooked
+        // grenade's fuse keeps its time)
+        msec = PM_Weapon_RoundTime((float)pml->msec / LEON_HANDY_RATE);
     }
     else if ( *weaponState == 19 && (ps->perks[0] & 0x20000) != 0 )
     {

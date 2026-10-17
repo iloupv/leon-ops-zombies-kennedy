@@ -15,6 +15,7 @@ init()
 	maps\leon\_character::precache(); // Leon, and Ada, HUNK and Luis where they were built
 	precacheModel( "t5_weapon_m14_world" ); // the npc test's weapon (common_zombie: on every map)
 	level thread leon_players(); // every player (co-op: those who join too) as his character
+	level thread maps\leon\_character::perks_init(); // the characters' perks: Luis's damage, Ada's drops
 	level thread leon_spawn_test();
 	level thread maps\leon\_kick::init(); // RE4's stagger and kick
 	level thread maps\leon\_merchant::init(); // RE4's Merchant at the Mystery Box
@@ -83,6 +84,7 @@ leon_player_setup()
 		self maps\leon\_character::apply( self maps\leon\_character::first_pick() );
 		self thread leon_keep_model();
 		self thread leon_move_speed();
+		self thread maps\leon\_character::perks();
 		self thread leon_hide_teleporting();
 		self setClientDvar( "leon_charprompt", "0" ); // (a prompt cut short by a disconnect left it on his client)
 		self thread maps\leon\_character::choose(); // "Press SWITCH WEAPON to change character"
@@ -394,7 +396,12 @@ leon_move_speed()
 	for ( ;; )
 	{
 		if ( !isDefined( self.is_zombie ) || !self.is_zombie )
-			self setMoveSpeedScale( 1.2 );
+		{
+			scale = 1.2;
+			if ( self maps\leon\_character::current() == "leon" )
+				scale = 1.32; // (Leon's perk: a tenth faster again - maps\leon\_character.gsc)
+			self setMoveSpeedScale( scale );
+		}
 		wait 1;
 	}
 }
