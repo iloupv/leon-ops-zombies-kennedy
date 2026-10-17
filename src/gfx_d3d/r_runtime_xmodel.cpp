@@ -114,6 +114,25 @@ struct RtAnimState
     float turnStill;   // seconds a turn in place has been (nearly) not turning
 };
 static const int RT_MAX_ANIM_ENTS = 2048;
+
+// A player's switch between motions (R_RuntimeXModel_PoseDObj): each action, and a weapon's set, came in against his
+// locomotion and aim alone, not from the pose he was in - into the throw from the grenade's ready pose, an action cut
+// short by another, a new gun's set of motions: the pose jumped. On a change of the action, its motion or the set, his
+// last pose eases into the new one over RT_POSE_FADE_MS (not the root, which carries his facing in the world; not
+// RE4's quick turn or the death, blended their own way).
+static const int RT_POSE_FADE_MS = 150;
+static const int RT_POSE_FADE_BONES = 192;
+struct RtPoseFade
+{
+    const DObj *obj;
+    int lastTime, start;
+    int action, anim; // the last pose's
+    char set[32];
+    int bones;
+    float last[RT_POSE_FADE_BONES][7]; // the last pose: each bone's quat, trans
+    float from[RT_POSE_FADE_BONES][7]; // the pose faded from
+};
+static RtPoseFade s_poseFades[64]; // by client
 static RtAnimState s_animStates[RT_MAX_ANIM_ENTS];
 static volatile long s_animStateLock; // the renderer's worker threads pose DObjs too
 
@@ -1936,6 +1955,44 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     int numBones = cur.boneCount < model->numBones ? cur.boneCount : model->numBones;
     if ( numBones > obj->numBones )
         numBones = obj->numBones;
+    // the switch between motions eased (RtPoseFade)
+    RtPoseFade *fade = isPlayer && obj->entnum > 0 ? &s_poseFades[(obj->entnum - 1) & 63] : 0;
+    float fadeK = 1.0f;
+    if ( fade )
+    {
+        const char *setName = animSet ? animSet : "";
+        if ( fade->obj != obj || timeMs < fade->lastTime || timeMs - fade->lastTime > 500 || fade->bones != numBones )
+        {
+            fade->obj = obj; // (a new body, or a gap: nothing to ease from)
+            fade->start = -100000;
+            fade->bones = 0;
+        }
+        else if ( action != fade->action || actionAnim != fade->anim || strncmp(setName, fade->set, sizeof(fade->set) - 1) )
+        {
+            // (and not into a shot, a slash or a kick: they hit at once - eased, the shot's kick went soft)
+            const bool own = action == RT_ACTION_TURN || action == RT_ACTION_DEATH || fade->action == RT_ACTION_TURN
+                             || fade->action == RT_ACTION_DEATH || action == RT_ACTION_FIRE || action == RT_ACTION_KNIFE
+                             || action == RT_ACTION_KICK;
+            if ( !own )
+            {
+                memcpy(fade->from, fade->last, sizeof(fade->from));
+                fade->start = timeMs;
+            }
+            else
+                fade->start = -100000; // (an ease under way ends too)
+        }
+        fade->action = action;
+        fade->anim = actionAnim;
+        I_strncpyz(fade->set, setName, sizeof(fade->set));
+        fade->lastTime = timeMs;
+        if ( timeMs >= fade->start && timeMs - fade->start < RT_POSE_FADE_MS )
+        {
+            const float k = (float)(timeMs - fade->start) / (float)RT_POSE_FADE_MS;
+            fadeK = k * k * (3.0f - 2.0f * k);
+        }
+    }
+    if ( numBones > RT_POSE_FADE_BONES )
+        fade = 0;
     for ( int b = 0; b < numBones; ++b )
     {
         DObjAnimMat *mat = &obj->skel.mat[b];
@@ -2117,8 +2174,19 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             mat->quat[0] = mat->quat[1] = mat->quat[2] = 0.0f;
             mat->quat[3] = 1.0f;
         }
+        if ( fade )
+        {
+            if ( b > 0 && fadeK < 1.0f && fade->bones == numBones )
+                RtBlendPose(mat->quat, mat->trans, fade->from[b], fade->from[b] + 4, 1.0f - fadeK);
+            for ( int k = 0; k < 4; ++k )
+                fade->last[b][k] = mat->quat[k];
+            for ( int k = 0; k < 3; ++k )
+                fade->last[b][4 + k] = mat->trans[k];
+        }
         mat->transWeight = 2.0f;
         obj->skel.partBits.anim[b >> 5] |= 0x80000000 >> (b & 31);
     }
+    if ( fade )
+        fade->bones = numBones; // (its last pose complete)
     return action == RT_ACTION_FIRE && actionAnim >= 0 ? actionWeight : 0.0f;
 }
