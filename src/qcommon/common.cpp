@@ -3272,7 +3272,10 @@ void Com_LoadCommonFastFile()
             zoneInfo[zoneCount++].freeFlags = 0;
         }
     }
-    else if ( !DB_IsZoneLoaded("common_mp") )
+    // (not with the SP code zones: the front end is a level with its own zones and the boot loads no common_mp - on
+    // the way back from a match, zombiemode already reset by Com_LoadFrontEnd_SP, it came in and its clanFont was a
+    // 17th font: Com_ERROR "Exceeded limit of 16 'font' assets")
+    else if ( !(bo1_zombies && bo1_zombies->current.enabled) && !DB_IsZoneLoaded("common_mp") )
     {
         zoneInfo[zoneCount].name = "common_mp";
         zoneInfo[zoneCount].allocFlags = 256;
