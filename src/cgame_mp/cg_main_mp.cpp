@@ -3662,7 +3662,9 @@ unsigned __int16 __cdecl CG_AttachWeapon(DObjModel_s *dobjModels, unsigned __int
                                                          : CG_GetWeaponAttachBone(ci, weapDef->weapType, weapDef->inventoryType);
             dobjModels[numModels++].ignoreCollision = 0;
         }
-        if ( weapDef->bDualWield )
+        // (a runtime body holds one of a dual-wield pair: RE4's motions are one-handed or two-handed on one gun, and
+        // the left one hung off his other hand - the pair still fires as two)
+        if ( weapDef->bDualWield && !runtimeBody )
         {
             weapDefDW = BG_GetWeaponDef(weapDef->dualWieldWeaponIndex);
             if ( weapDefDW->worldModel[weaponModel] )
