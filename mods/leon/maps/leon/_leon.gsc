@@ -258,6 +258,8 @@ leon_spawn_test()
 		level thread leon_end_test( getDvarFloat( "leon_endtest" ) ); // tests: the game ends after that many seconds
 	if ( getDvar( "leon_hurttest" ) != "" )
 		player thread leon_hurt_loop( getDvarInt( "leon_hurttest" ) ); // tests: hits (and going down) without zombies
+	if ( getDvar( "leon_atbox" ) == "1" )
+		player thread leon_at_box(); // tests: beside the first mystery box (a light right over it)
 	if ( getDvar( "leon_dogtest" ) != "" )
 		level thread leon_dog_test( getDvarFloat( "leon_dogtest" ) ); // tests: two dogs after that many seconds
 
@@ -459,6 +461,29 @@ leon_aim_yaws( yaws )
 }
 
 // Tests: the game over (_zombiemode's end_game: its slow motion, then the restart), once, after that many seconds
+// tests: beside the first mystery box, in front of it, turned a little toward it (the box's light on him)
+leon_at_box()
+{
+	self endon( "disconnect" );
+	wait 6;
+	if ( !isDefined( level.chests ) || !isDefined( level.chest_index ) )
+		return;
+	chest = level.chests[level.chest_index];
+	lid = chest.origin;
+	if ( isDefined( chest.chest_lid ) )
+		lid = chest.chest_lid.origin;
+	out = chest.origin - lid;
+	out = ( out[0], out[1], 0 );
+	if ( length( out ) < 1 )
+		out = ( 1, 0, 0 );
+	out = vectorNormalize( out );
+	spot = chest.origin + out * 40;
+	self setOrigin( ( spot[0], spot[1], chest.origin[2] ) );
+	toBox = vectorToAngles( lid - spot );
+	self setPlayerAngles( ( 0, toBox[1] + 150, 0 ) );
+	logPrint( "leon: atbox - at " + self.origin + ", box " + lid + "\n" );
+}
+
 // tests (co-op): two dogs after that many seconds - a joined client's first dog asserted
 leon_dog_test( seconds )
 {
