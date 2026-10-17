@@ -242,15 +242,11 @@ bool Steam_UpdateClientAuthTicket(netadr_t serverIpv4)
 		return false;
 	}
 
-	SteamNetworkingIdentity snid;
-	uint32 ip32 = 0;
-	ip32 |= (serverIpv4.ip[0] << 24);
-	ip32 |= (serverIpv4.ip[1] << 16);
-	ip32 |= (serverIpv4.ip[2] << 8);
-	ip32 |= (serverIpv4.ip[3]);
-	snid.SetIPv4Addr(ip32, serverIpv4.port);
-
-	steamClientAuthTicket = SteamUser()->GetAuthSessionTicket(steamClientTicket, sizeof(steamClientTicket), &steamClientTicketSize, &snid);
+	// mod (co-op): a ticket for any identity - the host checks it as a Steam user (BeginAuthSession), not as a server at
+	// an IP: one made for the address joined (SetIPv4Addr) was refused as invalid by a friend's game, and through
+	// Melty's relay that address is not even the host's
+	(void)serverIpv4;
+	steamClientAuthTicket = SteamUser()->GetAuthSessionTicket(steamClientTicket, sizeof(steamClientTicket), &steamClientTicketSize, nullptr);
 
 	return steamClientAuthTicket != k_HAuthTicketInvalid;
 }
