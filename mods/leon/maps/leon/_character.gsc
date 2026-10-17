@@ -77,7 +77,7 @@ apply( name )
 }
 
 // The characters' perks (each player's, from his character as it is now - a switch at the start changes them):
-//   Leon: a tenth faster again (maps\leon\_leon.gsc leon_move_speed) and one more hit (50 more health over the game's
+//   Leon: his shots stagger zombies more easily (maps\leon\_kick.gsc) and one more hit (50 more health over the game's
 //         own: 100, Juggernog's 250)
 //   HUNK: aims, reloads, switches guns and throws grenades faster (the engine's handling flag: leonsethandy)
 //   Ada:  a second roll for a power-up drop on each kill, a wider, harder kick (maps\leon\_kick.gsc), and 15% back on
@@ -315,5 +315,5 @@ perk_line( name )
 	case "luis":
 		return "Luis: more damage, bigger explosions";
 	}
-	return "Leon: faster, takes an extra hit";
+	return "Leon: staggers zombies more easily, takes an extra hit";
 }
