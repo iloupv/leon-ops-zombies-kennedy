@@ -125,8 +125,34 @@ static void *RtAlloc(int size)
     return p;
 }
 
+// the characters' envMapParms (RtCreateMaterial), their template's min / max kept to scale live (leon_matrefl)
+struct RtEnvParms
+{
+    MaterialConstantDef *constant;
+    float base[2];
+};
+static std::vector<RtEnvParms> s_envParms;
+static char s_envScale[32];
+
+static void RtApplyEnvScale()
+{
+    const dvar_s *refl = Dvar_FindVar("leon_matrefl");
+    const char *text = refl && *refl->current.string ? refl->current.string : "0.5";
+    if ( !strcmp(text, s_envScale) )
+        return;
+    I_strncpyz(s_envScale, text, sizeof(s_envScale));
+    const float scale = (float)atof(text);
+    for ( RtEnvParms &e : s_envParms )
+    {
+        e.constant->literal[0] = e.base[0] * scale;
+        e.constant->literal[1] = e.base[1] * scale;
+    }
+}
+
 static void RtFreeAll()
 {
+    s_envParms.clear();
+    s_envScale[0] = 0;
     s_anims.clear();
     memset(s_animStates, 0, sizeof(s_animStates));
     s_laserModels[0] = s_laserModels[1] = 0;
@@ -157,6 +183,10 @@ void __cdecl R_RuntimeXModel_RegisterDvars()
     if ( !s_characterRegistered )
         s_characterRegistered = !!_Dvar_RegisterString("leon_character", "leon", 1,
             "mod: the Leon mod's character (maps\\leon\\_character.gsc): leon, ada, hunk or luis");
+    static bool s_reflRegistered;
+    if ( !s_reflRegistered )
+        s_reflRegistered = !!_Dvar_RegisterString("leon_matrefl", "0.5", 0,
+            "mod: the characters' reflection probe strength (RtCreateMaterial), live: lower is more matte and darker");
 }
 
 static int RtLevelZoneIndex(const char *mapName)
@@ -413,28 +443,25 @@ static Material *RtCreateMaterial(const Material *templ, GfxImage *colorMap, con
             table[i].u.image = colorMap;
         else if ( table[i].semantic == 5 ) // normal map: flat
             table[i].u.image = rgp.identityNormalMapImage;
-        else if ( table[i].semantic == 8 ) // specular: none (it also gates the probe's reflection)
-            table[i].u.image = rgp.blackImage;
+        else if ( table[i].semantic == 8 ) // specular: none, at the roughest gloss (its alpha; a transparent black
+            table[i].u.image = rgp.blackImage;  // was glossier, a grey one chrome)
     }
     material.textureTable = table;
     // the template's environment reflection (envMapParms: the reflection probe's min / max by the view's angle, its
     // falloff and the sun's specular) is its own surface's (the zombies templates are polished steel and the like):
-    // Leon's cloth, leather and skin take no sun specular, or they look wet - and half the probe's reflection. With
-    // no specular map it is most of their light (none, they went black), at its full strength a polished sheen: under
-    // a bright light a character looked like metal (leon_matrefl sets the scale: tests)
+    // Leon's cloth, leather and skin take no sun specular, or they look wet - and the probe's reflection scaled
+    // (leon_matrefl, 0.5, live: RtApplyEnvScale). With a black specular map it is most of their light (at 0 they went
+    // black), at its full strength a polished sheen: under a bright light a character looked like metal
     if ( templ->constantCount && templ->constantTable )
     {
-        const dvar_s *reflDvar = Dvar_FindVar("leon_matrefl");
-        const float refl = reflDvar && *reflDvar->current.string ? (float)atof(reflDvar->current.string) : 0.5f;
         MaterialConstantDef *constants = (MaterialConstantDef *)RtAlloc(sizeof(MaterialConstantDef) * templ->constantCount);
         for ( int i = 0; i < templ->constantCount; ++i )
         {
             constants[i] = templ->constantTable[i];
             if ( !strncmp(constants[i].name, "envMapParms", 11) )
             {
-                constants[i].literal[0] *= refl;
-                constants[i].literal[1] *= refl;
                 constants[i].literal[3] = 0.0f;
+                s_envParms.push_back({ &constants[i], { constants[i].literal[0], constants[i].literal[1] } });
             }
         }
         material.constantTable = constants;
@@ -1687,6 +1714,7 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
                                       float actionDuration, const float *aimCorrection, bool turnToMotion,
                                       const char *animSet)
 {
+    RtApplyEnvScale(); // (leon_matrefl changed from the console)
     const float lookYaw = s_lookYaw; // for this call only
     s_lookYaw = 0.0f;
     struct PlayerMotionReset // (s_strafeLegs / s_turnInPlace: for this call only)
