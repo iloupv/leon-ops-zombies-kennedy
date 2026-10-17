@@ -134,4 +134,5 @@ add_custom_target(copy_base_data ALL
 # PDB is referenced by file name only.
 file(TO_NATIVE_PATH "${CMAKE_CURRENT_SOURCE_DIR}" BO1_SOURCE_DIR_NATIVE)
 target_compile_options(BO1Zombies PRIVATE "/d1trimfile:${BO1_SOURCE_DIR_NATIVE}")
-target_link_options(BO1Zombies PRIVATE "/PDBALTPATH:%_PDB%")
+# (the name itself: "%_PDB%" reached the linker escaped and the exe named "%%%BO1Zombies.pdb%%%", which no debugger finds)
+target_link_options(BO1Zombies PRIVATE "/PDBALTPATH:BO1Zombies.pdb")
