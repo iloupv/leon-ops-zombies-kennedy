@@ -338,6 +338,14 @@ unsigned int __cdecl R_AllocModelLighting(
     {
         return R_ModelLightingAllocationFailed();
     }
+    else if ( !modelLightGlob.image )
+    {
+        // zombies: no atlas while the D3D device is lost - the render thread released it (R_ReleaseForShutdownOrReset
+        // from RB_SwapBuffers' lost-device loop) and the front end's workers went on adding scene entities: the
+        // CalcLightingCmd below read its pixels from a null image (players' crash at R_AllocModelLighting+0x405 under
+        // r_add_sceneentCallback). Nothing shows until the device is back: no lighting this frame, as when it is full.
+        return 0;
+    }
     else
     {
         pixelFreeRover = modelLightGlob.pixelFreeRover;
