@@ -48,6 +48,10 @@ void __cdecl R_RuntimeXModel_SetPlayerMotion(bool strafeLegs, bool turnInPlace, 
 // mod: where in RE4's reload the next R_RuntimeXModel_PoseDObj's reload action starts (0..1; a new gun's first raise)
 void __cdecl R_RuntimeXModel_SetReloadFrom(float from);
 int __cdecl R_RuntimeXModel_PlayerTurn();
+// mod: whether the last such pose still played his quick turn or kick (the laser waits for it: CG_ShoulderLaser)
+bool __cdecl R_RuntimeXModel_PlayerBodyAction();
+// mod: whether the last such pose was easing from another (RtPoseFade: the aim correction holds meanwhile)
+bool __cdecl R_RuntimeXModel_PlayerEasing();
 // mod: the local player's footsteps (his cycle's foot plants) since the last call, and whether they were a run's
 int __cdecl R_RuntimeXModel_TakePlayerSteps(bool *run);
 // mod: a dvar set non-zero (bool, int, or a string set from the command line or a script); false when it does not exist

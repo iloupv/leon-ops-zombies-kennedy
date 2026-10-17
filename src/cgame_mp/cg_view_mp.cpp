@@ -3239,6 +3239,10 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
     if ((weaponState >= WEAPON_RELOADING_RIGHT && weaponState <= WEAPON_RELOAD_QUICK_EMPTY)
         || cg_thirdPersonActionTest->current.integer == 2)
         return; // off while reloading, as in RE4
+    // nor through the last frames of a quick turn or a kick: the aim takes his upper body from them, but his hips still
+    // swing the gun (the aim correction learnt that swing and the dot wandered off and wobbled back after it)
+    if (R_RuntimeXModel_PlayerBodyAction())
+        return;
     // straight out of the barrel (the muzzle tag's forward axis), as RE4's; the aim correction turns the upper body
     // until the barrel points where the shots land (the view line's hit), so the dot settles there
     orientation_t orient;
@@ -3254,21 +3258,27 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
         float wantAngles[3], barrelAngles[3];
         vectoangles(want, wantAngles);
         vectoangles(orient.axis[0], barrelAngles);
-        if (R_RuntimeXModel_DvarOn("leon_barrellog")) // (tests: the barrel's way each frame, its recoil's smoothness)
-            Com_Printf(0, "leon: barrel at %d pitch %.2f yaw %.2f\n", cgameGlob->time, barrelAngles[0], barrelAngles[1]);
+        // (tests: the barrel's way each frame - its recoil's smoothness -, where the shots land and the aim correction)
+        if (R_RuntimeXModel_DvarOn("leon_barrellog"))
+            Com_Printf(0, "leon: barrel at %d pitch %.2f yaw %.2f (want %.2f %.2f, camera yaw %.2f, correction %.2f %.2f)\n",
+                       cgameGlob->time, barrelAngles[0], barrelAngles[1], wantAngles[0], wantAngles[1],
+                       s_shoulderCameraYaw, s_shoulderAimCorrection[0], s_shoulderAimCorrection[1]);
         const float dt = (float)cgameGlob->frametime * 0.001f;
         const float k = dt * 20.0f < 1.0f ? dt * 20.0f : 1.0f; // tight: a swing leaves the barrel little behind
         // the body's own turn this frame (the shoulder camera's yaw, which turns him past the dead zone)
         static float s_lastBodyYaw;
         const float bodyTurn = AngleNormalize180(s_shoulderCameraYaw - s_lastBodyYaw);
         s_lastBodyYaw = s_shoulderCameraYaw;
+        // (nor while his pose eases from another - a step switched under the aim, the aim raised in it: learnt, that
+        // ease's swing came back as an overshoot once it was over)
+        const bool posed = s_shoulderRecoil > 0.0f || R_RuntimeXModel_PlayerEasing();
         for (int i = 0; i < 2; ++i)
         {
             // the barrel's error closes in; through a shot's motion (a shotgun's pump: 1.3 s) its kick is not aim
             // error, so the upper body only follows the aim's own moves instead - the yaw's part the body did not
             // turn with (past the dead zone the camera and the body turn with the mouse), the pitch's none (the aim
             // poses follow the view pitch): counted twice, it came back after the shot as a jump of the dot
-            float corr = s_shoulderRecoil > 0.0f
+            float corr = posed
                 ? s_shoulderAimCorrection[i]
                       + (i == 1 ? AngleNormalize180(AngleNormalize180(wantAngles[i] - s_lastWantAngles[i]) - bodyTurn) : 0.0f)
                 : s_shoulderAimCorrection[i] + AngleNormalize180(wantAngles[i] - barrelAngles[i]) * k;

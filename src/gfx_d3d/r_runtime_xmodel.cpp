@@ -88,7 +88,7 @@ struct RtAnim
                          // from its end pose); 0
 };
 // the local player's head look (R_RuntimeXModel_SetLookYaw): degrees about up, for the next PoseDObj only
-static float s_lookYaw;
+static thread_local float s_lookYaw;
 static std::vector<RtAnim> s_anims; // this level's
 static const XModel *s_laserModels[2]; // this level's laser sight beam segment and dot (R_RuntimeXModel_Laser)
 static const XModel *s_laserPieces[4]; // the beam's shorter pieces: 8, 4, 2 and 1 units (R_RuntimeXModel_LaserPiece)
@@ -272,7 +272,7 @@ static Material *RtTemplateMaterial()
 
 // how strongly a shot plays RE4's fire motion on the body (1: fully; the light machine guns less: their recoil was
 // too big for a gun fired in bursts), set per frame by the player's weapon (CG_RuntimeXModel_Pose)
-static float s_fireWeight = 1.0f;
+static thread_local float s_fireWeight = 1.0f;
 
 void __cdecl R_RuntimeXModel_SetFireWeight(float weight)
 {
@@ -282,7 +282,7 @@ void __cdecl R_RuntimeXModel_SetFireWeight(float weight)
 // how fast a shot's motion plays its kick, up to the kick's peak, and on from there (1: RE4's own; most guns settle at
 // 2.3 - the gun floated back onto the aim -, the automatics kick and settle at 3: RE4's kick, made for one shot, never
 // peaked between their shots and pushed slowly), set per frame by the player's weapon (CG_RuntimeXModel_Pose)
-static float s_fireKick = 1.0f, s_fireSettle = 1.0f;
+static thread_local float s_fireKick = 1.0f, s_fireSettle = 1.0f;
 
 void __cdecl R_RuntimeXModel_SetFireRates(float kick, float settle)
 {
@@ -293,7 +293,7 @@ void __cdecl R_RuntimeXModel_SetFireRates(float kick, float settle)
 // seconds since the previous shot's start, for the next R_RuntimeXModel_PoseDObj's shot only (-1: none): a shot fired
 // while the last one's motion still plays crossfades from where that one is (RT_FIRE_CROSSFADE), instead of snapping
 // back to the motion's start - an automatic's, the Ray Gun's heavy magnum kick, jerked at every shot
-static float s_firePrevTime = -1.0f;
+static thread_local float s_firePrevTime = -1.0f;
 static const float RT_FIRE_CROSSFADE = 0.08f;
 
 void __cdecl R_RuntimeXModel_SetFirePrev(float seconds)
@@ -310,12 +310,17 @@ static float RtFirePhase(const RtAnim &motion, float time)
     return kicked <= peak ? kicked : peak + (time * motion.fps - peak / s_fireKick) * s_fireSettle;
 }
 
+// The settings for the next R_RuntimeXModel_PoseDObj (these, the look's and the fire's above) are per thread: the
+// renderer's worker threads pose DObjs too, and one's pose of a zombie between another's setting and its pose of the
+// player would take them (and clear them: the player posed without his own for that frame).
 // the local player's locomotion under RE4's tank controls, for the next R_RuntimeXModel_PoseDObj only: strafeLegs -
 // aimed in and stepping sideways (PM_TankControls), his legs turn toward the step and his torso stays on the aim;
 // turnInPlace - turning on the spot (A / D, the mouse) plays RE4's turn in place (pl_R1_Turn: turn_left / turn_right)
-static bool s_strafeLegs, s_turnInPlace, s_stepWatch;
-static int s_moveIntent; // the player's move keys (1 forward, -1 back, 0 neither): his cycle's way under tank controls
+static thread_local bool s_strafeLegs, s_turnInPlace, s_stepWatch;
+static thread_local int s_moveIntent; // the player's move keys (1 forward, -1 back, 0 neither): his cycle's way under tank controls
 static int s_playerTurn; // the last such pose's turn in place: 1 left, -1 right, 0 none
+static bool s_playerBodyAction; // the last such pose's quick turn or kick still on him (R_RuntimeXModel_PlayerBodyAction)
+static bool s_playerEasing; // the last such pose eased from another (RtPoseFade: R_RuntimeXModel_PlayerEasing)
 // his footsteps: the cycle's foot plants passed since the client last took them, and whether the last was a run's
 // (counted on whichever thread poses him - the renderer's workers pose DObjs too - and taken on the client's)
 static volatile long s_playerSteps;
@@ -323,7 +328,7 @@ static volatile bool s_playerStepRun;
 
 // where in RE4's reload the next R_RuntimeXModel_PoseDObj's reload action starts (0..1: 0 its start; a new gun's first
 // raise plays its end, the gun worked)
-static float s_reloadFrom;
+static thread_local float s_reloadFrom;
 
 void __cdecl R_RuntimeXModel_SetReloadFrom(float from)
 {
@@ -332,8 +337,8 @@ void __cdecl R_RuntimeXModel_SetReloadFrom(float from)
 
 // the motion set the next R_RuntimeXModel_PoseDObj's reload comes from when it is not its animSet's (a gun posed with
 // one RE4 weapon's motions and reloaded with another's: the Ray Gun's magnum stance, the handgun's reload); 0 its own
-static const char *s_reloadSet;
-static bool s_reloadSetGiven;
+static thread_local const char *s_reloadSet;
+static thread_local bool s_reloadSetGiven;
 
 void __cdecl R_RuntimeXModel_SetReloadSet(const char *set)
 {
@@ -359,6 +364,16 @@ int __cdecl R_RuntimeXModel_TakePlayerSteps(bool *run)
 int __cdecl R_RuntimeXModel_PlayerTurn()
 {
     return s_playerTurn;
+}
+
+bool __cdecl R_RuntimeXModel_PlayerBodyAction()
+{
+    return s_playerBodyAction;
+}
+
+bool __cdecl R_RuntimeXModel_PlayerEasing()
+{
+    return s_playerEasing;
 }
 
 // RE4's turn in place turns him 175.6 degrees in its 40 frames at 30 Hz: the rate its steps match
@@ -1986,6 +2001,12 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             actionWeight = actionWeight < 0.0f ? 0.0f : actionWeight;
         }
     }
+    // the quick turn and the kick take the whole body; aimed in their last frames, the aim takes the upper body from
+    // them (they blended out over it: the gun came up from the turn's low arms, the kick's swing pulled it aside)
+    const bool bodyAction = actionAnim >= 0 && actionWeight > 0.0f && (action == RT_ACTION_TURN || action == RT_ACTION_KICK);
+    if ( tankPlayer )
+        s_playerBodyAction = bodyAction;
+    const float bodyAim = bodyAction && aimLevel >= 0 ? aimFrac : 0.0f;
     // moving (a walk / run / back step cycle, not standing): a hit reaction takes the upper body alone, the legs keep
     // their stride (a hit as he ran stopped his legs dead under him)
     const bool moving = cur.moveSpeed > 0.0f && st.speed > 20.0f;
@@ -2004,8 +2025,10 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             fade->start = -100000;
             fade->bones = 0;
         }
-        else if ( action != fade->action || actionAnim != fade->anim || strncmp(setName, fade->set, sizeof(fade->set) - 1) )
+        else if ( (action != fade->action && (actionAnim >= 0 || fade->anim >= 0)) || actionAnim != fade->anim
+                  || strncmp(setName, fade->set, sizeof(fade->set) - 1) )
         {
+            // (an action's end with its motion already over - the kick's past its frame 34 - changes nothing on him)
             // (and not into a shot, a slash or a kick: they hit at once - eased, the shot's kick went soft)
             const bool own = action == RT_ACTION_TURN || action == RT_ACTION_DEATH || fade->action == RT_ACTION_TURN
                              || fade->action == RT_ACTION_DEATH || action == RT_ACTION_FIRE || action == RT_ACTION_KNIFE
@@ -2017,6 +2040,9 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             }
             else
                 fade->start = -100000; // (an ease under way ends too)
+            if ( R_RuntimeXModel_DvarOn("leon_fadelog") ) // tests: each ease of his motions, and what started it
+                Com_Printf(0, "leon_fadelog: ent %d t %d action %d -> %d anim %d -> %d set %s -> %s%s\n", obj->entnum, timeMs,
+                           (int)fade->action, (int)action, fade->anim, actionAnim, fade->set, setName, own ? " (none)" : "");
         }
         else if ( st.cur != fade->cycle && fade->cycleBlend < 1.0f && action != RT_ACTION_FIRE && action != RT_ACTION_KNIFE
                   && action != RT_ACTION_KICK && action != RT_ACTION_TURN && action != RT_ACTION_DEATH )
@@ -2025,6 +2051,10 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             // it came from was dropped mid-blend - his legs jumped; eased from the pose shown instead
             memcpy(fade->from, fade->last, sizeof(fade->from));
             fade->start = timeMs;
+            if ( R_RuntimeXModel_DvarOn("leon_fadelog") )
+                Com_Printf(0, "leon_fadelog: ent %d t %d cycle %s -> %s (its blend %.2f)\n", obj->entnum, timeMs,
+                           fade->cycle >= 0 ? RtAnimBaseName(s_anims[fade->cycle]) : "-", RtAnimBaseName(s_anims[st.cur]),
+                           fade->cycleBlend);
         }
         fade->cycle = st.cur;
         fade->cycleBlend = st.blend;
@@ -2040,6 +2070,8 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     }
     if ( numBones > RT_POSE_FADE_BONES )
         fade = 0;
+    if ( tankPlayer )
+        s_playerEasing = fade && fadeK < 1.0f;
     for ( int b = 0; b < numBones; ++b )
     {
         DObjAnimMat *mat = &obj->skel.mat[b];
@@ -2128,36 +2160,10 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             }
             // the knife slash's own turn of the torso, at the lower spine, half taken: RE4's slash swung his whole
             // upper body round, odd over the shoulder camera (the arm still sweeps)
-            const float weight = isPlayer && action == RT_ACTION_KNIFE && b == cur.spineBone ? actionWeight * 0.5f
-                                                                                             : actionWeight;
+            const float weight = (isPlayer && action == RT_ACTION_KNIFE && b == cur.spineBone ? actionWeight * 0.5f
+                                                                                              : actionWeight)
+                                 * (cur.upperBody && cur.upperBody[b] ? 1.0f - bodyAim : 1.0f);
             RtBlendPose(mat->quat, mat->trans, quat, trans, weight);
-        }
-        if ( b == cur.spineBone && aimCorrection && aimLevel >= 0 && (aimCorrection[0] != 0.0f || aimCorrection[1] != 0.0f) )
-        {
-            // the aim correction: the upper body turned (yaw about up, pitch about the left axis, in its parent's
-            // frame) so the gun's barrel points where the shots land; in by the aim
-            const float yaw = aimCorrection[1] * aimFrac * 0.5f * 0.017453292f;
-            const float pitch = aimCorrection[0] * aimFrac * 0.5f * 0.017453292f;
-            const float qy[4] = { 0.0f, 0.0f, sinf(yaw), cosf(yaw) };
-            const float qp[4] = { 0.0f, sinf(pitch), 0.0f, cosf(pitch) };
-            float qc[4];
-            RtQuatMul(qy, qp, qc);
-            float out[4];
-            RtQuatMul(qc, mat->quat, out);
-            for ( int k = 0; k < 4; ++k )
-                mat->quat[k] = out[k];
-        }
-        if ( b == cur.spineBone && isPlayer && (strafeLegs || tankPlayer) && st.bodyYaw != 0.0f )
-        {
-            // the strafe: the hips turned toward the step (the root, above), the torso turned back onto the aim; not
-            // only while strafing (aimed past half way): the aim let go, the hips' turn went to his torso at once - his
-            // head and torso jumped by half of it and eased back (a strafe's, or a zombie's or a wall's nudge's)
-            const float yaw = -st.bodyYaw * 0.5f * 0.017453292f;
-            const float qy[4] = { 0.0f, 0.0f, sinf(yaw), cosf(yaw) };
-            float out[4];
-            RtQuatMul(qy, mat->quat, out);
-            for ( int k = 0; k < 4; ++k )
-                mat->quat[k] = out[k];
         }
         if ( b == cur.spineBone && isPlayer && action == RT_ACTION_KNIFE && actionAnim >= 0 && actionWeight > 0.0f )
         {
@@ -2229,6 +2235,37 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
                 fade->last[b][k] = mat->quat[k];
             for ( int k = 0; k < 3; ++k )
                 fade->last[b][4 + k] = mat->trans[k];
+        }
+        // the torso's turns at the spine, after the ease (RtPoseFade) and kept out of the pose it eases from: they
+        // answer the root's turn and the aim, as they are now (eased, the torso still turned back by the hips' old turn
+        // while the root, never eased, had the new one: a step switched under the aim swung the gun 20 degrees, and the
+        // aim correction, eased too, chased it and wobbled the laser)
+        if ( b == cur.spineBone && aimCorrection && aimLevel >= 0 && (aimCorrection[0] != 0.0f || aimCorrection[1] != 0.0f) )
+        {
+            // the aim correction: the upper body turned (yaw about up, pitch about the left axis, in its parent's
+            // frame) so the gun's barrel points where the shots land; in by the aim
+            const float yaw = aimCorrection[1] * aimFrac * 0.5f * 0.017453292f;
+            const float pitch = aimCorrection[0] * aimFrac * 0.5f * 0.017453292f;
+            const float qy[4] = { 0.0f, 0.0f, sinf(yaw), cosf(yaw) };
+            const float qp[4] = { 0.0f, sinf(pitch), 0.0f, cosf(pitch) };
+            float qc[4];
+            RtQuatMul(qy, qp, qc);
+            float out[4];
+            RtQuatMul(qc, mat->quat, out);
+            for ( int k = 0; k < 4; ++k )
+                mat->quat[k] = out[k];
+        }
+        if ( b == cur.spineBone && isPlayer && (strafeLegs || tankPlayer) && st.bodyYaw != 0.0f )
+        {
+            // the strafe: the hips turned toward the step (the root, above), the torso turned back onto the aim; not
+            // only while strafing (aimed past half way): the aim let go, the hips' turn went to his torso at once - his
+            // head and torso jumped by half of it and eased back (a strafe's, or a zombie's or a wall's nudge's)
+            const float yaw = -st.bodyYaw * 0.5f * 0.017453292f;
+            const float qy[4] = { 0.0f, 0.0f, sinf(yaw), cosf(yaw) };
+            float out[4];
+            RtQuatMul(qy, mat->quat, out);
+            for ( int k = 0; k < 4; ++k )
+                mat->quat[k] = out[k];
         }
         mat->transWeight = 2.0f;
         obj->skel.partBits.anim[b >> 5] |= 0x80000000 >> (b & 31);
