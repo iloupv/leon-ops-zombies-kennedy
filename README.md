@@ -1,8 +1,6 @@
 # Leon Ops: Zombies Kennedy
 
-[![Co-op in Kino der Toten: Leon and Ada, laser sights up](https://github.com/iloupv/leon-ops-zombies-kennedy/releases/download/v0.1.12/coop-screenshot.jpg)](https://github.com/iloupv/leon-ops-zombies-kennedy/releases/download/v0.1.12/coop-gameplay.mp4)
-
-*Co-op in Kino der Toten. Click the picture for a gameplay video.*
+![Co-op in Kino der Toten](https://github.com/iloupv/leon-ops-zombies-kennedy/releases/download/v0.1.12/coop-gameplay.gif)
 
 Resident Evil 4's Leon S. Kennedy in Call of Duty: Black Ops Zombies, played the RE4 way - **now with online co-op
 for up to 4 players**. A fan mod: you bring your own copies of both games, and the characters are built from your
