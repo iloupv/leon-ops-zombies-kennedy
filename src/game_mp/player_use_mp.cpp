@@ -71,7 +71,13 @@ void __cdecl Player_UpdateActivate(gentity_s *ent)
     ent->client->ps.weapFlags &= ~0x10000u;
     useSucceeded = 0;
     if ( Player_LeonKickTakesUse(ent) ) // mod
+    {
+        // the press is the kick's, as a use that went through: a use not done is latched again every frame while the
+        // key stays down (ClientThink), so the key still held as the kick ended opened the Mystery Box beside him
+        if ( ent->client->button_bits.testBit(3u) || ent->client->button_bits.testBit(5u) )
+            ent->client->useButtonDone = 1;
         return;
+    }
     if ( ent->client->button_bits.testBit(0x32u) )
     {
         Player_ActivateDoubleTapCmd(ent);
