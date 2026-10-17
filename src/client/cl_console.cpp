@@ -19,6 +19,7 @@
 #include <cgame_mp/cg_consolecmds_mp.h>
 #include <server_mp/sv_main_pc_mp.h>
 #include "cl_keys.h"
+#include <database/db_registry.h>
 
 
 
@@ -4109,10 +4110,14 @@ void __cdecl Con_Restricted_InitLists()
 
     Con_Restricted_ShutDown();
     LicenseType = SV_GetLicenseType();
-    if ( SV_IsServerRanked(LicenseType) )
-        StringTable_GetAsset("mp/devconsole_restrict_access_dedicated_ranked_mp.csv", (XAssetHeader *)&table);
-    else
-        StringTable_GetAsset("mp/devconsole_restrict_access_dedicated_mp.csv", (XAssetHeader *)&table);
+    const char *tableName = SV_IsServerRanked(LicenseType) ? "mp/devconsole_restrict_access_dedicated_ranked_mp.csv"
+                                                           : "mp/devconsole_restrict_access_dedicated_mp.csv";
+    // mod: only when the game's code_pre_gfx_mp has it - an older Black Ops build's lacks the table (and
+    // init_dvars_pc_mp.cfg): asked for anyway, the default stringtable (code_post_gfx's, not loaded yet) took its
+    // place, a fatal error at start ("Could not load default asset 'mp/defaultStringTable.csv'")
+    table = 0;
+    if ( DB_FindXAssetEntry(ASSET_TYPE_STRINGTABLE, tableName) )
+        StringTable_GetAsset(tableName, (XAssetHeader *)&table);
     if ( table )
     {
         Con_Restricted_LoadTable(table);
