@@ -3453,6 +3453,16 @@ void CG_OffsetThirdPersonView(int localClientNum)
                                                              : (dt * 3.0f < 1.0f ? dt * 3.0f : 1.0f));
         for (int k = 0; k < 3; ++k)
             cgameGlob->refdef.vieworg[k] = shoulder[k] - fwd[k] * s_back;
+        static int s_camLogTime;
+        if (R_RuntimeXModel_DvarOn("leon_camlog") && (cgameGlob->time - s_camLogTime > 1000 || cgameGlob->time < s_camLogTime))
+        {
+            // (tests: the camera's inputs, once a second)
+            s_camLogTime = cgameGlob->time;
+            const playerState_s *ps = &cgameGlob->predictedPlayerState;
+            Com_Printf(0, "leon: cam t %d pm %d stance %d viewh %.1f eye %.1f ads %.2f/%.2f side %.1f/%.1f back %.1f/%.1f range %.1f\n",
+                       cgameGlob->time, ps->pm_type, ps->pm_flags & 3, ps->viewHeightCurrent, eye[2] - ps->origin[2],
+                       adsRaw, ads, s_side, sideFull, s_back, range, cg_thirdPersonRange->current.value);
+        }
 
         // it looks at a fixed point far ahead on the view line (not at what the line hits: sweeping past near and far
         // things swung it by the shoulder offset's parallax); the laser shows where the shots land
