@@ -56,6 +56,11 @@ if ($LASTEXITCODE) { throw "pyinstaller failed for the launcher ($LASTEXITCODE):
 Remove-Item -Recurse -Force $pkg -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force (Join-Path $pkg 'main') | Out-Null
 Copy-Item $exe $pkg
+# the release's exe and its PDB kept (not shipped) under build\melty\symbols\<version>: players' crash offsets
+# (Melty's reports: BO1Zombies.exe+0x...) resolve against them
+$symbols = Join-Path $M "symbols\$Version"
+New-Item -ItemType Directory -Force $symbols | Out-Null
+Copy-Item $exe, (Join-Path $repo 'build\Release\BO1Zombies.pdb') $symbols
 Copy-Item (Join-Path $repo 'src\steam\redistributable_bin\steam_api.dll'), (Join-Path $repo 'src\binklib\binkw32.dll') $pkg
 Copy-Item (Join-Path $repo 'build\Release\msvcp140.dll'), (Join-Path $repo 'build\Release\vcruntime140.dll') $pkg
 Copy-Item (Join-Path $repo 'data\main\*') (Join-Path $pkg 'main')
