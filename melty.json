@@ -28,7 +28,7 @@
   },
   "runtimeData": ["{managed}/players", "{managed}/mods/leon/rtmodels", "{managed}/mods/leon/sound"],
   "notes": {
-    "beforeInstall": "Needs Call of Duty: Black Ops and Resident Evil 4 (2014) on Steam, both your own copies. Nothing from either game is shipped: Leon is built from your Resident Evil 4 on the first start (a few seconds). Single player."
+    "beforeInstall": "Needs Call of Duty: Black Ops and Resident Evil 4 (2014) on Steam, both your own copies (the RE4 HD Project works too). Nothing from either game is shipped: Leon, Ada, HUNK and Luis are built from your Resident Evil 4 on the first start (under a minute). Single player."
   },
   "test": { "minutes": 5, "checks": ["leon-spawns", "leon-after-menu"] }
 }
