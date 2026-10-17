@@ -7,8 +7,8 @@ for up to 4 players**. A fan mod: you bring your own copies of both games, and t
 Resident Evil 4 on your own PC. Nothing from either game is in this repository or its releases.
 
 - **Co-op for up to 4 players**, each as their own RE4 character (see [Co-op](#co-op))
-- **Four characters:** Leon, Ada, HUNK and Luis, each with their own voice, hits and death - press Switch Weapon at
-  the start of a match to change
+- **Four characters with their own perks:** Leon, Ada, HUNK and Luis, each with their own voice, hits and death -
+  press Switch Weapon at the start of a match to change (see [Characters](#characters))
 - Over-the-shoulder camera, RE4 tank controls (turning on the spot with RE4's own step-turn), RE4's quick 180 turn,
   and a sidestep while aiming
 - Laser sight with RE4's own aim sway (from RE4's aiming code); standing still, the mouse swings the camera around
@@ -37,6 +37,19 @@ Resident Evil 4 on your own PC. Nothing from either game is in this repository o
 | Knife | Space | B or R3 |
 | Kick (staggered zombie), use, reload | F / R | X |
 | Change character (start of a match) | Switch weapon | Switch weapon |
+
+## Characters
+
+Pick one with Switch Weapon during the first seconds of a match; the line under the prompt shows the perk.
+
+| | Perk |
+| --- | --- |
+| **Leon** | His head and leg shots stagger zombies far more easily, and he takes one more hit (+50 health, on top of Juggernog's) |
+| **Ada** | 15% back on everything she buys, a second chance at a power-up on each kill, and a wider, harder kick |
+| **HUNK** | Aims, reloads, switches guns and readies grenades about 1.4x faster (Speed Cola still upgrades him) |
+| **Luis** | 25% more damage, and his grenades, launchers and explosive wonder weapons blast a wider area |
+
+Everyone moves 20% faster than Black Ops' own pace.
 
 ## Play it
 
