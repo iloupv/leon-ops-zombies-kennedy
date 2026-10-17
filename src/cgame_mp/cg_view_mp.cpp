@@ -3345,7 +3345,8 @@ void CG_OffsetThirdPersonView(int localClientNum)
     {
         const playerState_s *ps = &cgameGlob->predictedPlayerState;
         const float height = ps->viewHeightCurrent;
-        if (ps->pm_type < 5 && height >= 50.0f)
+        // (standing, settled: on his way down he passed 51" - taken for it, the camera then sat 9" low)
+        if (ps->pm_type < 5 && !(ps->pm_flags & 3) && height >= 50.0f && height == (float)ps->viewHeightTarget)
             s_standViewHeight = height;
         const float want = ps->pm_type == 6 || ps->pm_type == 7 ? 40.0f
                            : (height < s_standViewHeight ? s_standViewHeight : height);
