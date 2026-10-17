@@ -14,7 +14,7 @@
   "components": [
     {
       "id": "main",
-      "fileName": "LeonZombies-0.1.9.zip",
+      "fileName": "LeonZombies-0.1.10.zip",
       "label": "Main files",
       "kind": "main",
       "required": true
@@ -57,8 +57,8 @@
       "bo1_zombies",
       "1",
       "+set",
-      "net_ip",
-      "127.0.0.1",
+      "sv_maxclients",
+      "4",
       "+set",
       "fs_game",
       "mods/leon",
@@ -72,10 +72,11 @@
   "runtimeData": [
     "{managed}/players",
     "{managed}/mods/leon/rtmodels",
-    "{managed}/mods/leon/sound"
+    "{managed}/mods/leon/sound",
+    "{localappdata}/LeonZombiesKennedy"
   ],
   "notes": {
-    "beforeInstall": "Needs Call of Duty: Black Ops and Resident Evil 4 (2014) on Steam, both your own copies (the RE4 HD Project works too). Nothing from either game is shipped: Leon, Ada, HUNK and Luis are built from your Resident Evil 4 on the first start (under a minute). Single player."
+    "beforeInstall": "Needs Call of Duty: Black Ops and Resident Evil 4 (2014) on Steam, both your own copies (the RE4 HD Project works too). Nothing from either game is shipped: Leon, Ada, HUNK and Luis are built from your Resident Evil 4 on the first start (under a minute). Up to 4 players co-op: press Play to host and start a map, friends press Join."
   },
   "test": {
     "minutes": 5,
@@ -83,5 +84,21 @@
       "leon-spawns",
       "leon-after-menu"
     ]
+  },
+  "multiplayer": {
+    "maxPlayers": 4,
+    "connect": {
+      "address": {
+        "log": "{localappdata}/LeonZombiesKennedy/melty.log",
+        "after": "Melty join address: "
+      },
+      "joinFile": {
+        "path": "{localappdata}/LeonZombiesKennedy/melty.properties",
+        "key": "join"
+      },
+      "hostEnv": {
+        "MELTY_HOST_PORT": "{port}"
+      }
+    }
   }
 }

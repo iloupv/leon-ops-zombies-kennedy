@@ -2373,8 +2373,11 @@ int __stdcall WinMain(HINSTANCE__ *hInstance, HINSTANCE__ *hPrevInstance, char *
                 // p1: '+set bo1_headless_aa <2..16>' keeps multisampling for performance runs at the player's
                 // settings (the swap chain stays DISCARD, so bo1_shots screenshots do not work in that mode)
                 const int aa = Sys_CmdlineIntValue(lpCmdLine, "bo1_headless_aa");
+                // (an address the caller set itself is kept: a Melty multiplayer test hosts on every address, as a
+                // player's Play does - '+set bo1_headless_anyip 1')
                 char suffix[96];
-                sprintf_s(suffix, " +set logfile 2 +set net_ip 127.0.0.1 +set r_fullscreen 0 +set r_aaSamples %i",
+                sprintf_s(suffix, " +set logfile 2%s +set r_fullscreen 0 +set r_aaSamples %i",
+                    Sys_CmdlineIntValue(lpCmdLine, "bo1_headless_anyip") ? "" : " +set net_ip 127.0.0.1",
                     aa >= 2 && aa <= 16 ? aa : 1);
                 I_strncat(sys_cmdline, 1024, suffix);
             }

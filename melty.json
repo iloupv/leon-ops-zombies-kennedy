@@ -2,33 +2,103 @@
   "schemaVersion": 1,
   "mode": "standalone",
   "games": [
-    { "slug": "custom-call-of-duty-black-ops", "role": "primary" },
-    { "slug": "custom-resident-evil-4-2005", "role": "companion" }
+    {
+      "slug": "custom-call-of-duty-black-ops",
+      "role": "primary"
+    },
+    {
+      "slug": "custom-resident-evil-4-2005",
+      "role": "companion"
+    }
   ],
   "components": [
-    { "id": "main", "fileName": "LeonZombies-*.zip", "label": "Main files", "kind": "main", "required": true }
+    {
+      "id": "main",
+      "fileName": "LeonZombies-*.zip",
+      "label": "Main files",
+      "kind": "main",
+      "required": true
+    }
   ],
   "requirements": [],
-  "mappings": [{ "component": "main", "from": "", "to": "{managed}" }],
+  "mappings": [
+    {
+      "component": "main",
+      "from": "",
+      "to": "{managed}"
+    }
+  ],
   "setup": {
     "label": "Leon",
     "launch": {
       "kind": "exe",
       "path": "{managed}/leon_setup/leon_setup.exe",
-      "args": ["--re4", "{game:custom-resident-evil-4-2005}", "--bo1", "{game}", "--out", "{managed}"]
+      "args": [
+        "--re4",
+        "{game:custom-resident-evil-4-2005}",
+        "--bo1",
+        "{game}",
+        "--out",
+        "{managed}"
+      ]
     },
-    "done": { "file": "{managed}/mods/leon/rtmodels/leon_ready_v5.txt" }
+    "done": {
+      "file": "{managed}/mods/leon/rtmodels/leon_ready_v5.txt"
+    }
   },
   "launch": {
     "kind": "exe",
     "path": "{managed}/BO1Zombies.exe",
-    "env": { "BO1Z_GAME_DIR": "{game}" },
-    "args": ["+set", "bo1_zombies", "1", "+set", "net_ip", "127.0.0.1", "+set", "fs_game", "mods/leon",
-             "+set", "bo1_rtmodels", "leon", "+exec", "leon.cfg"]
+    "env": {
+      "BO1Z_GAME_DIR": "{game}"
+    },
+    "args": [
+      "+set",
+      "bo1_zombies",
+      "1",
+      "+set",
+      "sv_maxclients",
+      "4",
+      "+set",
+      "fs_game",
+      "mods/leon",
+      "+set",
+      "bo1_rtmodels",
+      "leon",
+      "+exec",
+      "leon.cfg"
+    ]
   },
-  "runtimeData": ["{managed}/players", "{managed}/mods/leon/rtmodels", "{managed}/mods/leon/sound"],
+  "runtimeData": [
+    "{managed}/players",
+    "{managed}/mods/leon/rtmodels",
+    "{managed}/mods/leon/sound",
+    "{localappdata}/LeonZombiesKennedy"
+  ],
   "notes": {
-    "beforeInstall": "Needs Call of Duty: Black Ops and Resident Evil 4 (2014) on Steam, both your own copies (the RE4 HD Project works too). Nothing from either game is shipped: Leon, Ada, HUNK and Luis are built from your Resident Evil 4 on the first start (under a minute). Single player."
+    "beforeInstall": "Needs Call of Duty: Black Ops and Resident Evil 4 (2014) on Steam, both your own copies (the RE4 HD Project works too). Nothing from either game is shipped: Leon, Ada, HUNK and Luis are built from your Resident Evil 4 on the first start (under a minute). Up to 4 players co-op: press Play to host and start a map, friends press Join."
   },
-  "test": { "minutes": 5, "checks": ["leon-spawns", "leon-after-menu"] }
+  "test": {
+    "minutes": 5,
+    "checks": [
+      "leon-spawns",
+      "leon-after-menu"
+    ]
+  },
+  "multiplayer": {
+    "maxPlayers": 4,
+    "connect": {
+      "address": {
+        "log": "{localappdata}/LeonZombiesKennedy/melty.log",
+        "after": "Melty join address: "
+      },
+      "joinFile": {
+        "path": "{localappdata}/LeonZombiesKennedy/melty.properties",
+        "key": "join"
+      },
+      "hostEnv": {
+        "MELTY_HOST_PORT": "{port}"
+      }
+    }
+  }
 }

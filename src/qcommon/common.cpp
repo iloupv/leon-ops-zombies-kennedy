@@ -1765,6 +1765,7 @@ static void Com_InitContentPacks_SP()
     }
 }
 
+static void Com_MeltyMpInit(); // mod (below)
 void __cdecl Com_Init(char *commandLine)
 {
     if ( _setjmp((int *)Sys_GetValue(2)) )
@@ -2149,6 +2150,7 @@ void __cdecl Com_Init_Try_Block_Function(char *commandLine)
     XAnimInit();
     DObjInit();
     SV_Init();
+    Com_MeltyMpInit(); // mod: Melty's multiplayer (a join, or the port to host on)
     NET_Init();
     RMsg_Init();
 
@@ -3607,6 +3609,132 @@ static void Com_MeltyTestFrame()
     }
 }
 
+// mod (the Leon mod, Melty's multiplayer): Melty's contract, in %LOCALAPPDATA%\LeonZombiesKennedy - melty.properties'
+// join= (a friend's game, written by Melty's Join; empty: this player hosts) and melty.log, emptied at start: "Melty
+// join address: <ip>:<port>" once this player's game is open to others (Melty's relay carries friends to it), "Melty
+// joined: <address>" once a join is in the host's game, "Melty join failed: <why>" when it gives up. Hosting listens
+// on MELTY_HOST_PORT (a free port Melty picks, set before NET_Init: Com_MeltyMpInit).
+extern int numIP;
+extern unsigned __int8 localIP[16][4];
+static char s_meltyMpLog[MAX_PATH];
+static char s_meltyMpJoin[256];
+static int s_meltyMpState; // 0 off, 1 hosting, 2 hosting (address written), 3 joining, 4 joined or failed
+static int s_meltyMpJoinTime;
+
+static void Com_MeltyMpLog(const char *line)
+{
+    if ( FILE *f = fopen(s_meltyMpLog, "a") )
+    {
+        fprintf(f, "%s\n", line);
+        fclose(f);
+    }
+    Com_Printf(16, "melty multiplayer: %s\n", line);
+}
+
+static void Com_MeltyMpInit()
+{
+    char dir[MAX_PATH];
+    const DWORD n = GetEnvironmentVariableA("LOCALAPPDATA", dir, MAX_PATH);
+    if ( IsDedicatedServer() || !n || n >= MAX_PATH - 48 )
+        return;
+    I_strncat(dir, MAX_PATH, "\\LeonZombiesKennedy");
+    CreateDirectoryA(dir, 0);
+    Com_sprintf(s_meltyMpLog, sizeof(s_meltyMpLog), "%s\\melty.log", dir);
+    if ( FILE *f = fopen(s_meltyMpLog, "w") ) // (emptied: the address lines are this run's)
+        fclose(f);
+    char props[MAX_PATH];
+    Com_sprintf(props, sizeof(props), "%s\\melty.properties", dir);
+    if ( FILE *f = fopen(props, "rb") )
+    {
+        char line[512];
+        while ( fgets(line, sizeof(line), f) )
+        {
+            if ( _strnicmp(line, "join=", 5) )
+                continue;
+            const char *v = line + 5;
+            while ( *v == ' ' || *v == '\t' )
+                ++v;
+            int len = 0;
+            while ( v[len] && v[len] != '\r' && v[len] != '\n' && v[len] != ' ' && len < (int)sizeof(s_meltyMpJoin) - 1 )
+                ++len;
+            memcpy(s_meltyMpJoin, v, len);
+            s_meltyMpJoin[len] = 0;
+        }
+        fclose(f);
+    }
+    extern char g_comPendingConnect[256];
+    if ( s_meltyMpJoin[0] )
+    {
+        // joining: made once the front end is up (Com_PendingConnectFrame), as a command-line +connect
+        I_strncpyz(g_comPendingConnect, s_meltyMpJoin, sizeof(g_comPendingConnect));
+        s_meltyMpState = 3;
+        Com_Printf(16, "melty multiplayer: joining %s\n", s_meltyMpJoin);
+        return;
+    }
+    char port[16];
+    const DWORD pn = GetEnvironmentVariableA("MELTY_HOST_PORT", port, sizeof(port));
+    if ( pn && pn < sizeof(port) && atoi(port) > 0 )
+        Dvar_SetFromStringByName("net_port", port); // (as a +set net_port: NET_Init opens it)
+    s_meltyMpState = 1;
+}
+
+static void Com_MeltyMpFrame()
+{
+    if ( s_meltyMpState != 1 && s_meltyMpState != 3 )
+        return;
+    const bool active = CL_GetLocalClientConnectionState(0) == CA_ACTIVE;
+    const bool frontEnd = !I_stricmp(Dvar_GetString("mapname"), "frontend");
+    if ( s_meltyMpState == 1 )
+    {
+        // hosting: once this player's own game is up (a level of its own server, not the menu's)
+        if ( !active || frontEnd || !com_sv_running->current.enabled )
+            return;
+        unsigned char ip[4] = { 127, 0, 0, 1 };
+        for ( int i = 0; i < numIP; ++i )
+        {
+            if ( localIP[i][0] != 127 && localIP[i][0] != 0 )
+            {
+                memcpy(ip, localIP[i], 4);
+                break;
+            }
+        }
+        const dvar_s *port = Dvar_FindVar("net_port");
+        const char *boundIp = Dvar_GetString("net_ip"); // (bound to one address - tests: 127.0.0.1 - that one)
+        if ( boundIp && *boundIp && I_stricmp(boundIp, "localhost") )
+            Com_MeltyMpLog(va("Melty join address: %s:%i", boundIp, port ? port->current.integer : 3074));
+        else
+            Com_MeltyMpLog(va("Melty join address: %i.%i.%i.%i:%i", ip[0], ip[1], ip[2], ip[3],
+                              port ? port->current.integer : 3074));
+        s_meltyMpState = 2;
+        return;
+    }
+    // joining: in the host's game, or back in the menu with the reason (or no answer for 3 minutes)
+    extern char g_comPendingConnect[256];
+    const int now = Sys_Milliseconds();
+    if ( g_comPendingConnect[0] )
+    {
+        s_meltyMpJoinTime = now;
+        return;
+    }
+    if ( active && !frontEnd && !com_sv_running->current.enabled )
+    {
+        Com_MeltyMpLog(va("Melty joined: %s", s_meltyMpJoin));
+        s_meltyMpState = 4;
+        return;
+    }
+    const char *error = Dvar_GetString("com_errorMessage");
+    if ( active && frontEnd && now - s_meltyMpJoinTime > 3000 && error && *error )
+    {
+        Com_MeltyMpLog(va("Melty join failed: %s", error));
+        s_meltyMpState = 4;
+    }
+    else if ( now - s_meltyMpJoinTime > 180000 )
+    {
+        Com_MeltyMpLog("Melty join failed: no answer from the host's game");
+        s_meltyMpState = 4;
+    }
+}
+
 unsigned int Com_Frame_Try_Block_Function()
 {
     CmdArgs *v0; // eax
@@ -3627,6 +3755,7 @@ unsigned int Com_Frame_Try_Block_Function()
     Com_WriteConfiguration(0);
     Com_MeltyTestFrame(); // mod: the Leon mod's Melty test mode
     Com_PendingConnectFrame(); // mod: a command-line +connect, once the front end is up
+    Com_MeltyMpFrame(); // mod: Melty's multiplayer (the host's address, a join's outcome)
     Sys_UpdateHotkeyBlock();
     SetAnimCheck(com_animCheck->current.color[0], SCRIPTINSTANCE_SERVER);
 
