@@ -27,7 +27,7 @@ import time
 
 # 2: the guns 20 mm further out in his hand, the shotgun's close with its whole pump; 3: Leon's "Bingo?"; 4: the gun's
 # raise to aim (leon_aim); 5: Ada, HUNK and Luis (CHARACTERS), "Hasta luego!" and "Hey, it's that dog."
-SETUP_VERSION = '5'
+SETUP_VERSION = '6'
 # the other playable characters: (name, their archive, their texture pack) - leon_rlm.py --character
 CHARACTERS = [('ada', 'pl0c', '0100000c'), ('hunk', 'pl06', '01000006'), ('luis', 'pl14', '01000014')]
 ARCHIVES = (['pl00', 'em10'] + [f'wep{n:02d}' for n in (0, 1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19)]

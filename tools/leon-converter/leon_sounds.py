@@ -106,14 +106,29 @@ def loud(pcm, target_db=-12.0, knee=0.7):
     return out.tobytes()
 
 
-def peaked(pcm, target_db=-1.0):
-    """16-bit PCM scaled so its peak sits at target_db (no limiting). For a line cut from a scene's mix (EVT_CLIPS):
-    brought to an even loudness (loud) its pauses counted as quiet, so the voice was pushed far over the knee and
-    sounded saturated."""
+def voiced(pcm, rate, target_db=-13.0, knee=0.85):
+    """For a line cut from a scene's mix (EVT_CLIPS): brought to target_db RMS measured over its voiced 20 ms windows
+    only, its peaks over a high knee bent under full scale. As loud measured it, over the whole clip, a line's pauses
+    counted as quiet and its voice was pushed far over the knee ("Bingo?" sounded saturated); set by its peak alone,
+    a short one ended up too quiet ("Hasta luego!")."""
     samples = array.array('h', bytes(pcm))
-    top = max((abs(x) for x in samples), default=0) / 32768.0
-    gain = 10.0 ** (target_db / 20.0) / top if top > 0 else 1.0
-    return array.array('h', [int(max(-32768, min(32767, round(x * gain)))) for x in samples]).tobytes()
+    win = max(1, rate // 50)
+    energies = []
+    for i in range(0, len(samples), win):
+        chunk = samples[i:i + win]
+        energies.append(sum(x * x for x in chunk) / max(1, len(chunk)))
+    floor = max(energies, default=0) * 10.0 ** (-30.0 / 10.0)  # windows within 30 dB of the loudest
+    loud_windows = [e for e in energies if e >= floor]
+    rms = math.sqrt(sum(loud_windows) / max(1, len(loud_windows))) / 32768.0
+    gain = 10.0 ** (target_db / 20.0) / rms if rms > 0 else 1.0
+    out = array.array('h')
+    for x in samples:
+        y = x / 32768.0 * gain
+        a = abs(y)
+        if a > knee:
+            a = knee + (1.0 - knee) * math.tanh((a - knee) / (1.0 - knee))
+        out.append(int(math.copysign(a, y) * 32767.0))
+    return out.tobytes()
 
 
 def fft(x, inverse=False):
@@ -248,7 +263,7 @@ if __name__ == '__main__':
         assert bits == 16, f'{name}: {bits}-bit'
         if clip:
             assert channels == 2, f'{name}: a clip needs the stereo mix'
-            pcm = peaked(clip_voice(pcm, rate, *clip[2:]))
+            pcm = voiced(clip_voice(pcm, rate, *clip[2:]), rate)
             channels = 1
         elif channels == 2:
             # mono, as every other runtime sound (the Merchant's lines are stereo)

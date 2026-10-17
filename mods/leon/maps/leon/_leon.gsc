@@ -82,6 +82,8 @@ leon_player_setup()
 	{
 		self maps\leon\_character::apply( self maps\leon\_character::first_pick() );
 		self thread leon_keep_model();
+		self thread leon_move_speed();
+		self thread leon_hide_teleporting();
 		self setClientDvar( "leon_charprompt", "0" ); // (a prompt cut short by a disconnect left it on his client)
 		self thread maps\leon\_character::choose(); // "Press SWITCH WEAPON to change character"
 	}
@@ -384,6 +386,38 @@ leon_down_no_weapons()
 }
 
 // Leon again whenever the game gives him back a character model (a respawn, a revive).
+// The players a fifth faster than Black Ops' own pace (kept through respawns; not as a zombified player, _zombiemode's
+// own 0.3)
+leon_move_speed()
+{
+	self endon( "disconnect" );
+	for ( ;; )
+	{
+		if ( !isDefined( self.is_zombie ) || !self.is_zombie )
+			self setMoveSpeedScale( 1.2 );
+		wait 1;
+	}
+}
+
+// Kino's teleporter: the player sent to its black room (the flashing images) is not seen there - the shoulder camera
+// showed him standing in it - from when its script marks him (maps\zombie_theater_teleporter: inteleportation) to
+// his arrival
+leon_hide_teleporting()
+{
+	self endon( "disconnect" );
+	hidden = false;
+	for ( ;; )
+	{
+		wait 0.05;
+		teleporting = isDefined( self.inteleportation ) && self.inteleportation;
+		if ( teleporting && !hidden )
+			self hide();
+		else if ( !teleporting && hidden )
+			self show();
+		hidden = teleporting;
+	}
+}
+
 leon_keep_model()
 {
 	self endon( "disconnect" );
