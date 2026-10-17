@@ -2002,11 +2002,14 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
         }
     }
     // the quick turn and the kick take the whole body; aimed in their last frames, the aim takes the upper body from
-    // them (they blended out over it: the gun came up from the turn's low arms, the kick's swing pulled it aside)
+    // them (they blended out over it: the gun came up from the turn's low arms, the kick's swing pulled it aside). So
+    // does a grenade's throw, whose follow-through runs 1.3 s past the release: aimed in it, the throw played on over
+    // the raised gun (its arm only: no hips swing the gun after it, so the laser need not wait for it)
     const bool bodyAction = actionAnim >= 0 && actionWeight > 0.0f && (action == RT_ACTION_TURN || action == RT_ACTION_KICK);
     if ( tankPlayer )
         s_playerBodyAction = bodyAction;
-    const float bodyAim = bodyAction && aimLevel >= 0 ? aimFrac : 0.0f;
+    const bool aimTakes = bodyAction || (actionAnim >= 0 && actionWeight > 0.0f && action == RT_ACTION_THROW);
+    const float bodyAim = aimTakes && aimLevel >= 0 ? aimFrac : 0.0f;
     // moving (a walk / run / back step cycle, not standing): a hit reaction takes the upper body alone, the legs keep
     // their stride (a hit as he ran stopped his legs dead under him)
     const bool moving = cur.moveSpeed > 0.0f && st.speed > 20.0f;
