@@ -1563,7 +1563,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     {
         if ( aimFrac < 0.98f )
             CG_ShoulderAimCorrectionDecay(cgameGlob);
-        CG_ShoulderAimCorrection(aimCorrection);
+        CG_ShoulderAimCorrection(cgameGlob, angles[1], aimCorrection); // (his body faces angles[1])
     }
     // the head's look (RE4's cPlNeck::move): toward the nearest live enemy within 5 m (197"), +-30 degrees of his
     // facing (RE4's 45 swung his head round too far over the shoulder camera); not while aiming or in a whole-body

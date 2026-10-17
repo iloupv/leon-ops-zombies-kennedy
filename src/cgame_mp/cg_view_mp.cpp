@@ -2769,10 +2769,15 @@ bool __cdecl CG_ShoulderCameraActive(const cg_s *cgameGlob)
 // CG_ShoulderLaser from the muzzle each frame and put on the pose by CG_RuntimeXModel_Pose
 static float s_shoulderAimCorrection[2];
 
-void __cdecl CG_ShoulderAimCorrection(float *pitchYaw)
+// The yaw is the aim's own gap to the body this frame (the shoulder camera trails the aim inside its dead zone, and his
+// body faces the camera: bodyYaw) plus what CG_ShoulderLaser learnt of the rest (the pose's own bias, the shoulder's
+// parallax): learnt whole, the gap trailed a flick of the mouse by a frame and ~50 ms, and after a reload (the
+// correction faded out of the aim) it began from nothing - a shot right away kept the barrel off the aim through its
+// recoil (the laser off, or its dot beside where the shots went)
+void __cdecl CG_ShoulderAimCorrection(const cg_s *cgameGlob, float bodyYaw, float *pitchYaw)
 {
     pitchYaw[0] = s_shoulderAimCorrection[0];
-    pitchYaw[1] = s_shoulderAimCorrection[1];
+    pitchYaw[1] = s_shoulderAimCorrection[1] + AngleNormalize180(cgameGlob->refdefViewAngles[1] - bodyYaw);
 }
 
 // out of the aim the correction fades with time, once a client frame (~0.12 s): it faded by a step per pose, and the
@@ -3252,7 +3257,6 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
     CG_ShoulderAimPoint(cgameGlob, eye, fwd, aim);
     float want[3] = { aim[0] - orient.origin[0], aim[1] - orient.origin[1], aim[2] - orient.origin[2] };
     const bool wantValid = Vec3Normalize(want) > 1.0f;
-    static float s_lastWantAngles[2];
     if (wantValid)
     {
         float wantAngles[3], barrelAngles[3];
@@ -3265,25 +3269,18 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
                        s_shoulderCameraYaw, s_shoulderAimCorrection[0], s_shoulderAimCorrection[1]);
         const float dt = (float)cgameGlob->frametime * 0.001f;
         const float k = dt * 20.0f < 1.0f ? dt * 20.0f : 1.0f; // tight: a swing leaves the barrel little behind
-        // the body's own turn this frame (the shoulder camera's yaw, which turns him past the dead zone)
-        static float s_lastBodyYaw;
-        const float bodyTurn = AngleNormalize180(s_shoulderCameraYaw - s_lastBodyYaw);
-        s_lastBodyYaw = s_shoulderCameraYaw;
-        // (nor while his pose eases from another - a step switched under the aim, the aim raised in it: learnt, that
-        // ease's swing came back as an overshoot once it was over)
-        const bool posed = s_shoulderRecoil > 0.0f || R_RuntimeXModel_PlayerEasing();
-        for (int i = 0; i < 2; ++i)
+        // what is left of the barrel's error (the aim's own gap to the body is posed exactly each frame:
+        // CG_ShoulderAimCorrection) closes in; not through a shot's motion (a shotgun's pump: 1.3 s, its barrel swung
+        // 18 degrees aside), whose kick is not aim error (learnt, it came back after the shot as a jump of the dot), nor
+        // while his pose eases from another (a step switched under the aim, the aim raised in it: learnt, that ease's
+        // swing came back as an overshoot once it was over)
+        if (s_shoulderRecoil <= 0.0f && !R_RuntimeXModel_PlayerEasing())
         {
-            // the barrel's error closes in; through a shot's motion (a shotgun's pump: 1.3 s) its kick is not aim
-            // error, so the upper body only follows the aim's own moves instead - the yaw's part the body did not
-            // turn with (past the dead zone the camera and the body turn with the mouse), the pitch's none (the aim
-            // poses follow the view pitch): counted twice, it came back after the shot as a jump of the dot
-            float corr = posed
-                ? s_shoulderAimCorrection[i]
-                      + (i == 1 ? AngleNormalize180(AngleNormalize180(wantAngles[i] - s_lastWantAngles[i]) - bodyTurn) : 0.0f)
-                : s_shoulderAimCorrection[i] + AngleNormalize180(wantAngles[i] - barrelAngles[i]) * k;
-            s_shoulderAimCorrection[i] = corr > 45.0f ? 45.0f : (corr < -45.0f ? -45.0f : corr);
-            s_lastWantAngles[i] = wantAngles[i];
+            for (int i = 0; i < 2; ++i)
+            {
+                const float corr = s_shoulderAimCorrection[i] + AngleNormalize180(wantAngles[i] - barrelAngles[i]) * k;
+                s_shoulderAimCorrection[i] = corr > 45.0f ? 45.0f : (corr < -45.0f ? -45.0f : corr);
+            }
         }
     }
     // always straight out of the barrel; a single-shot weapon's is off while it cannot fire again (the shot, a pump or
@@ -3313,6 +3310,8 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
     // none on a launcher (the aim correction above still points it)
     if (BG_GetWeaponDef(cgameGlob->predictedPlayerState.weapon)->weapClass == WEAPCLASS_ROCKETLAUNCHER)
         return;
+    if (R_RuntimeXModel_DvarOn("leon_barrellog")) // (tests: the frames it shows)
+        Com_Printf(0, "leon: laser drawn at %d\n", cgameGlob->time);
     CG_DrawLaser(cgameGlob, cent->nextState.number, orient, s_laserLighting[cent->nextState.number & 63]);
 }
 
