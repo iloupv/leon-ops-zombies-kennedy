@@ -263,13 +263,17 @@ void __cdecl StartWeaponAnim(
          || cgameGlob->predictedPlayerState.weaponstateLeft == 11
          || cgameGlob->predictedPlayerState.weaponstateLeft == 15
          || cgameGlob->predictedPlayerState.weaponstateLeft == 16)
-        && (cgameGlob->predictedPlayerState.perks[0] & 0x40000) != 0 )
+        && ((cgameGlob->predictedPlayerState.perks[0] & 0x40000) != 0 || BG_LeonHandy(&cgameGlob->predictedPlayerState)) )
     {
-        if ( perk_weapReloadMultiplier->current.value == 0.0 )
+        // (mod: HUNK's handling reloads at LEON_HANDY_RATE where he has not bought it, as PM_Weapon times it: the
+        // viewmodel's reload - its sound notetracks - played at BO1's pace and the sounds trailed his reload)
+        const float reloadMultiplier = (cgameGlob->predictedPlayerState.perks[0] & 0x40000) != 0
+                                           ? perk_weapReloadMultiplier->current.value : LEON_HANDY_RATE;
+        if ( reloadMultiplier == 0.0 )
             rate = 1000.0f;
         else
             rate = (float)((float)(1.0 - 1.0) * rate)
-                     + (float)((float)(rate / perk_weapReloadMultiplier->current.value) * 1.0);
+                     + (float)((float)(rate / reloadMultiplier) * 1.0);
     }
     // zombies: SP WeaponSetXModelAnim (0x007951E0) speeds the rechamber anim (SP states 7/8; SP 8 has no KB state)
     // with specialty_rof (Double Tap; SP perk bits 20-21, KB perk bit 40) for every weapon; bRapidFire is MP's test.
@@ -282,7 +286,7 @@ void __cdecl StartWeaponAnim(
         else
             rate = rate / perk_weapRateMultiplier->current.value;
     }
-    else if ( (cgameGlob->predictedPlayerState.perks[0] & 0x80000) != 0
+    else if ( ((cgameGlob->predictedPlayerState.perks[0] & 0x80000) != 0 || BG_LeonHandy(&cgameGlob->predictedPlayerState))
                  && BG_CanFastSwitch(weapDef, cgameGlob->predictedPlayerState.weaponstate) )
     {
         if ( perk_weapSwitchMultiplier->current.value <= 0.0
@@ -296,7 +300,16 @@ void __cdecl StartWeaponAnim(
         {
             __debugbreak();
         }
-        rate = rate / perk_weapSwitchMultiplier->current.value;
+        // (mod: HUNK's switch, as PM_Weapon's)
+        rate = rate / ((cgameGlob->predictedPlayerState.perks[0] & 0x80000) != 0 ? perk_weapSwitchMultiplier->current.value
+                                                                                 : LEON_HANDY_RATE);
+    }
+    else if ( BG_LeonHandy(&cgameGlob->predictedPlayerState)
+              && cgameGlob->predictedPlayerState.weaponstate >= WEAPON_OFFHAND_INIT
+              && cgameGlob->predictedPlayerState.weaponstate <= WEAPON_OFFHAND_END
+              && cgameGlob->predictedPlayerState.weaponstate != WEAPON_OFFHAND_HOLD )
+    {
+        rate = rate / LEON_HANDY_RATE; // (mod: HUNK's grenade, as PM_Weapon's)
     }
     else if ( (cgameGlob->predictedPlayerState.perks[0] & 0x20000) != 0
                  && cgameGlob->predictedPlayerState.weaponstate == 19 )

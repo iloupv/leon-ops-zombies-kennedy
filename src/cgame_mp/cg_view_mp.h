@@ -99,7 +99,7 @@ void    CG_OffsetThirdPersonView(int localClientNum);
 bool __cdecl CG_ShoulderCameraActive(const cg_s *cgameGlob); // mod
 bool __cdecl CG_LeonOwnView(const cg_s *cgameGlob); // mod
 float __cdecl CG_ShoulderAimFrac(const cg_s *cgameGlob); // mod
-void __cdecl CG_ShoulderAimCorrection(float *pitchYaw); // mod
+void __cdecl CG_ShoulderAimCorrection(const struct cg_s *cgameGlob, float bodyYaw, float *pitchYaw); // mod
 void __cdecl CG_ShoulderAimCorrectionDecay(const struct cg_s *cgameGlob); // mod: fades it out of the aim, by time
 void __cdecl CG_ShoulderRecoil(float weight); // mod
 float __cdecl CG_ShoulderCameraYaw(const cg_s *cgameGlob); // mod
