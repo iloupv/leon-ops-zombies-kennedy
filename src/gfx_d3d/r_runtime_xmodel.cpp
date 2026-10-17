@@ -1320,8 +1320,9 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
     static const char *const s_clothTechsets[] = { "mc_l_sm_r0c0n0s0_clothcharr_hero", "mc_l_sm_r0c0n0s0_clothcharr" };
     static const char *const s_clothPlainTechsets[] = { "mc_l_sm_r0c0n0s0_clothcharr", "mc_l_sm_r0c0n0s0_clothcharr_hero" };
     const bool plainTest = R_RuntimeXModel_DvarOn("leon_clothplain"); // tests: the cloth shader without its hero lighting
-    const Material *templ = RtFindTemplateMaterial(plainTest ? s_clothPlainTechsets : s_clothTechsets,
-                                                   ARRAYSIZE(s_clothTechsets));
+    const bool propTest = R_RuntimeXModel_DvarOn("leon_matprop"); // tests: a plain lit prop's shader, no cloth sheen
+    const Material *templ = propTest ? 0 : RtFindTemplateMaterial(plainTest ? s_clothPlainTechsets : s_clothTechsets,
+                                                                  ARRAYSIZE(s_clothTechsets));
     if ( !templ )
         templ = RtFindTemplateMaterial(s_opaqueTechsets, ARRAYSIZE(s_opaqueTechsets));
     if ( !templ )
