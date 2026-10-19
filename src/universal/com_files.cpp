@@ -88,7 +88,13 @@ char *__cdecl FS_GetOsFolderPath(int folder, char *ospath)
     {
         __debugbreak();
     }
-    SHGetFolderPathA(0, folder | 0x8000, 0, 0, buffer);
+    // mod: checked - where Windows cannot give the folder (Documents redirected somewhere unreachable, a name the ANSI
+    // call cannot return) the buffer kept stack garbage, a different path at each call: FS_Restart's registration of
+    // fs_userDocuments asserted at a map's start (its reset "changed": "\Activision\CoD != \Activision\CoD"). The
+    // game's own folder then (where the Melty install keeps its config and logs)
+    buffer[0] = 0;
+    if ( FAILED(SHGetFolderPathA(0, folder | 0x8000, 0, 0, buffer)) || !buffer[0] )
+        I_strncpyz(buffer, Sys_ExeFolder(), sizeof(buffer));
     I_strncpyz(ospath, buffer, 256);
     I_strncat(ospath, 256, "\\Activision\\CoD");
     return ospath;
