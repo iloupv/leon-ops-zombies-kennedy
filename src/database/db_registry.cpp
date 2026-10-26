@@ -4162,6 +4162,14 @@ int __cdecl DB_TryLoadXFileInternal(const char *zoneName, int zoneFlags)
         else
         {
             Sys_DatabaseCompleted();
+            // mod: Black Ops Multiplayer's zones (code_pre_gfx_mp, ...: zone\Common), which the zombies here run on,
+            // come with its Multiplayer, a Steam app of its own: without it a player was told only a path
+            if ( strstr(zoneName, "_mp") )
+                Com_Error(ERR_DROP,
+                          "ERROR: Could not find zone '%s'\nBlack Ops Multiplayer is not installed: install \"Call of Duty: "
+                          "Black Ops - Multiplayer\" from your Steam library (it comes with Black Ops; this game runs on its "
+                          "files).\n",
+                          filename);
             Com_Error(ERR_DROP, "ERROR: Could not find zone '%s'\n", filename);
             return 0;
         }
