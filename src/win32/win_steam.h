@@ -24,6 +24,7 @@ uint64_t Steam_GetClientSteamID64();
 
 // Called by DEDICATED to do an Initial Check on Client's ticket
 bool Steam_CheckClientTicket(const void *pAuthTicket, uint32 authTicketLen, uint64_t steamID64);
+int Steam_LastAuthResult(); // mod: the last check's EBeginAuthSessionResult
 
 // Called by DEDICATED periodically to ensure Steam hasn't sent us any new Clients to kick
 void Steam_CheckClients();
