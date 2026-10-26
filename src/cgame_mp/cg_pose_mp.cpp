@@ -1265,13 +1265,19 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             // BO1's grenade: init / prepare / start / hold (cooking while the key is held), then the release
             // (WEAPON_OFFHAND): RE4's ready pose (the arm cocked) up to it, its throw (from that pose) from it
             if ( state == WEAPON_OFFHAND && s_lastState != WEAPON_OFFHAND )
+            {
                 s_throwStart = cgameGlob->time;
+                s_leonHitStart = -100000; // (the throw overrides a hit reaction, as the slash does)
+            }
             const bool readying = state == WEAPON_OFFHAND_INIT || state == WEAPON_OFFHAND_PREPARE
                                   || state == WEAPON_OFFHAND_START || state == WEAPON_OFFHAND_HOLD;
             const bool wasReadying = s_lastState == WEAPON_OFFHAND_INIT || s_lastState == WEAPON_OFFHAND_PREPARE
                                      || s_lastState == WEAPON_OFFHAND_START || s_lastState == WEAPON_OFFHAND_HOLD;
             if ( readying && !wasReadying )
+            {
                 s_readyStart = cgameGlob->time;
+                s_leonHitStart = -100000; // (readied through a hit: the hit's 2.5 s held the ready pose off)
+            }
             if ( !readying )
                 s_readyStart = -100000;
             // the stages: BO1's reload start (open), each round (its reloading state, restarted per round with the
@@ -1424,7 +1430,9 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         float knifeYaw, knifeLength = 1.0f;
         R_RuntimeXModel_RootYaw("knife", 0.0f, &knifeYaw, &knifeLength);
         s_leonKnifeOut = action == RT_ACTION_KNIFE && actionTime < knifeLength - 0.1f;
-        s_leonGrenadeOut = action == RT_ACTION_THROW_READY;
+        // (from the readying itself, not the action chosen: a kick or a hit that outranks the ready pose kept the
+        // grenade out of his hand until it ended)
+        s_leonGrenadeOut = s_readyStart > -100000;
         // the magazine: out from RE4's drop of it to its magazine-in frame, where the reload stands in RE4's motion
         // (R_RuntimeXModel_PoseDObj's: stretched over BO1's reload, from reloadFrom); a first raise starts past it
         bool clipOut = false;
