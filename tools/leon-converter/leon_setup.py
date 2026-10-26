@@ -56,6 +56,20 @@ def bio4_folder(re4):
     raise SystemExit(f'Resident Evil 4 not found in {re4}: it needs BIO4\\Em\\pl00.udas.lfs (the 2014 UHD edition)')
 
 
+def check_multiplayer(bo1):
+    r"""Black Ops Multiplayer's files (zone\Common\code_pre_gfx_mp.ff, ...): the mod's zombies run on them, and Steam
+    installs them with the game's Multiplayer, an app of its own beside the campaign's. A player without them saw the
+    game stop at its start on a zone it could not find."""
+    zone = os.path.join(bo1, 'zone')
+    if os.path.isfile(os.path.join(zone, 'Common', 'code_pre_gfx_mp.ff')):
+        return
+    if os.path.isdir(zone) and any(os.path.isfile(os.path.join(zone, d, 'code_pre_gfx_mp.ff')) for d in os.listdir(zone)):
+        return
+    raise SystemExit(f'Black Ops Multiplayer is not installed (no zone\\Common\\code_pre_gfx_mp.ff in {bo1}): install '
+                     f'"Call of Duty: Black Ops - Multiplayer" from your Steam library - it comes with Black Ops, and '
+                     f'the mod runs on its files')
+
+
 def unpack(src, dst):
     subprocess.run([os.path.join(here, 'lfsunpack.exe'), src, dst], check=True, creationflags=NO_WINDOW,
                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -130,6 +144,8 @@ def main():
     log_file = open(os.path.join(out, 'leon_setup.log'), 'a', encoding='utf-8')
     rtmodels = os.path.join(out, 'mods', 'leon', 'rtmodels')
     ready = os.path.join(rtmodels, f'leon_ready_v{SETUP_VERSION}.txt')
+    if args.bo1: # (at every start: it may have been uninstalled since)
+        check_multiplayer(args.bo1)
     if not args.force and os.path.isfile(ready):
         log('Leon is ready already')
         return
