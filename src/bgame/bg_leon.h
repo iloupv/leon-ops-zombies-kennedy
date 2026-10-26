@@ -18,3 +18,8 @@
 // his times' multiplier where he has not bought the perk (the bought ones' is theirs: 0.5, twice as fast) - milder
 // than a perk's, so Speed Cola is still worth his points
 #define LEON_HANDY_RATE 0.7f
+// his run (PM_TankControls: the run key going forward, not aimed), his own and on his entity for the others: his model's
+// cycle is the run's or else the walk's by it (R_RuntimeXModel_SetRunning) - by his speed alone a quick character's walk
+// (Leon's, 26 % over) stayed past the run's cut, and from a run to a walk he played the run slowed down. In the one bit
+// of the high half no player uses (the low half is the scripts' client flags: each change runs client_flag_callback)
+#define LEON_EF2_RUNNING 0x80000u

@@ -322,6 +322,9 @@ static float RtFirePhase(const RtAnim &motion, float time)
 // turnInPlace - turning on the spot (A / D, the mouse) plays RE4's turn in place (pl_R1_Turn: turn_left / turn_right)
 static thread_local bool s_strafeLegs, s_turnInPlace, s_stepWatch;
 static thread_local int s_moveIntent; // the player's move keys (1 forward, -1 back, 0 neither): his cycle's way under tank controls
+// a player's run under RE4's controls (R_RuntimeXModel_SetRunning: bg_leon.h LEON_EF2_RUNNING), for the next pose only:
+// 1 the run, 0 a walk, -1 not told (the cycle by his speed)
+static thread_local int s_running = -1;
 static int s_playerTurn; // the last such pose's turn in place: 1 left, -1 right, 0 none
 static bool s_playerBodyAction; // the last such pose's quick turn or kick still on him (R_RuntimeXModel_PlayerBodyAction)
 static bool s_playerEasing; // the last such pose eased from another (RtPoseFade: R_RuntimeXModel_PlayerEasing)
@@ -356,6 +359,11 @@ void __cdecl R_RuntimeXModel_SetReloadSet(const char *set)
 {
     s_reloadSet = set;
     s_reloadSetGiven = true;
+}
+
+void __cdecl R_RuntimeXModel_SetRunning(int running)
+{
+    s_running = running;
 }
 
 void __cdecl R_RuntimeXModel_SetPlayerMotion(bool strafeLegs, bool turnInPlace, int moveIntent)
@@ -743,6 +751,29 @@ static void RtBuildSkinnedSurface(RtReader &r, XSurface *surf, int numBones, con
     surf->vertList = 0;
 }
 
+// RE4's run bobs his pelvis 3.3" (its walk 2"), and the game's pace plays it ~1.4 times as fast: the upper body
+// (j_spinelower, on the pelvis) is held 40 % of the way back toward the pelvis's mean height, its bob near the walk's;
+// the legs keep the pelvis's, so the feet stay planted. frames: a cycle's (this load's own copy).
+static void RtSoftenRunBob(float *frames, int frameCount, int boneCount, int pelvis, int spine)
+{
+    float mean = 0.0f;
+    for ( int f = 0; f < frameCount; ++f )
+        mean += frames[7 * (f * boneCount + pelvis) + 6];
+    mean /= (float)frameCount;
+    for ( int f = 0; f < frameCount; ++f )
+    {
+        const float *p = &frames[7 * (f * boneCount + pelvis)];
+        // the height given back (the root's Z, up), turned into the pelvis's frame: by its rotation's inverse
+        const float v[3] = { 0.0f, 0.0f, (mean - p[6]) * 0.4f };
+        const float ux = -p[0], uy = -p[1], uz = -p[2], w = p[3];
+        const float tx = 2.0f * (uy * v[2] - uz * v[1]), ty = 2.0f * (uz * v[0] - ux * v[2]), tz = 2.0f * (ux * v[1] - uy * v[0]);
+        float *s = &frames[7 * (f * boneCount + spine)];
+        s[4] += v[0] + w * tx + (uy * tz - uz * ty);
+        s[5] += v[1] + w * ty + (uz * tx - ux * tz);
+        s[6] += v[2] + w * tz + (ux * ty - uy * tx);
+    }
+}
+
 // builds a model from .rlm data (a file's, or one made in memory); returns the DB's copy
 static const XModel *RtBuildModel(const char *name, const void *data, int size, int zoneIndex, const Material *templ,
                                   const Material *atestTempl, bool gpu)
@@ -985,9 +1016,11 @@ static const XModel *RtBuildModel(const char *name, const void *data, int size, 
         for ( int a = (int)b; a >= 0 && !headSide[b]; a = parent[a] )
             headSide[b] = boneName[a] == "j_neck";
     }
-    int spineBone = -1, neckBone = -1, eyelidBone = -1;
+    int spineBone = -1, neckBone = -1, eyelidBone = -1, pelvisBone = -1;
     for ( unsigned int b = 0; b < boneCount; ++b )
     {
+        if ( boneName[b] == "j_mainroot" )
+            pelvisBone = (int)b;
         if ( boneName[b] == "j_spinelower" )
             spineBone = (int)b;
         if ( boneName[b] == "j_neck" )
@@ -1016,6 +1049,12 @@ static const XModel *RtBuildModel(const char *name, const void *data, int size, 
         // a shot's kick peak: in its first 12 frames (0.4 s), the frame whose upper body is turned most from the first
         anim.recoilPeak = 0;
         const char *colon = strchr(anim.name, ':');
+        if ( !strcmp(colon ? colon + 1 : anim.name, "run") && pelvisBone > 0 && spineBone > 0 && parent[spineBone] == pelvisBone )
+        {
+            RtSoftenRunBob(const_cast<float *>(anim.frames), anim.frameCount, anim.boneCount, pelvisBone, spineBone);
+            if ( R_RuntimeXModel_DvarOn("leon_actionlog") ) // (tests)
+                Com_Printf(0, "runtime model: '%s' bob softened\n", anim.name);
+        }
         if ( !strncmp(colon ? colon + 1 : anim.name, "fire", 4) && anim.frameCount > 1 )
         {
             float most = 0.0f;
@@ -1668,6 +1707,10 @@ static int RtChooseCycle(const XModel *model, const RtAnimState &st, bool turnTo
         return run;
     if ( run < 0 )
         return walk;
+    // a player under RE4's controls: the run while his run key runs him, else the walk (his pace aside: by speed a
+    // quick character's walk stayed past the cut below, and from a run to a walk he played the run slowed down)
+    if ( s_running >= 0 )
+        return s_running ? run : walk;
     const bool runNow = st.cur >= 0 && !strcmp(RtAnimBaseName(s_anims[st.cur]), "run");
     const float runCut = sqrtf(s_anims[walk].moveSpeed * s_anims[run].moveSpeed) * (runNow ? 0.9f : 1.1f);
     return st.speed > runCut ? run : walk;
@@ -1827,7 +1870,7 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     s_lookYaw = 0.0f;
     struct PlayerMotionReset // (s_strafeLegs / s_turnInPlace: for this call only)
     {
-        ~PlayerMotionReset() { s_strafeLegs = s_turnInPlace = s_stepWatch = false; s_moveIntent = 0; }
+        ~PlayerMotionReset() { s_strafeLegs = s_turnInPlace = s_stepWatch = false; s_moveIntent = 0; s_running = -1; }
     } playerMotionReset;
     const bool strafeLegs = s_strafeLegs, turnInPlace = s_turnInPlace;
     const bool tankPlayer = s_stepWatch; // the local player under RE4's tank controls (R_RuntimeXModel_SetPlayerMotion)

@@ -1699,6 +1699,13 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                                                             && cgameGlob->time - s_aimedTime > 400,
                                         CL_LeonMoveIntent());
     }
+    // a player's run (bg_leon.h LEON_EF2_RUNNING): the view's player's from his predicted state, another's from his entity
+    if ( isPlayer && obj->entnum > 0 && player_tankControls && player_tankControls->current.enabled )
+    {
+        const unsigned int flags2 = viewed ? (unsigned int)cgameGlob->predictedPlayerState.eFlags2
+                                           : (unsigned int)CG_GetEntity(pose->localClientNum, obj->entnum - 1)->nextState.lerp.eFlags2;
+        R_RuntimeXModel_SetRunning((flags2 & LEON_EF2_RUNNING) ? 1 : 0);
+    }
     R_RuntimeXModel_SetReloadFrom(reloadFrom);
     R_RuntimeXModel_SetFirePrev(firePrev);
     R_RuntimeXModel_SetKickVariant(kickVariant);

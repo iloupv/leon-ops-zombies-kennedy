@@ -1736,6 +1736,11 @@ static void PM_TankControls(pmove_t *pm, float frametime)
         cmd->rightmove = 0;
         cmd->forwardmove = 0;
     }
+    const bool runs = running && cmd->forwardmove > 0;
+    ps->eFlags2 = (int)(runs ? (unsigned int)ps->eFlags2 | LEON_EF2_RUNNING : (unsigned int)ps->eFlags2 & ~LEON_EF2_RUNNING);
+    // aimed in (raising the aim too) he moves at 60 % of his pace, on top of the gun's own aimed slowdown (the Leon
+    // mod's choice: RE4 stands) - with the M1911 Leon's aimed walk ~52" a second, under half his walk (it was ~87)
+    const float pace = aiming ? 0.6f : 1.0f;
     float strafe = 0.0f;
     if ( cmd->rightmove && !aiming )
     {
@@ -1749,10 +1754,9 @@ static void PM_TankControls(pmove_t *pm, float frametime)
     }
     else if ( cmd->rightmove )
     {
-        // aimed in he steps sideways at ~80 % of the walk's (20 % faster than RE4's walk; the Leon mod's choice: RE4
-        // stands), his legs turned toward the step and his torso held on the aim (R_RuntimeXModel_SetPlayerMotion);
-        // the mouse still turns him
-        strafe = 127.0f * 0.8f * 1.2f * 68.0f / full;
+        // aimed in he steps sideways at his aimed walk's pace (the Leon mod's choice: RE4 stands), his legs turned
+        // toward the step and his torso held on the aim (R_RuntimeXModel_SetPlayerMotion); the mouse still turns him
+        strafe = 127.0f * pace * 1.3f * 68.0f / full;
         if ( player_strafeSpeedScale->current.value > 0.1f )
             strafe /= player_strafeSpeedScale->current.value; // PM_CmdScale slows a strafe by it
         if ( strafe > 127.0f )
@@ -1764,7 +1768,7 @@ static void PM_TankControls(pmove_t *pm, float frametime)
         return;
     // RE4's speeds, 30 % faster (the zombies keep up with RE4's own pace); the run reaches the player's top speed
     // (ps->speed) at ~14 % and stays there. The cycles play at the rate that matches (R_RuntimeXModel_PoseDObj).
-    const float speed = 1.3f * (cmd->forwardmove < 0 ? 77.0f : (running ? 167.0f : 68.0f));
+    const float speed = 1.3f * pace * (cmd->forwardmove < 0 ? 77.0f : (running ? 167.0f : 68.0f));
     float move = 127.0f * speed / full;
     if ( cmd->forwardmove < 0 && player_backSpeedScale->current.value > 0.1f )
         move /= player_backSpeedScale->current.value; // PM_CmdScale slows a backpedal by it: RE4's back step is 77
@@ -2008,6 +2012,8 @@ void __cdecl PmoveSingle(pmove_t *pm)
     pml.frametime = (float)pml.msec * 0.001;
     if ( player_tankControls && player_tankControls->current.enabled && ps->pm_type < 7 && !(ps->eFlags & 0x4300) )
         PM_TankControls(pm, pml.frametime); // mod
+    else
+        ps->eFlags2 = (int)((unsigned int)ps->eFlags2 & ~LEON_EF2_RUNNING); // (no run but under RE4's controls)
     PM_AdjustAimSpreadScale(pm, &pml);
     PM_UpdateViewAngles(pm->localClientNum, ps, (float)pml.msec, &pm->cmd, pm->handler);
     PM_SetWaterLevel(pm);

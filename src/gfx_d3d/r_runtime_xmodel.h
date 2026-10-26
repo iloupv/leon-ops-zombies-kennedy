@@ -46,6 +46,9 @@ void __cdecl R_RuntimeXModel_SetFirePrev(float seconds); // mod: the next pose's
 // mod: the local player's locomotion for the next R_RuntimeXModel_PoseDObj: legs turned toward an aimed strafe, RE4's
 // turn in place when he turns standing; and the last such pose's turn in place (1 left, -1 right, 0 none)
 void __cdecl R_RuntimeXModel_SetPlayerMotion(bool strafeLegs, bool turnInPlace, int moveIntent);
+// mod: a player's run under RE4's controls for the next R_RuntimeXModel_PoseDObj (bgame/bg_leon.h LEON_EF2_RUNNING): 1 his
+// cycle the run's, 0 the walk's; not told (-1), by his speed
+void __cdecl R_RuntimeXModel_SetRunning(int running);
 // mod: where in RE4's reload the next R_RuntimeXModel_PoseDObj's reload action starts (0..1; a new gun's first raise)
 void __cdecl R_RuntimeXModel_SetReloadFrom(float from);
 int __cdecl R_RuntimeXModel_PlayerTurn();

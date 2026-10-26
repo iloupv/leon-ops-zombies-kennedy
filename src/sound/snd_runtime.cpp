@@ -110,6 +110,29 @@ static const snd_alias_t *SND_Runtime_Template()
     return 0;
 }
 
+// the zombies announcer's line (any zmb_vox_ann_*: "Kaboom!", the dog round's...), 2D: the settings Leon's event lines
+// copy (SND_Runtime_IsEventLine), or 0
+static const snd_alias_t *SND_Runtime_Announcer()
+{
+    const unsigned int count = SND_AliasCount();
+    for ( unsigned int i = 0; i < count; ++i )
+    {
+        const snd_alias_list_t *list = SND_AliasByIndex(i);
+        if ( list && list->name && list->head && list->count && !_strnicmp(list->name, "zmb_vox_ann_", 12)
+             && !(list->head->flags & 2) )
+            return list->head;
+    }
+    return 0;
+}
+
+// Leon's lines at the game's events (maps\leon\_bingo.gsc: a special round's start, the Nuke): heard as the announcer
+// is - its group, snapshot group, ducking and priority. In the template's (the ui group's 0.32) the Nuke's blast and the
+// dog round's start ducked and drowned them, or a busy moment's voices took their place
+static bool SND_Runtime_IsEventLine(const std::string &name)
+{
+    return name == "leon_bingo" || name == "leon_that_dog" || name == "leon_hasta_luego";
+}
+
 // TEST SWITCH bo1_aliasdump "<word> <word>...": the level's aliases whose names hold one of the words, with their
 // volume, group, distances and flags (the level's sound data, for setting levels)
 static void SND_Runtime_DumpAliases()
@@ -223,6 +246,7 @@ void __cdecl SND_Runtime_LoadForLevel()
     if ( s_runtimeAliases.empty() )
         return;
 
+    const snd_alias_t *announcer = SND_Runtime_Announcer();
     // the aliases (one per variant, sharing the name) and the bank's lists
     const unsigned int count = (unsigned int)s_runtimeAliases.size();
     s_runtimeLists.resize(count);
@@ -231,10 +255,11 @@ void __cdecl SND_Runtime_LoadForLevel()
         SndRuntimeAlias *alias = s_runtimeAliases[i];
         const unsigned int id = (unsigned int)SND_HashName(alias->name.c_str());
         alias->aliases.resize(alias->variants.size());
+        const bool eventLine = SND_Runtime_IsEventLine(alias->name);
         for ( size_t v = 0; v < alias->variants.size(); ++v )
         {
             snd_alias_t &a = alias->aliases[v];
-            a = *templ;
+            a = eventLine && announcer ? *announcer : *templ;
             a.name = alias->name.c_str();
             a.id = id;
             a.subtitle = 0;
@@ -257,6 +282,9 @@ void __cdecl SND_Runtime_LoadForLevel()
                 a.flags = (a.flags & ~0x3F0000u) | (2u << 16);
                 a.volMin = a.volMax = (unsigned __int16)(0.6f * 65535.0f);
             }
+            // (an event line on a level without the announcer: the voice group, full)
+            if ( eventLine && !announcer )
+                a.flags = (a.flags & ~0x3F0000u) | (2u << 16);
         }
         snd_alias_list_t &list = s_runtimeLists[i];
         memset(&list, 0, sizeof(list));
@@ -296,7 +324,8 @@ void __cdecl SND_Runtime_LoadForLevel()
     s_runtimeBankAdded = true;
     for ( SndRuntimeAlias *alias : s_runtimeAliases )
         Com_Printf(0, "runtime sounds: '%s' (%u variants), settings from '%s'\n", alias->name.c_str(),
-                   (unsigned int)alias->variants.size(), templ->name);
+                   (unsigned int)alias->variants.size(),
+                   SND_Runtime_IsEventLine(alias->name) ? (announcer ? announcer->name : "the voice group") : templ->name);
 }
 
 // Under Leon (his runtime voice loaded): the zombies characters' lines (vox_plr_*) muted, and the player's breathing -
