@@ -271,6 +271,12 @@ keyname_t keynames_localized[116] =
   { " ", 147 },
   { NULL, 0 }
 };
+// The digit keys' names on a French or German game (Key_KeynumToString: languages 1 and 2) - the retail exe keeps
+// these ten right after keynames_localized and indexes them through its end: the AZERTY row's unshifted glyphs, a
+// blank where the key is an accented letter. The decompile had lost the table and read past the array: on players'
+// French and German games the first menu that showed a digit key's binding (weapnext on 1, the action slots on 5-7)
+// asserted in I_strncpyz on a null name.
+static const char *const keynames_localized_digits[10] = { " ", "&", " ", "\"", "'", "(", "-", " ", "_", " " };
 
 
 
@@ -1238,7 +1244,7 @@ const char *__cdecl Key_KeynumToString(int keynum, int translate)
     if ((unsigned int)keynum >= 0x100)
         return "<OUT OF RANGE>";
     if (translate && (SEH_GetCurrentLanguage() == 1 || SEH_GetCurrentLanguage() == 2) && keynum >= 48 && keynum <= 57)
-        return (const char *)*((_DWORD *)&keynames_localized[92].name + keynum);
+        return keynames_localized_digits[keynum - 48];
     if (keynum > 32 && keynum < 127 && keynum != 34)
     {
         tinystr[0] = toupper(keynum);

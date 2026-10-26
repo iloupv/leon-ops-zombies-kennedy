@@ -56,6 +56,7 @@
 #include <intrin.h>
 #include <vector>
 #include <string>
+#include <stdexcept>
 
 extern XZoneName g_zoneNames[33];
 extern unsigned int g_zoneIndex;
@@ -78,6 +79,7 @@ struct RtAnim
     float moveSpeed;     // inches per second at the cycle's own rate
     const float *frames; // frameCount x boneCount x {quat[4], trans offset[3]}
     const unsigned char *upperBody; // per bone: 1 from j_spinelower up (the aim poses take these), 0 below
+    const unsigned char *headSide;  // per bone: 1 from j_neck up (the head: the knife slash leaves it to the aim), 0 else
     int spineBone;       // j_spinelower (the aim correction turns it), -1: none
     int neckBone;        // j_neck (the head's look turns it), -1: none
     int eyelidBone;      // RE4's part 0x1C, the eyelid (j_re4_028: the blink turns it; its motions hold it), -1: none
@@ -141,6 +143,8 @@ static volatile long s_animStateLock; // the renderer's worker threads pose DObj
 static void *RtAlloc(int size)
 {
     void *p = _aligned_malloc(size ? size : 16, 16);
+    if ( !p )
+        throw std::bad_alloc(); // (R_RuntimeXModel_LoadForLevel reports it)
     memset(p, 0, size ? size : 16);
     s_allocs.push_back(p);
     return p;
@@ -966,6 +970,13 @@ static const XModel *RtBuildModel(const char *name, const void *data, int size, 
         for ( int a = (int)b; a >= 0 && !upperBody[b]; a = parent[a] )
             upperBody[b] = boneName[a] == "j_spinelower";
     }
+    // the head: j_neck and everything under it
+    unsigned char *headSide = (unsigned char *)RtAlloc((int)boneCount);
+    for ( unsigned int b = 0; b < boneCount; ++b )
+    {
+        for ( int a = (int)b; a >= 0 && !headSide[b]; a = parent[a] )
+            headSide[b] = boneName[a] == "j_neck";
+    }
     int spineBone = -1, neckBone = -1, eyelidBone = -1;
     for ( unsigned int b = 0; b < boneCount; ++b )
     {
@@ -980,6 +991,7 @@ static const XModel *RtBuildModel(const char *name, const void *data, int size, 
     {
         anim.model = linked;
         anim.upperBody = upperBody;
+        anim.headSide = headSide;
         anim.spineBone = spineBone;
         anim.neckBone = neckBone;
         anim.eyelidBone = eyelidBone;
@@ -1321,7 +1333,7 @@ static void RtPublishLoaded(int zoneIndex)
 }
 
 // Called by CL_InitCGame once the level's fastfiles are queued, before CG_Init registers the models.
-void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
+static void RtLoadForLevel(const char *mapName)
 {
     R_RuntimeXModel_RegisterDvars();
     Dvar_SetString((dvar_s *)bo1_rtmodels_loaded, "");
@@ -1403,6 +1415,23 @@ void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
     RtPublishLoaded(zoneIndex);
     if ( gpu )
         RB_Resource_Flush();
+}
+
+void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName)
+{
+    // The characters are built with C++ containers (RtAlloc's list, the motions, a surface's vertex groups) in a
+    // 32-bit process: an allocation that fails throws, and uncaught it ended the process from the C runtime with no
+    // word in the log (players' crashes in vcruntime140 / ucrtbase, 0xC0000409, as a map started). The level's load
+    // drops to the menu with the reason instead.
+    try
+    {
+        RtLoadForLevel(mapName);
+    }
+    catch ( const std::exception &e )
+    {
+        RtFreeAll();
+        Com_Error(ERR_DROP, "The characters could not be built for %s: %s (out of memory?)", mapName, e.what());
+    }
 }
 
 // the model's animation `name` (0: its first), an s_anims index or -1
@@ -2163,10 +2192,13 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
                     trans[k] = prevTrans[k];
             }
             // the knife slash's own turn of the torso, at the lower spine, half taken: RE4's slash swung his whole
-            // upper body round, odd over the shoulder camera (the arm still sweeps)
+            // upper body round, odd over the shoulder camera (the arm still sweeps); and none of its head: RE4's
+            // slash ducks and swings the head with the swing, odd again over the shoulder (the head stays with the
+            // aim or the cycle)
+            const bool slashHead = isPlayer && action == RT_ACTION_KNIFE && cur.headSide && cur.headSide[b];
             const float weight = (isPlayer && action == RT_ACTION_KNIFE && b == cur.spineBone ? actionWeight * 0.5f
                                                                                               : actionWeight)
-                                 * (cur.upperBody && cur.upperBody[b] ? 1.0f - bodyAim : 1.0f);
+                                 * (cur.upperBody && cur.upperBody[b] ? 1.0f - bodyAim : 1.0f) * (slashHead ? 0.0f : 1.0f);
             RtBlendPose(mat->quat, mat->trans, quat, trans, weight);
         }
         if ( b == cur.spineBone && isPlayer && action == RT_ACTION_KNIFE && actionAnim >= 0 && actionWeight > 0.0f )

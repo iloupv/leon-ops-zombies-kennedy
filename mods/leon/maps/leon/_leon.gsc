@@ -27,13 +27,14 @@ init()
 }
 
 // The Mystery Box keeps to the guns RE4's motions can hold: no dual wields (the CZ75s, and the HS10, which Pack-a-Punch
-// makes a pair: Leon holds one gun, the other floated in his left hand).
+// makes a pair: Leon holds one gun, the other floated in his left hand), nor the Ballistic Knife (a knife launcher:
+// RE4 has no motion for it, and it rode the handgun's).
 leon_box_weapons()
 {
 	while ( !isDefined( level.zombie_weapons ) )
 		wait 0.5;
 	wait 0.5; // (all of the map's added)
-	out = strTok( "cz75dw_zm cz75dw_upgraded_zm hs10_zm", " " );
+	out = strTok( "cz75dw_zm cz75dw_upgraded_zm hs10_zm knife_ballistic_zm", " " );
 	for ( i = 0; i < out.size; i++ )
 		if ( isDefined( level.zombie_weapons[ out[i] ] ) )
 			level.zombie_weapons[ out[i] ].is_in_box = false;
@@ -388,15 +389,20 @@ leon_down_no_weapons()
 }
 
 // Leon again whenever the game gives him back a character model (a respawn, a revive).
-// The players a fifth faster than Black Ops' own pace (kept through respawns; not as a zombified player, _zombiemode's
-// own 0.3)
+// The players a fifth faster than Black Ops' own pace, Leon 5% faster still (his character's perk, with his stagger
+// and his extra hit: maps\leon\_character.gsc); kept through respawns; not as a zombified player (_zombiemode's own 0.3)
 leon_move_speed()
 {
 	self endon( "disconnect" );
 	for ( ;; )
 	{
 		if ( !isDefined( self.is_zombie ) || !self.is_zombie )
-			self setMoveSpeedScale( 1.2 );
+		{
+			scale = 1.2;
+			if ( self maps\leon\_character::current() == "leon" )
+				scale = 1.26;
+			self setMoveSpeedScale( scale );
+		}
 		wait 1;
 	}
 }
@@ -555,7 +561,7 @@ leon_hurt_loop( damage )
 		if ( getDvar( "leon_hurtonce" ) == "1" && isDefined( self.revivetrigger ) )
 			return; // (tests: hits until he is down, then a revive watched)
 		self doDamage( damage,self.origin + anglesToForward( self.angles ) * 64 + ( 0, 0, 48 ) );
-		logPrint( "leon: hurt " + damage + " health " + self.health + "\n" );
+		logPrint( "leon: hurt " + damage + " health " + self.health + "/" + self.maxhealth + "\n" );
 	}
 }
 
