@@ -219,7 +219,9 @@ void __cdecl SV_GetChallenge(netadr_t from)
     else
     {
         Com_Printf(15, "rejected connection from invalid Steam GUID \"%s\"\n", clientSteamID64);
-        NET_OutOfBandPrint(NS_SERVER, challenge->adr, "error\xA\x15Your Steam Client Ticket was Invalid");
+        // (Steam's reason with it, EBeginAuthSessionResult: 1 the ticket, 2 a session still open, 3 the version, 4
+        // another game's ticket, 5 expired - for the joiner's report)
+        NET_OutOfBandPrint(NS_SERVER, challenge->adr, va("error\xA\x15Your Steam Client Ticket was Invalid (%d)", Steam_LastAuthResult()));
         memset(challenge, 0, sizeof(challenge_t));
         return;
     }

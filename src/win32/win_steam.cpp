@@ -251,6 +251,13 @@ bool Steam_UpdateClientAuthTicket(netadr_t serverIpv4)
 	return steamClientAuthTicket != k_HAuthTicketInvalid;
 }
 
+static int s_lastAuthResult; // the last check's EBeginAuthSessionResult (Steam_LastAuthResult: the refusal's message)
+
+int Steam_LastAuthResult()
+{
+	return s_lastAuthResult;
+}
+
 bool Steam_CheckClientTicket(const void* pAuthTicket, uint32 authTicketLen, uint64_t steamID64)
 {
 	iassert(steamID64);
@@ -273,6 +280,17 @@ bool Steam_CheckClientTicket(const void* pAuthTicket, uint32 authTicketLen, uint
 		Com_Printf(0, "[BO1] Steam: a second copy on the host's own account (%llu) let in\n", steamID64);
 		return true;
 	}
+	// mod (co-op): the account's last session on this host still open - a join that stalled after its challenge (the
+	// session opens there, and only a client that got in is ended on his drop), a game closed without a disconnect -
+	// is ended, and the fresh ticket checked again: tried again, friends were refused as "invalid"
+	if (res == k_EBeginAuthSessionResultDuplicateRequest)
+	{
+		SteamUser()->EndAuthSession(id);
+		res = SteamUser()->BeginAuthSession(pAuthTicket, authTicketLen, id);
+		Com_Printf(0, "[BO1] Steam: %llu's last session ended, its new ticket %s (%d)\n", steamID64,
+			res == k_EBeginAuthSessionResultOK ? "accepted" : "refused", (int)res);
+	}
+	s_lastAuthResult = (int)res;
 	if (res != k_EBeginAuthSessionResultOK)
 	{
 		Com_Printf(0, "[BO1] Steam: BeginAuthSession for %llu refused (%d)\n", steamID64, (int)res);
