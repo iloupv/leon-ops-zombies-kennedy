@@ -836,6 +836,10 @@ static const char *CG_RuntimeXModel_AnimSet(unsigned int weapon)
     const WeaponDef *def = weapon ? BG_GetWeaponDef(weapon) : 0;
     if ( !def )
         return 0;
+    // TEST SWITCH leon_animset "<set>": every gun posed with that set ("handgun": the default one)
+    const dvar_s *force = Dvar_FindVar("leon_animset");
+    if ( force && force->type == DVAR_TYPE_STRING && force->current.string && force->current.string[0] )
+        return strcmp(force->current.string, "handgun") ? force->current.string : 0;
     const WeaponVariantDef *variant = BG_GetWeaponVariantDef(weapon);
     const char *name = variant && variant->szInternalName ? variant->szInternalName : "";
     // RE4's sets (the converter's WEAPON_SETS) by the BO1 weapon: its name where one has a clear match, else its class.
@@ -845,6 +849,9 @@ static const char *CG_RuntimeXModel_AnimSet(unsigned int weapon)
     for ( const char *mine : s_mineWeapons )
         if ( strstr(name, mine) )
             return "mine";
+    // the Death Machine: its own set (the converter's: the shotgun's stance, the Typewriter's shot)
+    if ( def->fireType == WEAPON_FIRETYPE_MINIGUN )
+        return "minigun";
     switch ( def->weapClass )
     {
     case WEAPCLASS_SPREAD:
@@ -1066,6 +1073,7 @@ struct RtRemoteActions
     int frame; // the cgame time of the last update (behind it: a new level, all reset)
     int fireStart, prevFireStart, reloadStart, reloadLength, knifeStart, readyStart, throwStart, kickStart, downStart;
     bool kicking, kickVoiced, down;
+    int kickVariant; // his kick's roundhouse (LEON_EF2_KICK2 as it began)
     float aim;
 };
 static RtRemoteActions s_remoteActions[64];
@@ -1191,12 +1199,14 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     float actionTime = 0.0f, actionDuration = 0.0f;
     float reloadFrom = 0.0f; // where in RE4's reload a reload action starts (R_RuntimeXModel_SetReloadFrom)
     float firePrev = -1.0f; // a shot's: seconds since the shot before it (R_RuntimeXModel_SetFirePrev)
+    int kickVariant = 0; // a kick's: the character's second roundhouse (R_RuntimeXModel_SetKickVariant)
     if ( own )
     {
         static int s_frame = -1, s_lastState, s_lastWeaponTime, s_fireStart = -100000, s_reloadStart = -100000;
         static int s_prevFireStart = -100000; // the shot before (its motion crossfades into the new one's)
         static int s_knifeStart = -100000, s_throwStart = -100000, s_readyStart = -100000;
         static int s_kickStart = -100000, s_kickStamp; // the script's kick (leon_kick_stamp: its time at the kick)
+        static int s_kickVariant; // (and after its time, which roundhouse: maps\leon\_kick.gsc)
         static int s_reloadLength = 1;
         // a new gun's first raise (bought off the wall, from the box, Pack-a-Punched: BO1's first raise, weapon anim
         // 14, its iFirstRaiseTime): RE4's reload on him over it - BO1 racks the gun then
@@ -1251,14 +1261,17 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             }
             s_flourishWeapon = flourish ? ps->weapon : 0;
             const dvar_s *kickStamp = Dvar_FindVar("leon_kick_stamp");
-            const int stamp = kickStamp && kickStamp->type == DVAR_TYPE_STRING && kickStamp->current.string
-                ? atoi(kickStamp->current.string) : 0;
+            const char *stampText = kickStamp && kickStamp->type == DVAR_TYPE_STRING && kickStamp->current.string
+                ? kickStamp->current.string : "";
+            const int stamp = atoi(stampText);
             if ( stamp != s_kickStamp )
             {
                 if ( stamp )
                 {
                     s_kickStart = cgameGlob->time;
                     s_leonHitStart = s_knifeStart = -100000;
+                    const char *second = strchr(stampText, ' ');
+                    s_kickVariant = second ? atoi(second + 1) : 0;
                 }
                 s_kickStamp = stamp;
             }
@@ -1348,6 +1361,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         {
             action = RT_ACTION_KICK;
             actionTime = (float)(cgameGlob->time - s_kickStart) * 0.001f;
+            kickVariant = s_kickVariant;
             // its swing (RE4 plays SE 0x11 and 0x10 as Leon's turn toward the Ganado ends, frame 9: 0.3 s)
             static int s_kickVoiced = -100000;
             if ( s_kickVoiced != s_kickStart && cgameGlob->time - s_kickStart >= 300 )
@@ -1490,6 +1504,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             if ( kicking && !r.kicking )
             {
                 r.kickStart = now;
+                r.kickVariant = ((unsigned int)es->lerp.eFlags2 & LEON_EF2_KICK2) ? 1 : 0;
                 r.kickVoiced = false;
                 r.knifeStart = r.reloadStart = r.fireStart = -100000;
             }
@@ -1524,6 +1539,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         {
             action = RT_ACTION_KICK;
             actionTime = (float)(now - r.kickStart) * 0.001f;
+            kickVariant = r.kickVariant;
         }
         else if ( now - r.knifeStart < 1000 && now >= r.knifeStart )
         {
@@ -1685,6 +1701,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     }
     R_RuntimeXModel_SetReloadFrom(reloadFrom);
     R_RuntimeXModel_SetFirePrev(firePrev);
+    R_RuntimeXModel_SetKickVariant(kickVariant);
     if ( isPlayer && animWeapon )
         R_RuntimeXModel_SetReloadSet(CG_RuntimeXModel_ReloadSet(animWeapon));
     // a minigun (the Death Machine: no aim down the sights) is held in the Typewriter's aim all the time - RE4's hip

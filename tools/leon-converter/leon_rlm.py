@@ -331,13 +331,15 @@ CHARACTERS = {
     'ada': {'parts': [(0, 1, 'body'), (2, 3, 'hair'), (4, 3, 'head'), (5, 6, 'eyes'), (13, 1, 'right_hand'),
                       (14, 1, 'left_hand')], 'grip': False},
     'hunk': {'parts': [(0, 1, 'body'), (2, 3, 'mask'), (14, 13, 'right_hand'), (17, 13, 'left_hand')], 'grip': False,
-             'eyelid': False},
+             'eyelid': False,
+             # (Leon's second kick, not his own neck-breaker variant: an archive named outright is not the character's)
+             'actions': {'kick2': ('pl00.udas', 0x21)}},
     'luis': {'parts': [(0, 1, 'body'), (2, 3, 'head'), (4, 3, 'face'), (5, 1, 'coat'), (6, 1, 'right_hand'),
                       (7, 1, 'left_hand')], 'grip': False,
              # (a partner, never the player: his own fall to the floor, entry 36, as long as Leon's death; his
              # archive has no standing flinch - its hits knock him down, which played on the upper body flailed - nor
              # a knife: Leon's)
-             'actions': {'death': 36}},
+             'actions': {'death': 36, 'kick2': ('pl00.udas', 0x21)}},
 }
 # The other weapons' sets, baked next to the handgun's as "<set>:<name>" (the engine picks a set by the BO1 weapon's
 # class, CG_RuntimeXModel_AnimSet, and falls back to the handgun's motion a set lacks): (set, archive, motions) with
@@ -355,6 +357,10 @@ ACTION_MOTIONS = [
     ('hit_front', 'pl00.udas', 0x46), ('hit_back', 'pl00.udas', 0x47), ('death', 'pl00.udas', 0x48),
     # the kick on a staggered Ganado (em10/em10.cpp plem10Kick: the Ganado's archive 0x29D, Leon's roundhouse)
     ('kick', 'em10.udas', 0x299),
+    # its other one: RE4 plays the player's own archive's 0x25 three kicks in four (plem10Kick: r_no_3 = Rnd() & 3) -
+    # Leon's second roundhouse, Ada's fan kick, HUNK's own; the same hit window (frames 17 to 35) and turn as the
+    # first, so the kick script's timing stands for both (maps\leon\_kick.gsc picks one each kick)
+    ('kick2', 'pl00.udas', 0x21),
 ]
 WEAPON_SETS = [
     # the magnum: the Handcannon (wep15: weapon 0xF, item 0x37 - game/item.cpp; cObjMagnum::setMotion: the handgun's
@@ -423,6 +429,13 @@ WEAPON_SETS = [
                            ('turn_left', 10), ('turn_right', 12),
                            ('aim', 23), ('aim_up', 27), ('aim_down', 29),
                            ('fire', 24), ('fire_up', 28), ('fire_down', 30), ('reload', 26)]),
+    # the Death Machine (BO1's minigun, held at the hip): the shotgun's stance - its left hand on the fore-end sits on
+    # the minigun's grip; the Typewriter's left the hand up in the air - with the Typewriter's shot (the shotgun's
+    # pumps); two entries of one set: the engine takes a motion's first by name
+    ('minigun', 'wep07.udas', [('idle', 6), ('walk', 12), ('back', 14), ('run', 16), ('turn180', 18),
+                               ('turn_left', 8), ('turn_right', 10),
+                               ('aim', 22), ('aim_up', 28), ('aim_down', 30)]),
+    ('minigun', 'wep12.udas', [('fire', 24), ('fire_up', 28), ('fire_down', 30)]),
     # the rocket launcher (cObjLauncher::setMotion, pl_rocket.cpp: aim 0x0F/0x12/0x14, fire 0x11/0x13/0x15); single
     # shot in RE4, so no reload: shouldering it (0x18) stands in for BO1's
     ('launcher', 'wep13.udas', [('idle', 4), ('walk', 5), ('back', 6), ('run', 7), ('turn180', 8),
@@ -502,6 +515,8 @@ if __name__ == '__main__':
         for name, archive, entry in ACTION_MOTIONS:
             archive = own if archive == 'pl00.udas' else archive
             entry = spec.get('actions', {}).get(name, entry)
+            if isinstance(entry, tuple):  # (archive, entry): that archive itself, Leon's own included
+                archive, entry = entry
             path = os.path.join(here, archive)
             if not os.path.exists(path):
                 print(f'{name}: no {archive}, skipped')

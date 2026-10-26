@@ -16809,8 +16809,8 @@ void __cdecl GScr_SetClientFlag(scr_entref_t entref)
     }
 }
 
-// mod (the Leon mod): <player> leonsetkickflags( <ready>, <kicking> ) - his kick's state (bgame/bg_leon.h), read by his
-// pmove, his prediction and his use key
+// mod (the Leon mod): <player> leonsetkickflags( <ready>, <kicking> [, <second>] ) - his kick's state (bgame/bg_leon.h),
+// read by his pmove, his prediction and his use key; <second>: this kick is the character's second roundhouse
 static void __cdecl GScr_LeonSetKickFlags(scr_entref_t entref)
 {
     gentity_s *pSelf = GetEntity(entref);
@@ -16822,6 +16822,8 @@ static void __cdecl GScr_LeonSetKickFlags(scr_entref_t entref)
     unsigned int &flags = *(unsigned int *)&pSelf->client->ps.eFlags2;
     flags = Scr_GetInt(0, SCRIPTINSTANCE_SERVER) ? flags | LEON_EF2_KICK_READY : flags & ~LEON_EF2_KICK_READY;
     flags = Scr_GetInt(1, SCRIPTINSTANCE_SERVER) ? flags | LEON_EF2_KICKING : flags & ~LEON_EF2_KICKING;
+    const bool second = Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 2 && Scr_GetInt(2, SCRIPTINSTANCE_SERVER);
+    flags = second ? flags | LEON_EF2_KICK2 : flags & ~LEON_EF2_KICK2;
 }
 
 // mod (the Leon mod): <player> leonsethandy( on ) - HUNK's handling (bg_leon.h LEON_EF2_HANDY)

@@ -272,8 +272,17 @@ leon_kick()
 {
 	self endon( "disconnect" );
 	self.leon_kicking = true;
-	self setClientDvar( "leon_kick_stamp", getTime() ); // his client starts the kick on it
-	self leonsetkickflags( 0, 1 ); // no prompt, aim, shot or reload through it (PM_TankControls); the others see it
+	// RE4's two roundhouses (em10's plem10Kick: the character's own three kicks in four, the Ganado archive's the rest -
+	// Leon's second, Ada's fan kick, HUNK's and Luis's Leon's), the same hit frames; his client is told with the stamp,
+	// the others by the flag
+	variant = 0;
+	if ( randomInt( 4 ) != 0 )
+		variant = 1;
+	if ( getDvar( "leon_kickvariant" ) != "" )
+		variant = getDvarInt( "leon_kickvariant" ); // tests: that one every kick
+	self setClientDvar( "leon_kick_stamp", getTime() + " " + variant ); // his client starts the kick on it
+	self leonsetkickflags( 0, 1, variant ); // no prompt, aim, shot or reload through it (PM_TankControls); the others see it
+	self.leon_kick_variant = variant;
 	self enableInvulnerability(); // no damage through the kick
 	wait 0.53;
 	forward = anglesToForward( ( 0, self.angles[1], 0 ) );
@@ -298,7 +307,7 @@ leon_kick()
 	if ( hit )
 		self playLocalSound( "leon_kickhit" );
 	if ( hit )
-		logPrint( "leon: kick at " + getTime() + " hit " + hits + ", score " + self.score + "\n" );
+		logPrint( "leon: kick " + self.leon_kick_variant + " at " + getTime() + " hit " + hits + ", score " + self.score + "\n" );
 	else if ( zombies.size )
 	{
 		near = getClosest( center, zombies );
