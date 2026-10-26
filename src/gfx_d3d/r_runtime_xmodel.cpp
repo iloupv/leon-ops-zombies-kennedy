@@ -343,6 +343,14 @@ void __cdecl R_RuntimeXModel_SetReloadFrom(float from)
 // one RE4 weapon's motions and reloaded with another's: the Ray Gun's magnum stance, the handgun's reload); 0 its own
 static thread_local const char *s_reloadSet;
 static thread_local bool s_reloadSetGiven;
+// which roundhouse the next pose's kick plays (R_RuntimeXModel_SetKickVariant): 0 em10's, 1 the character's own
+// second ("kick2"; the first where a model has none)
+static thread_local int s_kickVariant;
+
+void __cdecl R_RuntimeXModel_SetKickVariant(int variant)
+{
+    s_kickVariant = variant;
+}
 
 void __cdecl R_RuntimeXModel_SetReloadSet(const char *set)
 {
@@ -1825,6 +1833,8 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     const bool tankPlayer = s_stepWatch; // the local player under RE4's tank controls (R_RuntimeXModel_SetPlayerMotion)
     const float reloadFrom = s_reloadFrom;
     s_reloadFrom = 0.0f;
+    const int kickVariant = s_kickVariant; // (for this call only)
+    s_kickVariant = 0;
     const char *const reloadSet = s_reloadSetGiven ? s_reloadSet : animSet; // (for this call only)
     const float firePrevTime = s_firePrevTime;
     s_firePrevTime = -1.0f;
@@ -1878,8 +1888,11 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
         // a shot, a knife slash or a grenade throw, from its start at the motion's own rate; the shot and the slash
         // blend toward their up / down versions by the pitch
         const char *level = action == RT_ACTION_FIRE ? "fire"
-                            : (action == RT_ACTION_KNIFE ? "knife" : (action == RT_ACTION_KICK ? "kick" : "throw"));
+                            : (action == RT_ACTION_KNIFE ? "knife"
+                                                          : (action == RT_ACTION_KICK ? (kickVariant ? "kick2" : "kick") : "throw"));
         actionAnim = RtFindSetAnim(model, animSet, level);
+        if ( actionAnim < 0 && action == RT_ACTION_KICK && kickVariant )
+            actionAnim = RtFindSetAnim(model, animSet, "kick"); // (a model converted before the second kick)
         if ( actionAnim >= 0 )
         {
             const RtAnim &motion = s_anims[actionAnim];

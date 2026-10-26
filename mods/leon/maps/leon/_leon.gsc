@@ -14,6 +14,13 @@ init()
 	logPrint( "leon: init on " + getDvar( "mapname" ) + "\n" );
 	maps\leon\_character::precache(); // Leon, and Ada, HUNK and Luis where they were built
 	precacheModel( "t5_weapon_m14_world" ); // the npc test's weapon (common_zombie: on every map)
+	// (tests: leon_give's weapons precached here, at the level's init, so a map without them can give them)
+	if ( getDvar( "leon_give" ) != "" )
+	{
+		given = strTok( getDvar( "leon_give" ), " " );
+		for ( i = 0; i < given.size; i++ )
+			precacheItem( given[i] );
+	}
 	level thread leon_players(); // every player (co-op: those who join too) as his character
 	level thread maps\leon\_character::perks_init(); // the characters' perks: Luis's damage, Ada's drops
 	level thread leon_spawn_test();
