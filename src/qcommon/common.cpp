@@ -2637,6 +2637,23 @@ void __cdecl Com_ModFov_SaveShared(float value)
     Com_Printf(16, "bo1_mod_fov %g saved to players\\bo1_shared.cfg\n", value);
 }
 
+// mod: borderless by default (r_fullscreen 0 + r_borderless 1: the renderer's full-screen window, r_init.cpp). Once
+// per player config: one not switched yet (bo1_borderless_default 0, archived: a new config, or one from before)
+// gets it. Exclusive full screen - the retail default config's - lost its device at every Alt+Tab, and drew nothing
+// on a start without the foreground. The graphics options' Display Mode still chooses after that, and a launcher's
+// +set r_fullscreen / r_borderless (Com_StartupVariable, after the configs) still wins.
+static void Com_DisplayModeDefault()
+{
+    const dvar_s *done = _Dvar_RegisterInt("bo1_borderless_default", 0, 0, 1, 1u,
+        "mod: the display mode was switched to borderless once for this config");
+    if ( done->current.integer >= 1 )
+        return;
+    Dvar_SetBoolByName("r_fullscreen", false);
+    Dvar_SetBoolByName("r_borderless", true);
+    Dvar_SetInt((dvar_s *)done, 1);
+    Com_Printf(16, "Display mode: borderless (once for this config; the graphics options' Display Mode changes it)\n");
+}
+
 void __cdecl Com_StartupConfigs(int localClientNum)
 {
     if ( !bo1_mod_fov )
@@ -2651,6 +2668,8 @@ void __cdecl Com_StartupConfigs(int localClientNum)
     else
         Com_ExecStartupConfigs(localClientNum, 0);
     Com_ModFov_ReadShared();
+    if ( !IsDedicatedServer() )
+        Com_DisplayModeDefault();
 }
 
 int g_loadedPreXAssets = 0;
