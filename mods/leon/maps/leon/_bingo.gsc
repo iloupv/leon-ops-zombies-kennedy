@@ -116,6 +116,9 @@ player_init()
 		self waittill( "nuke_triggered" );
 		if ( self maps\leon\_character::current() != "leon" )
 			continue;
+		// after the Nuke's blast (zmb_nuke_flash... its boom peaks in the first second: said with it, the line was
+		// drowned - "too low")
+		wait 1.2;
 		if ( soundExists( "leon_hasta_luego" ) )
 		{
 			players = getEntArray( "player", "classname" );

@@ -103,13 +103,12 @@ perks()
 			if ( !isDefined( self.leon_max ) || self.maxhealth != self.leon_max )
 				self.leon_base_health = self.maxhealth;
 			target = self.leon_base_health + bonus;
+			// through the engine's SetMaxHealth, as Juggernog's own: his health, his max and the session's max in one.
+			// The field alone (self.maxhealth) left the session's max where it was, and _gameskill's regen - a ratio
+			// of self.maxhealth, set back through setNormalHealth, which scales by the session's - pulled his health
+			// down to it every tick: with Juggernog his 50 were gone, without it he sat at 100 (two hits)
 			if ( self.maxhealth != target )
-			{
-				full = self.health >= self.maxhealth;
-				self.maxhealth = target;
-				if ( full || self.health > target )
-					self.health = target;
-			}
+				self SetMaxHealth( target );
 			self.leon_max = target;
 		}
 		wait 0.25;
@@ -315,5 +314,5 @@ perk_line( name )
 	case "luis":
 		return "Luis: more damage, bigger explosions";
 	}
-	return "Leon: staggers zombies more easily, takes an extra hit";
+	return "Leon: staggers zombies more easily, takes an extra hit, a little faster";
 }
