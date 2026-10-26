@@ -76,7 +76,7 @@
     "{localappdata}/LeonZombiesKennedy"
   ],
   "notes": {
-    "beforeInstall": "Needs Call of Duty: Black Ops and Resident Evil 4 (2014) on Steam, both your own copies (the RE4 HD Project works too). Nothing from either game is shipped: Leon, Ada, HUNK and Luis are built from your Resident Evil 4 on the first start (under a minute). Up to 4 players co-op: press Play to host and start a map, friends press Join."
+    "beforeInstall": "Needs Call of Duty: Black Ops with its Multiplayer installed (a separate entry in your Steam library) and Resident Evil 4 (2014) on Steam, both your own copies (the RE4 HD Project works too). Nothing from either game is shipped: Leon, Ada, HUNK and Luis are built from your Resident Evil 4 on the first start (under a minute). Up to 4 players co-op: press Play to host and start a map, friends press Join."
   },
   "test": {
     "minutes": 5,
