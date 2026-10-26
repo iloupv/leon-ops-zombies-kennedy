@@ -2868,7 +2868,7 @@ static bool CG_LineHitsPlayer(const cg_s *cgameGlob, const float *start, const f
             continue; // (not in this snapshot)
         if (es->eType != ET_PLAYER || (es->lerp.eFlags & 0x40000))
             continue; // (dead)
-        const bool down = ((unsigned int)es->lerp.eFlags2 & LEON_EF2_ENT_DOWN) != 0;
+        const bool down = BG_LeonEntDown(es->lerp.eFlags2);
         const float radius = down ? 28.0f : 13.0f;
         const float height = down ? 18.0f : ((es->lerp.eFlags & 8) ? 30.0f : ((es->lerp.eFlags & 4) ? 50.0f : 70.0f));
         const float mins[3] = { cent->pose.origin[0] - radius, cent->pose.origin[1] - radius, cent->pose.origin[2] };

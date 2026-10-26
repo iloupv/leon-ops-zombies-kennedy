@@ -2040,7 +2040,7 @@ void CG_SP_DrawReviveWaypoints(int localClientNum)
             continue;
         const centity_s *cent = CG_GetEntity(localClientNum, i);
         if ( !(((*((const unsigned int *)cent + 201)) >> 1) & 1) || cent->nextState.eType != ET_PLAYER
-             || !((unsigned int)cent->nextState.lerp.eFlags2 & LEON_EF2_ENT_DOWN) )
+             || !BG_LeonEntDown(cent->nextState.lerp.eFlags2) )
             continue;
         elem.targetEntNum = (short)i;
         s_waypointMaterialOverride = s_revive;

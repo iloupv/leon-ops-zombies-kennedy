@@ -395,7 +395,7 @@ bool __cdecl CG_AreAllPlayerNamesVisible()
 // then kicks
 static void CG_DrawLeonKickPrompt(int localClientNum)
 {
-    if ( !((unsigned int)CG_GetLocalClientGlobals(localClientNum)->predictedPlayerState.eFlags2 & LEON_EF2_KICK_READY) )
+    if ( !BG_LeonKickOffered(CG_GetLocalClientGlobals(localClientNum)->predictedPlayerState.eFlags2) )
         return;
     ScreenPlacement *scrPlace = &scrPlaceView[localClientNum];
     const float fontScale = 0.5f;

@@ -2865,10 +2865,11 @@ void __cdecl BG_PlayerToEntitySetFlags(playerState_s *ps, entityState_s *s)
 
     s->lerp.eFlags = ps->eFlags;
     s->lerp.eFlags2 = ps->eFlags2;
-    // mod (the Leon mod, co-op): his last stand for the others' clients, in the kick offer's bit (bgame/bg_leon.h)
+    // mod (the Leon mod, co-op): his last stand for the others' clients, in the kick offer's bit, no kick with it; else
+    // that bit only with the kick, his second roundhouse (bgame/bg_leon.h LEON_EF2_KICK2) - the offer is his own business
     if ( ps->pm_type == 6 || ps->pm_type == 7 )
-        s->lerp.eFlags2 = (int)((unsigned int)s->lerp.eFlags2 | LEON_EF2_ENT_DOWN);
-    else
+        s->lerp.eFlags2 = (int)(((unsigned int)s->lerp.eFlags2 | LEON_EF2_ENT_DOWN) & ~LEON_EF2_KICKING);
+    else if ( !BG_LeonKick2(ps->eFlags2) )
         s->lerp.eFlags2 = (int)((unsigned int)s->lerp.eFlags2 & ~LEON_EF2_ENT_DOWN);
     if ( ps->pm_type < 9 )
         v2 = s->lerp.eFlags & 0xFFFBFFFF;

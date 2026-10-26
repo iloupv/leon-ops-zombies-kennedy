@@ -1504,7 +1504,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             if ( kicking && !r.kicking )
             {
                 r.kickStart = now;
-                r.kickVariant = ((unsigned int)es->lerp.eFlags2 & LEON_EF2_KICK2) ? 1 : 0;
+                r.kickVariant = BG_LeonKick2(es->lerp.eFlags2) ? 1 : 0;
                 r.kickVoiced = false;
                 r.knifeStart = r.reloadStart = r.fireStart = -100000;
             }
@@ -1515,7 +1515,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                 CG_RemoteVoice(pose->localClientNum, obj, "kicka");
                 CG_RemoteVoice(pose->localClientNum, obj, "kickb");
             }
-            const bool down = (es->lerp.eFlags & 0x40000) || ((unsigned int)es->lerp.eFlags2 & LEON_EF2_ENT_DOWN);
+            const bool down = (es->lerp.eFlags & 0x40000) || BG_LeonEntDown(es->lerp.eFlags2);
             if ( down && !r.down )
             {
                 r.downStart = now;

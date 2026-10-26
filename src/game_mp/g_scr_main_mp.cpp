@@ -16820,13 +16820,16 @@ static void __cdecl GScr_LeonSetKickFlags(scr_entref_t entref)
         return;
     }
     unsigned int &flags = *(unsigned int *)&pSelf->client->ps.eFlags2;
-    flags = Scr_GetInt(0, SCRIPTINSTANCE_SERVER) ? flags | LEON_EF2_KICK_READY : flags & ~LEON_EF2_KICK_READY;
-    flags = Scr_GetInt(1, SCRIPTINSTANCE_SERVER) ? flags | LEON_EF2_KICKING : flags & ~LEON_EF2_KICKING;
+    const bool ready = Scr_GetInt(0, SCRIPTINSTANCE_SERVER) != 0, kicking = Scr_GetInt(1, SCRIPTINSTANCE_SERVER) != 0;
     const bool second = Scr_GetNumParam(SCRIPTINSTANCE_SERVER) > 2 && Scr_GetInt(2, SCRIPTINSTANCE_SERVER);
-    flags = second ? flags | LEON_EF2_KICK2 : flags & ~LEON_EF2_KICK2;
+    flags &= ~LEON_EF2_KICK2;
+    if ( kicking ) // (the kick takes the offer; the second roundhouse sets both: bg_leon.h LEON_EF2_KICK2)
+        flags |= second ? LEON_EF2_KICK2 : LEON_EF2_KICKING;
+    else if ( ready )
+        flags |= LEON_EF2_KICK_READY;
 }
 
-// mod (the Leon mod): <player> leonsethandy( on ) - HUNK's handling (bg_leon.h LEON_EF2_HANDY)
+// mod (the Leon mod): <player> leonsethandy( on ) - HUNK's handling (bg_leon.h LEON_POF_HANDY)
 static void __cdecl GScr_LeonSetHandy(scr_entref_t entref)
 {
     gentity_s *pSelf = GetEntity(entref);
@@ -16835,8 +16838,8 @@ static void __cdecl GScr_LeonSetHandy(scr_entref_t entref)
         Scr_Error(SCRIPTINSTANCE_SERVER, "leonsethandy: not a player", 0);
         return;
     }
-    unsigned int &flags = *(unsigned int *)&pSelf->client->ps.eFlags2;
-    flags = Scr_GetInt(0, SCRIPTINSTANCE_SERVER) ? flags | LEON_EF2_HANDY : flags & ~LEON_EF2_HANDY;
+    int &flags = pSelf->client->ps.otherFlags;
+    flags = Scr_GetInt(0, SCRIPTINSTANCE_SERVER) ? flags | LEON_POF_HANDY : flags & ~LEON_POF_HANDY;
 }
 
 void __cdecl GScr_ClearClientFlag(scr_entref_t entref)
