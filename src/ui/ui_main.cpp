@@ -4131,58 +4131,73 @@ static void UI_SP_LevelsZombieAddSettings(UiContext *dc)
                 handler->eventScript = &s_quitScript;
     }
 
-    // leaving the options - their Escape, their Back button (it closes the 3D TV and itself) - runs bo1_menu_return:
-    // the menu they were opened from opens again. Not their close: their buttons close them to open a page
-    menuDef_t *options = Menus_FindByName(dc, "options_new_pc");
-    static GenericEventScript s_returnOnEsc, s_returnOnBack;
-    if ( options )
-    {
-        // appended to a handler's scripts (once: a reload brings fresh scripts)
-        auto append = [](GenericEventHandler *handler, GenericEventScript *script) {
-            GenericEventScript **tail = &handler->eventScript;
-            for ( ; *tail; tail = &(*tail)->next )
-                if ( *tail == script )
-                    return;
-            memset(script, 0, sizeof(*script));
-            script->action = "exec \"bo1_menu_return\" ;";
-            *tail = script;
-        };
-        for ( GenericEventHandler *handler = options->onEvent; handler; handler = handler->next )
-            if ( handler->name && !I_stricmp(handler->name, "onESC") )
-            {
-                append(handler, &s_returnOnEsc);
-                break;
-            }
-        bool backDone = false;
-        for ( int i = 0; i < options->itemCount && !backDone; ++i )
+    // leaving the options runs bo1_menu_return: the menu they were opened from opens again. Every options page has a
+    // Back button that closes the 3D TV and the page, so leaves the options - the graphics page's too (after an
+    // Apply it was the way out, and it went to the monitor) - and the top pages' Escape does the same. Not a page's
+    // own close: its buttons and its Escape close it to open another page.
+    static GenericEventScript s_returns[64];
+    int used = 0;
+    auto leavesOptions = [](const GenericEventHandler *handler) {
+        bool closesTv = false, closesSelf = false;
+        for ( const GenericEventScript *script = handler->eventScript; script; script = script->next )
         {
-            itemDef_s *item = options->items[i];
-            for ( GenericEventHandler *handler = item ? item->onEvent : 0; handler && !backDone; handler = handler->next )
-            {
-                if ( !handler->name || I_stricmp(handler->name, "action") )
-                    continue;
-                bool closesTv = false, closesSelf = false;
-                for ( const GenericEventScript *script = handler->eventScript; script; script = script->next )
-                {
-                    closesTv |= script->action && I_stristr(script->action, "close blackout_3d_tv") != 0;
-                    closesSelf |= script->action && I_stristr(script->action, "close self") != 0;
-                }
-                if ( closesTv && closesSelf )
-                {
-                    append(handler, &s_returnOnBack);
-                    backDone = true;
-                }
-            }
+            closesTv |= script->action && I_stristr(script->action, "close blackout_3d_tv") != 0;
+            closesSelf |= script->action && I_stristr(script->action, "close self") != 0;
         }
+        return closesTv && closesSelf;
+    };
+    // appended to a handler's scripts (once: a reload brings fresh scripts)
+    auto append = [&used](GenericEventHandler *handler) {
+        GenericEventScript **tail = &handler->eventScript;
+        for ( ; *tail; tail = &(*tail)->next )
+            if ( (*tail)->action && I_stristr((*tail)->action, "bo1_menu_return") )
+                return;
+        if ( used >= (int)(sizeof(s_returns) / sizeof(s_returns[0])) )
+            return;
+        GenericEventScript *script = &s_returns[used++];
+        memset(script, 0, sizeof(*script));
+        script->action = "exec \"bo1_menu_return\" ;";
+        *tail = script;
+    };
+    int pages = 0;
+    for ( int m = 0; m < dc->menuCount; ++m )
+    {
+        menuDef_t *page = dc->Menus[m];
+        if ( !page || !page->window.name || I_strnicmp(page->window.name, "options_", 8) )
+            continue;
+        bool patched = false;
+        for ( GenericEventHandler *handler = page->onEvent; handler; handler = handler->next )
+            if ( handler->name && !I_stricmp(handler->name, "onESC") && leavesOptions(handler) )
+            {
+                append(handler);
+                patched = true;
+            }
+        for ( int i = 0; i < page->itemCount; ++i )
+            for ( GenericEventHandler *handler = page->items[i] ? page->items[i]->onEvent : 0; handler; handler = handler->next )
+                if ( handler->name && !I_stricmp(handler->name, "action") && leavesOptions(handler) )
+                {
+                    append(handler);
+                    patched = true;
+                }
+        pages += patched;
     }
+    Com_Printf(13, "bo1_menu: the way out of %d options pages returns to the map list\n", pages);
 }
 
-// bo1_menu_return: opens the menu bo1_menu_return names, once (the options closing, opened from the map list)
+// bo1_menu_return: opens the menu bo1_menu_return names, once (the options closing, opened from the map list) -
+// not while an options page is still open (a popup page's Back - the defaults' - closes it over the options)
 static void UI_SP_MenuReturn_f()
 {
     const dvar_s *ret = Dvar_FindVar("bo1_menu_return");
     if ( !ret || ret->type != DVAR_TYPE_STRING || !ret->current.string || !ret->current.string[0] )
         return;
+    const UiContext *dc = &UI_UIContext_GetInfo(0)->uiDC;
+    for ( int m = 0; m < dc->openMenuCount; ++m )
+    {
+        const menuDef_t *open = dc->menuStack[m].menu;
+        if ( open && open->window.name && !I_strnicmp(open->window.name, "options_", 8) )
+            return;
+    }
     Cbuf_AddText(0, va("openmenu %s; set bo1_menu_return \"\"\n", ret->current.string));
 }
 
