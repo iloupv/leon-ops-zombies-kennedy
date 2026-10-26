@@ -6,15 +6,24 @@
 // player's prediction and his use key all read his own.
 #define LEON_EF2_KICK_READY 0x20000u  // the kick offered: the use key kicks (and does nothing else), no reload
 #define LEON_EF2_KICKING 0x80000000u  // the kick under way: no aim, shot, knife or reload
-#define LEON_EF2_KICK2 0x4000u        // this kick is the character's second roundhouse (the others' clients pose it)
 // On his entity (what the other players see: BG_PlayerToEntitySetFlags) the kick's offer, his own business, is in its
 // place whether he is down - BO1's last stand (pm_type 6 / 7) - so their clients lay his model down in RE4's death
 #define LEON_EF2_ENT_DOWN LEON_EF2_KICK_READY
+// The character's second roundhouse (maps\leon\_kick.gsc's variant, for the others' clients to pose): the kick's two bits
+// both set - on his player state the offer and the kick (never both else: the kick takes the offer), on his entity the
+// down bit and the kick (a downed player's entity carries no kick: BG_PlayerToEntitySetFlags). No bit of its own: the
+// high half has none free, and the low half is the scripts' client flags (each change runs their client_flag_callback;
+// it sat on flag 14)
+#define LEON_EF2_KICK2 (LEON_EF2_KICK_READY | LEON_EF2_KICKING)
+#define BG_LeonKickOffered(flags2) ((((unsigned int)(flags2)) & LEON_EF2_KICK2) == LEON_EF2_KICK_READY)
+#define BG_LeonKick2(flags2) ((((unsigned int)(flags2)) & LEON_EF2_KICK2) == LEON_EF2_KICK2)
+#define BG_LeonEntDown(flags2) ((((unsigned int)(flags2)) & LEON_EF2_KICK2) == LEON_EF2_ENT_DOWN)
 // HUNK's handling, his character's perk (maps\leon\_character.gsc: <player> leonsethandy( on )): he aims, reloads,
 // switches guns and throws grenades faster, as with fast ADS / reload / switch (BG_LeonHandy) - not his bought perks,
-// so Speed Cola is still his to buy and a down takes nothing of it
-#define LEON_EF2_HANDY 0x2000u
-#define BG_LeonHandy(ps) ((((unsigned int)(ps)->eFlags2) & LEON_EF2_HANDY) != 0)
+// so Speed Cola is still his to buy and a down takes nothing of it. In his player state's otherFlags (sent to him only,
+// 6 bits: 0x20 the one the engine leaves unused), not eFlags2's low half: the scripts' client flags (it sat on flag 13)
+#define LEON_POF_HANDY 0x20
+#define BG_LeonHandy(ps) (((ps)->otherFlags & LEON_POF_HANDY) != 0)
 // his times' multiplier where he has not bought the perk (the bought ones' is theirs: 0.5, twice as fast) - milder
 // than a perk's, so Speed Cola is still worth his points
 #define LEON_HANDY_RATE 0.7f
