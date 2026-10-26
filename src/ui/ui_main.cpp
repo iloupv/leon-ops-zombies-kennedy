@@ -1,4 +1,6 @@
 #include "ui_main.h"
+#include <map>
+#include <string>
 #include <universal/assertive.h>
 #include <qcommon/com_clients.h>
 #include <universal/com_files.h>
@@ -52,6 +54,7 @@
 #include <live/live_win.h>
 #include <stringed/stringed_hooks.h>
 static void UI_ModFov_PatchMenus(UiContext *dc); // mod: bo1_mod_fov
+static void UI_DisplayMode_PatchMenus(UiContext *dc); // mod: the graphics options' Display Mode
 
 const dvar_t *ui_netGameType;
 const dvar_t *uiscript_debug;
@@ -3637,6 +3640,7 @@ void UI_InitUIInfos()
         }
         Menus_CloseAll(0, &uiInfo->uiDC);
         UI_ModFov_PatchMenus(&uiInfo->uiDC); // mod: bo1_mod_fov
+        UI_DisplayMode_PatchMenus(&uiInfo->uiDC); // mod: the graphics options' Display Mode
     }
 }
 
@@ -3940,6 +3944,119 @@ static void UI_ModFov_PatchMenus(UiContext *dc)
     }
 }
 
+// mod: the graphics options' Display Mode: Borderless, Fullscreen or Windowed. The retail Full Screen choice edits a
+// stand-in, ui_r_fullscreen: ui/options_graphics.cfg fills it from r_fullscreen as the menu opens, and Apply's
+// ui/options_graphics_set.cfg copies it back before its vid_restart. Its item is pointed at a stand-in of its own,
+// ui_r_displaymode (2 borderless, 1 full screen, 0 windowed): bo1_displaymode_load fills it after the first cfg, and
+// bo1_displaymode_apply sets r_fullscreen and r_borderless from it (the renderer's borderless window: r_init.cpp)
+// after the second, before the restart.
+static void UI_DisplayMode_Load_f()
+{
+    Dvar_SetIntByName("ui_r_displaymode", Dvar_GetBool("r_fullscreen") ? 1 : (Dvar_GetBool("r_borderless") ? 2 : 0));
+}
+
+static void UI_DisplayMode_Apply_f()
+{
+    const int mode = Dvar_GetInt("ui_r_displaymode");
+    Dvar_SetBoolByName("r_fullscreen", mode == 1);
+    Dvar_SetBoolByName("r_borderless", mode == 2);
+}
+
+// the scripts of a list of handlers: a command queued right after a cfg's exec, in the same action (before what
+// follows it there: Apply's vid_restart). Menus are reloaded with their zone, so a patched action is kept by its
+// original text and reused.
+static void UI_DisplayMode_PatchScripts(GenericEventHandler *handlers)
+{
+    static std::map<std::string, std::string> s_patched;
+    static const struct
+    {
+        const char *cfg;
+        const char *command;
+    } s_hooks[] = { { "ui/options_graphics_set.cfg", "bo1_displaymode_apply" },
+                    { "ui/options_graphics.cfg", "bo1_displaymode_load" } };
+    for ( GenericEventHandler *handler = handlers; handler; handler = handler->next )
+    {
+        for ( GenericEventScript *script = handler->eventScript; script; script = script->next )
+        {
+            const char *action = script->action;
+            if ( !action || I_stristr(action, "bo1_displaymode_") )
+                continue;
+            for ( const auto &hook : s_hooks )
+            {
+                const char *at = I_stristr(action, hook.cfg);
+                if ( !at )
+                    continue;
+                std::string &patched = s_patched[action];
+                if ( patched.empty() )
+                {
+                    // after the exec's closing ';' (or at the end)
+                    const char *semicolon = strchr(at, ';');
+                    const size_t cut = semicolon ? (size_t)(semicolon - action) + 1 : strlen(action);
+                    patched = std::string(action, cut) + " exec \"" + hook.command + "\" ;" + (action + cut);
+                }
+                script->action = patched.c_str();
+                Com_Printf(13, "display mode: %s runs after %s\n", hook.command, hook.cfg);
+                break;
+            }
+        }
+    }
+}
+
+static void UI_DisplayMode_PatchMenus(UiContext *dc)
+{
+    static bool s_registered;
+    if ( !s_registered )
+    {
+        _Dvar_RegisterInt("ui_r_displaymode", 2, 0, 2, 0,
+            "mod: the graphics options' Display Mode (2 borderless, 1 full screen, 0 windowed), applied by Apply");
+        static cmd_function_s s_load, s_apply;
+        Cmd_AddCommandInternal("bo1_displaymode_load", UI_DisplayMode_Load_f, &s_load);
+        Cmd_AddCommandInternal("bo1_displaymode_apply", UI_DisplayMode_Apply_f, &s_apply);
+        s_registered = true;
+    }
+    static const char *const s_names[] = { "BORDERLESS", "FULLSCREEN", "WINDOWED" }; // (as the menu's other values)
+    static const float s_values[] = { 2.0f, 1.0f, 0.0f };
+    for ( int m = 0; m < dc->menuCount; ++m )
+    {
+        menuDef_t *menu = dc->Menus[m];
+        if ( !menu )
+            continue;
+        UI_DisplayMode_PatchScripts(menu->onEvent);
+        for ( int i = 0; i < menu->itemCount; ++i )
+        {
+            itemDef_s *item = menu->items[i];
+            if ( !item )
+                continue;
+            UI_DisplayMode_PatchScripts(item->onEvent);
+            multiDef_s *multi = item->dvar && !I_stricmp(item->dvar, "ui_r_fullscreen") ? Item_GetMultiDef(item) : 0;
+            if ( !multi )
+                continue;
+            item->dvar = "ui_r_displaymode";
+            multi->strDef = 0;
+            multi->count = 3;
+            for ( int k = 0; k < 3; ++k )
+            {
+                multi->dvarList[k] = s_names[k];
+                multi->dvarStr[k] = s_names[k];
+                multi->dvarValue[k] = s_values[k];
+            }
+            Com_Printf(13, "display mode: menu %s item %d is the Display Mode\n", menu->window.name, i);
+            // its row's label (the text items at its place: plain and highlighted), "Full Screen" before
+            for ( int j = 0; j < menu->itemCount; ++j )
+            {
+                itemDef_s *label = menu->items[j];
+                textDef_s *text = label && label != item && label->type == 1 ? label->typeData.textDef : 0;
+                if ( !text || (!text->textExpData && !(text->text && *text->text))
+                     || fabsf(label->window.rect.x - item->window.rect.x) > 2.0f
+                     || fabsf(label->window.rect.y - item->window.rect.y) > 2.0f )
+                    continue;
+                text->text = "DISPLAY MODE";
+                text->textExpData = 0;
+            }
+        }
+    }
+}
+
 void __cdecl UI_LoadIngameMenus(int contextIndex)
 {
     const char *v1; // eax
@@ -3993,6 +4110,7 @@ void __cdecl UI_LoadIngameMenus(int contextIndex)
             }
         }
         UI_ModFov_PatchMenus(&uiInfo->uiDC); // mod: bo1_mod_fov
+        UI_DisplayMode_PatchMenus(&uiInfo->uiDC); // mod: the graphics options' Display Mode
     }
 }
 
