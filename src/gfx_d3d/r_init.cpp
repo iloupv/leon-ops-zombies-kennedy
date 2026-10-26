@@ -1552,6 +1552,27 @@ int __stdcall R_MonitorEnumCallback(HMONITOR__ *monitorHandle, HDC__ *hdc, tagRE
     }
 }
 
+// mod: the game window takes the foreground once it is shown. Started by a launcher that no longer has it (Melty's
+// Play after the first-start character build, ~40 s in which the player clicks elsewhere), it opened behind the
+// others: its full-screen device was lost at once, the menu never drew, and players closed it as stuck. Windows lets
+// a thread set the foreground while its input is attached to the foreground thread's; if it still refuses,
+// SetForegroundWindow flashes the taskbar button, and a click restores the device as before.
+static void R_TakeForeground(HWND hwnd)
+{
+    const HWND current = GetForegroundWindow();
+    if ( current == hwnd )
+        return;
+    const DWORD self = GetCurrentThreadId();
+    const DWORD owner = current ? GetWindowThreadProcessId(current, 0) : 0;
+    const bool attached = owner && owner != self && AttachThreadInput(self, owner, TRUE);
+    BringWindowToTop(hwnd);
+    SetForegroundWindow(hwnd);
+    SetFocus(hwnd);
+    if ( attached )
+        AttachThreadInput(self, owner, FALSE);
+    Com_Printf(8, "Game window %s the foreground\n", GetForegroundWindow() == hwnd ? "took" : "could not take");
+}
+
 char __cdecl R_CreateGameWindow(GfxWindowParms *wndParms)
 {
     // zombies: the one place the game window is created; headless (a dedicated server) must never get here. The
@@ -1569,6 +1590,8 @@ char __cdecl R_CreateGameWindow(GfxWindowParms *wndParms)
 
     dx.targetWindowIndex = 0;
     ShowWindow(wndParms->hwnd, 5);
+    if ( !Sys_IsHeadlessClient() ) // (a headless client never changes focus: its own desktop)
+        R_TakeForeground(wndParms->hwnd);
     R_BorderlessLogWindow("created"); // borderless
     return 1;
 }
