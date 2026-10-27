@@ -1,4 +1,5 @@
 #include <sound/snd_runtime.h>
+#include <database/db_registry.h>
 #include <game_sp/g_sp_measure.h>
 #include <qcommon/actor_model_state.h>
 #include <cgame_mp/cg_anim_commands.h>
@@ -1102,6 +1103,35 @@ void    CL_StartLoading()
     }
 }
 
+// mod: a level a joining client cannot load - the host's map not installed on this PC. Every Black Ops install ships
+// each zombies map's patch and text zones, but a map's own zone only with its map pack: the level loaded without its
+// world and cgame's scripts asserted on the missing map entities (cm.mapEnts: a player joining a friend's Der Riese).
+// The host's own map command checks this (SV_Map_f); a join did not. TEST SWITCH bo1_test_mapmissing <map>: that map
+// counts as not installed.
+static void CL_CheckLevelInstalled(const char *mapname)
+{
+    static const struct
+    {
+        const char *zone;
+        const char *name;
+    } s_maps[] = { { "zombie_theater", "Kino der Toten" }, { "zombie_pentagon", "\"Five\"" },
+                   { "zombie_cosmodrome", "Ascension" },   { "zombie_coast", "Call of the Dead" },
+                   { "zombie_temple", "Shangri-La" },      { "zombie_moon", "Moon" },
+                   { "zombie_cod5_prototype", "Nacht der Untoten" }, { "zombie_cod5_asylum", "Verruckt" },
+                   { "zombie_cod5_sumpf", "Shi No Numa" }, { "zombie_cod5_factory", "Der Riese" } };
+    const dvar_s *test = Dvar_FindVar("bo1_test_mapmissing");
+    const bool forced = test && test->type == DVAR_TYPE_STRING && test->current.string
+                        && !I_stricmp(test->current.string, mapname);
+    if ( !forced && (DB_FileExists(mapname, FFD_DEFAULT) || DB_FileExists(mapname, FFD_USER_MAP)) )
+        return;
+    const char *name = mapname;
+    for ( const auto &map : s_maps )
+        if ( !I_stricmp(map.zone, mapname) )
+            name = map.name;
+    Com_Error(ERR_DROP, "This game's map, %s, isn't installed on this PC: it comes with a Black Ops map pack (%s.ff "
+                        "is missing).", name, mapname);
+}
+
 void __cdecl CL_InitCGame(int localClientNum)
 {
     char *v1; // eax
@@ -1129,6 +1159,8 @@ void __cdecl CL_InitCGame(int localClientNum)
     if ( !CL_WasMapAlreadyLoaded() )
     {
         Com_InitDObj();
+        if ( useFastFile->current.enabled )
+            CL_CheckLevelInstalled(mapname);
         if ( useFastFile->current.enabled )
             Com_LoadLevelFastFiles(mapname);
         else
