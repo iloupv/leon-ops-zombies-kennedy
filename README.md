@@ -15,15 +15,14 @@ Resident Evil 4 on your own PC. Nothing from either game is in this repository o
   Leon, and aiming turns him to where it looks
 - RE4's animations for every kind of gun (handgun, Broken Butterfly, shotgun / Striker reloaded shell by shell,
   rifle, Chicago Typewriter, TMP, rocket launcher, the mine thrower for the wonder weapons), played with RE4's own
-  motion code; a new gun from the wall or the box is loaded on the spot
+  motion code
 - Knife slash and grenades the RE4 way; stagger a zombie with a head or leg shot (it glows faintly yellow), then
-  roundhouse kick it - every zombie the kick catches is a knife kill
+  roundhouse kick it - every zombie the kick catches grants knife kill points
 - RE4's Merchant at the Mystery Box: "What're ya buyin'?", and a line for the weapon it gives you ("Stranger,
   stranger, now that's a weapon!" for the wonder weapons)
-- Leon's hit reactions, death, pain grunts and voice; his head tracks nearby zombies; RE4's pickup and aim sounds; more blood
-- Leon's lines from RE4: "Bingo?", "Hasta luego!" on a Nuke, "Hey, it's that dog" when a dog round starts
+- Leon's hit reactions, death, pain grunts and voice
 - Gamepad support with RE4's layout
-- The astronaut helmet on Moon; boots straight to the zombies map list
+- Boots straight to the zombies map list
 
 **Controls**
 
@@ -44,7 +43,7 @@ Pick one with Switch Weapon during the first seconds of a match; the line under 
 
 | | Perk |
 | --- | --- |
-| **Leon** | His head and leg shots stagger zombies far more easily, and he takes one more hit (+50 health, on top of Juggernog's) |
+| **Leon** | His head and leg shots stagger zombies far more easily, he takes one more hit (+50 health, on top of Juggernog's), and he is a 5% faster |
 | **Ada** | 15% back on everything she buys, a second chance at a power-up on each kill, and a wider, harder kick |
 | **HUNK** | Aims, reloads, switches guns and readies grenades about 1.4x faster (Speed Cola still upgrades him) |
 | **Luis** | 25% more damage, and his grenades, launchers and explosive wonder weapons blast a wider area |
