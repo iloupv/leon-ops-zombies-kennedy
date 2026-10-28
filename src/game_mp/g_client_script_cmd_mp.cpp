@@ -1926,6 +1926,27 @@ void __cdecl PlayerCmd_hasWeapon(scr_entref_t entref)
         Scr_AddBool(0, SCRIPTINSTANCE_SERVER);
 }
 
+// mod (the Leon mod, player_tankControls): a perk machine's bottle is not drunk - RE4 has no drink, and his gun stays
+// up, aimed or not; the perk is his at once (maps\leon\_drink.gsc: RE4's heal sound). _zombiemode_perks gives him the
+// bottle and switches to it, waits for weapon_change_complete, takes the bottle and switches back to his gun, waits for
+// it again, then gives the perk: both switches are left out, each wait answered by the next frame's notifier
+// (weaponChangeRaising, with no raise under way). The switch back only when it is to the gun he holds, right after a
+// bottle's.
+static bool G_LeonSkipSwitch(gentity_s *ent, unsigned int weapon)
+{
+    if ( !G_SP_IsSPLevel() || !player_tankControls || !player_tankControls->current.enabled )
+        return false;
+    SPPlayerBuiltinState &spState = G_SP_PlayerBuiltinState(ent->s.number);
+    const char *name = BG_WeaponName(weapon);
+    const bool bottle = !_strnicmp(name, "zombie_perk_bottle", 18);
+    const bool back = spState.leonBottleSkipped && weapon == ent->client->ps.weapon;
+    spState.leonBottleSkipped = bottle;
+    if ( !bottle && !back )
+        return false;
+    spState.weaponChangeRaising = true;
+    return true;
+}
+
 void __cdecl PlayerCmd_switchToWeapon(scr_entref_t entref)
 {
     const char *v1; // eax
@@ -1978,7 +1999,8 @@ void __cdecl PlayerCmd_switchToWeapon(scr_entref_t entref)
     }
     else if ( BG_PlayerHasWeapon(&pSelf->client->ps, iWeaponIndex) )
     {
-        G_SelectWeaponIndex(entref.entnum, iWeaponIndex);
+        if ( !G_LeonSkipSwitch(pSelf, iWeaponIndex) )
+            G_SelectWeaponIndex(entref.entnum, iWeaponIndex);
         Scr_AddBool(1u, SCRIPTINSTANCE_SERVER);
         return;
     }

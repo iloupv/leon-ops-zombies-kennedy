@@ -1746,9 +1746,11 @@ static void PM_TankControls(pmove_t *pm, float frametime)
     {
         // walking or stepping back he turns at RE4's walk turn (SPEED_WALK_TURN); standing, at the pace of RE4's turn
         // in place (pl_R1_Turn: its motions turn him 175.6 degrees in 40 frames at 30 Hz), which plays on him
-        // (R_RuntimeXModel_PoseDObj: turn_left / turn_right)
-        const float rate = cmd->forwardmove ? 0.0418879f * 57.29578f * 30.0f * (running ? 1.1f : 1.0f) // degrees a second
-                                            : 175.6f / 40.0f * 30.0f;
+        // (R_RuntimeXModel_PoseDObj: turn_left / turn_right, its steps at the turn's pace); both 35 % quicker (the Leon
+        // mod's choice: RE4's own turned slowly against BO1's hordes)
+        const float rate = (cmd->forwardmove ? 0.0418879f * 57.29578f * 30.0f * (running ? 1.1f : 1.0f) // degrees a second
+                                             : 175.6f / 40.0f * 30.0f)
+                         * 1.35f;
         ps->delta_angles[1] = AngleNormalize180(ps->delta_angles[1] - rate * frametime * ((float)cmd->rightmove / 127.0f));
         cmd->rightmove = 0;
     }

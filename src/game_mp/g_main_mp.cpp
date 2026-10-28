@@ -3659,9 +3659,11 @@ void __cdecl G_ClientDoPerFrameNotifies(gentity_s *ent)
         const bool raising = client->ps.weaponstate == WEAPON_RAISING || client->ps.weaponstate == WEAPON_RAISING_ALTSWITCH;
         if ( spState.weaponChangeRaising && !raising )
         {
+            // (cleared first: the notify runs the waiting scripts at once, and a switch of theirs may set it again -
+            // mod: G_LeonSkipSwitch's)
+            spState.weaponChangeRaising = false;
             Scr_AddString(BG_WeaponName(client->ps.weapon), SCRIPTINSTANCE_SERVER);
             Scr_Notify(ent, scr_const.weapon_change_complete, 1u);
-            spState.weaponChangeRaising = false;
         }
         else if ( raising )
         {

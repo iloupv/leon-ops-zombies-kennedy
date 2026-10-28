@@ -13,7 +13,7 @@ own Black Ops. Nothing of either game is shipped; both installs are only read.
   4. extracts d3dx9_43.dll and xinput1_3.dll from Black Ops' Redist/DirectX next to the game's exe
   5. writes <out>/mods/leon/rtmodels/leon_ready_v<SETUP_VERSION>.txt (what Melty and the launcher wait for: a new
      SETUP_VERSION - Leon converted differently - has them build him again); a later run finding it does nothing
-     (--force redoes it)
+     (--force redoes it). From a version whose models this one keeps (SOUNDS_ONLY_FROM) only step 3 runs again.
 
 Its log is <out>/leon_setup.log."""
 import argparse
@@ -26,8 +26,11 @@ import sys
 import time
 
 # 2: the guns 20 mm further out in his hand, the shotgun's close with its whole pump; 3: Leon's "Bingo?"; 4: the gun's
-# raise to aim (leon_aim); 5: Ada, HUNK and Luis (CHARACTERS), "Hasta luego!" and "Hey, it's that dog."
-SETUP_VERSION = '7'
+# raise to aim (leon_aim); 5: Ada, HUNK and Luis (CHARACTERS), "Hasta luego!" and "Hey, it's that dog."; 8: the perk's
+# heal sound (leon_heal) and the Merchant's "Come back any time." (merchant_comeback)
+SETUP_VERSION = '8'
+# the versions whose models are this one's: from them only the sounds are written again (seconds, not the build)
+SOUNDS_ONLY_FROM = ('7',)
 # the other playable characters: (name, their archive, their texture pack) - leon_rlm.py --character
 CHARACTERS = [('ada', 'pl0c', '0100000c'), ('hunk', 'pl06', '01000006'), ('luis', 'pl14', '01000014')]
 ARCHIVES = (['pl00', 'em10'] + [f'wep{n:02d}' for n in (0, 1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19)]
@@ -149,8 +152,13 @@ def main():
     if not args.force and os.path.isfile(ready):
         log('Leon is ready already')
         return
-    log(f'setup {SETUP_VERSION}: RE4 {args.re4}, Black Ops {args.bo1}, out {out}')
     started = time.time()
+    if not args.force and any(os.path.isfile(os.path.join(rtmodels, f'leon_ready_v{v}.txt')) for v in SOUNDS_ONLY_FROM):
+        log(f'setup {SETUP_VERSION}: the sounds only, RE4 {args.re4}, out {out}')
+        write_sounds(bio4_folder(args.re4), out)
+        write_ready(ready, started)
+        return
+    log(f'setup {SETUP_VERSION}: RE4 {args.re4}, Black Ops {args.bo1}, out {out}')
 
     # the DirectX 9 runtime the game loads (Black Ops installs it from these cabs; a fresh Windows lacks it)
     if args.bo1:
@@ -247,11 +255,18 @@ def main():
             except Exception as e:  # noqa: BLE001 - Leon still plays without this one
                 log(f'{name}: not built ({e!r})')
 
-        run_tool('leon_sounds', [os.path.join(bio4, 'snd', 'pl00.xwb'), os.path.join(out, 'mods', 'leon', 'sound', 'rt')])
-        log('sounds written')
+        write_sounds(bio4, out)
     finally:
         shutil.rmtree(work, ignore_errors=True)
+    write_ready(ready, started)
 
+
+def write_sounds(bio4, out):
+    run_tool('leon_sounds', [os.path.join(bio4, 'snd', 'pl00.xwb'), os.path.join(out, 'mods', 'leon', 'sound', 'rt')])
+    log('sounds written')
+
+
+def write_ready(ready, started):
     with open(ready, 'w') as f:
         f.write(SETUP_VERSION + '\n')
     log(f'Leon is ready ({time.time() - started:.0f} s)')

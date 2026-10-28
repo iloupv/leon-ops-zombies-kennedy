@@ -26,6 +26,7 @@ init()
 	level thread leon_spawn_test();
 	level thread maps\leon\_kick::init(); // RE4's stagger and kick
 	level thread maps\leon\_merchant::init(); // RE4's Merchant at the Mystery Box
+	maps\leon\_drink::init(); // a perk with no drink: RE4's heal sound
 	level thread maps\leon\_bingo::init(); // Leon's "Bingo?" as a special round starts
 	level thread maps\leon\_helmet::init(); // Moon's astronaut helmet on him
 	maps\leon\_blood::init(); // more blood on his hits (its effects loaded now, with the level's)
