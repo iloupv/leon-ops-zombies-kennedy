@@ -3174,6 +3174,15 @@ static void CG_DrawLaser(const cg_s *cgameGlob, int entNum, const orientation_t 
 
 static unsigned __int16 s_laserLighting[64][200]; // (each player's laser its own lighting handles)
 
+// no laser on a launcher, nor on the Thundergun (its blast has no sight); the aim correction still points them
+static bool CG_LaserlessWeapon(unsigned int weapon)
+{
+    if (BG_GetWeaponDef(weapon)->weapClass == WEAPCLASS_ROCKETLAUNCHER)
+        return true;
+    const WeaponVariantDef *variant = BG_GetWeaponVariantDef(weapon);
+    return variant && variant->szInternalName && strstr(variant->szInternalName, "thundergun");
+}
+
 // mod (co-op): another player's laser sight, as his aim reaches this client (CG_RuntimeXModel_RemoteLaserOn): from his
 // muzzle to where his view line hits - his shots' line, from his eye along his (interpolated) view angles. His aim
 // correction does not reach here (his upper body follows his view pitch alone), so the line runs from the muzzle to
@@ -3183,8 +3192,7 @@ static void CG_RemoteLaser(int localClientNum, centity_s *cent, DObj *obj)
     const cg_s *cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     const entityState_s *es = &cent->nextState;
     if (cent->pose.eType != ET_PLAYER || (unsigned int)es->clientNum >= 64 || !es->weapon
-        || !CG_RuntimeXModel_RemoteLaserOn(localClientNum, es->number)
-        || BG_GetWeaponDef(es->weapon)->weapClass == WEAPCLASS_ROCKETLAUNCHER)
+        || !CG_RuntimeXModel_RemoteLaserOn(localClientNum, es->number) || CG_LaserlessWeapon(es->weapon))
         return;
     orientation_t orient;
     if (!CG_DObjGetWorldTagMatrix(&cent->pose, obj, scr_const.tag_flash, orient.axis, orient.origin))
@@ -3307,8 +3315,7 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
             return;
         s_laserSettled = true;
     }
-    // none on a launcher (the aim correction above still points it)
-    if (BG_GetWeaponDef(cgameGlob->predictedPlayerState.weapon)->weapClass == WEAPCLASS_ROCKETLAUNCHER)
+    if (CG_LaserlessWeapon(cgameGlob->predictedPlayerState.weapon))
         return;
     if (R_RuntimeXModel_DvarOn("leon_barrellog")) // (tests: the frames it shows)
         Com_Printf(0, "leon: laser drawn at %d\n", cgameGlob->time);
