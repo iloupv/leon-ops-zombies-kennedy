@@ -88,6 +88,7 @@ struct RtAnim
     int recoilPeak;      // a shot's motion: the frame its kick peaks (the upper body turned most from its first); 0
     int reloadRaise;     // a reload's motion: the frame its raise back to RE4's aim starts (its last half's farthest
                          // from its end pose); 0
+    const float *runBob; // the run: its spine's held-back bob per frame (RtSoftenRunBob, 3 floats a frame); 0
 };
 // the local player's head look (R_RuntimeXModel_SetLookYaw): degrees about up, for the next PoseDObj only
 static thread_local float s_lookYaw;
@@ -753,9 +754,12 @@ static void RtBuildSkinnedSurface(RtReader &r, XSurface *surf, int numBones, con
 
 // RE4's run bobs his pelvis 3.3" (its walk 2"), and the game's pace plays it ~1.4 times as fast: the upper body
 // (j_spinelower, on the pelvis) is held 40 % of the way back toward the pelvis's mean height, its bob near the walk's;
-// the legs keep the pelvis's, so the feet stay planted. frames: a cycle's (this load's own copy).
-static void RtSoftenRunBob(float *frames, int frameCount, int boneCount, int pelvis, int spine)
+// the legs keep the pelvis's, so the feet stay planted. frames: a cycle's (this load's own copy). Returns the offsets
+// added to the spine, 3 floats a frame: an upper body action over the run (a reload, a shot) takes the spine from the
+// cycle and with it this, and is given it back (R_RuntimeXModel_PoseDObj) - the bob came back with every reload.
+static const float *RtSoftenRunBob(float *frames, int frameCount, int boneCount, int pelvis, int spine)
 {
+    float *added = (float *)RtAlloc(3 * frameCount * (int)sizeof(float));
     float mean = 0.0f;
     for ( int f = 0; f < frameCount; ++f )
         mean += frames[7 * (f * boneCount + pelvis) + 6];
@@ -767,11 +771,30 @@ static void RtSoftenRunBob(float *frames, int frameCount, int boneCount, int pel
         const float v[3] = { 0.0f, 0.0f, (mean - p[6]) * 0.4f };
         const float ux = -p[0], uy = -p[1], uz = -p[2], w = p[3];
         const float tx = 2.0f * (uy * v[2] - uz * v[1]), ty = 2.0f * (uz * v[0] - ux * v[2]), tz = 2.0f * (ux * v[1] - uy * v[0]);
+        float *a = &added[3 * f];
+        a[0] = v[0] + w * tx + (uy * tz - uz * ty);
+        a[1] = v[1] + w * ty + (uz * tx - ux * tz);
+        a[2] = v[2] + w * tz + (ux * ty - uy * tx);
         float *s = &frames[7 * (f * boneCount + spine)];
-        s[4] += v[0] + w * tx + (uy * tz - uz * ty);
-        s[5] += v[1] + w * ty + (uz * tx - ux * tz);
-        s[6] += v[2] + w * tz + (ux * ty - uy * tx);
+        for ( int k = 0; k < 3; ++k )
+            s[4 + k] += a[k];
     }
+    return added;
+}
+
+// a cycle's held-back bob at phase (frames): the run's (RtSoftenRunBob), else none
+static void RtSampleRunBob(const RtAnim &anim, float phase, float *out)
+{
+    out[0] = out[1] = out[2] = 0.0f;
+    if ( !anim.runBob )
+        return;
+    int f0 = (int)phase;
+    if ( f0 >= anim.frameCount )
+        f0 = anim.frameCount - 1;
+    const int f1 = (f0 + 1) % anim.frameCount;
+    const float frac = phase - (float)f0;
+    for ( int k = 0; k < 3; ++k )
+        out[k] = anim.runBob[3 * f0 + k] + (anim.runBob[3 * f1 + k] - anim.runBob[3 * f0 + k]) * frac;
 }
 
 // builds a model from .rlm data (a file's, or one made in memory); returns the DB's copy
@@ -1051,7 +1074,8 @@ static const XModel *RtBuildModel(const char *name, const void *data, int size, 
         const char *colon = strchr(anim.name, ':');
         if ( !strcmp(colon ? colon + 1 : anim.name, "run") && pelvisBone > 0 && spineBone > 0 && parent[spineBone] == pelvisBone )
         {
-            RtSoftenRunBob(const_cast<float *>(anim.frames), anim.frameCount, anim.boneCount, pelvisBone, spineBone);
+            anim.runBob = RtSoftenRunBob(const_cast<float *>(anim.frames), anim.frameCount, anim.boneCount, pelvisBone,
+                                         spineBone);
             if ( R_RuntimeXModel_DvarOn("leon_actionlog") ) // (tests)
                 Com_Printf(0, "runtime model: '%s' bob softened\n", anim.name);
         }
@@ -2098,7 +2122,9 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     // moving (a walk / run / back step cycle, not standing): a hit reaction takes the upper body alone, the legs keep
     // their stride (a hit as he ran stopped his legs dead under him)
     const bool moving = cur.moveSpeed > 0.0f && st.speed > 20.0f;
-    int numBones = cur.boneCount < model->numBones ? cur.boneCount : model->numBones;
+    const bool wholeBodyAction = action == RT_ACTION_TURN || ((action == RT_ACTION_HIT_FRONT || action == RT_ACTION_HIT_BACK) && !moving)
+                                 || action == RT_ACTION_KICK || action == RT_ACTION_DEATH;
+    int numBones =cur.boneCount < model->numBones ? cur.boneCount : model->numBones;
     if ( numBones > obj->numBones )
         numBones = obj->numBones;
     // the switch between motions eased (RtPoseFade)
@@ -2203,8 +2229,11 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             for ( int k = 0; k < 3; ++k )
                 mat->trans[k] = trans[k] + (mat->trans[k] - trans[k]) * st.blend;
         }
+        float bobTaken = 0.0f; // the spine: the share of the run's held-back bob the upper body's blends took with it
+        float bobGiven[3] = {}; // and what of it is given back
         if ( aimLevel >= 0 && cur.upperBody && cur.upperBody[b] )
         {
+            bobTaken = aimFrac;
             float quat[4], trans[3];
             RtSampleBone(s_anims[aimLevel], aimPhase, b, quat, trans);
             if ( aimPitched >= 0 && aimPitchBlend > 0.0f )
@@ -2216,10 +2245,7 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             }
             RtBlendPose(mat->quat, mat->trans, quat, trans, aimFrac);
         }
-        if ( actionAnim >= 0 && actionWeight > 0.0f
-             && (action == RT_ACTION_TURN || ((action == RT_ACTION_HIT_FRONT || action == RT_ACTION_HIT_BACK) && !moving)
-                 || action == RT_ACTION_KICK
-                 || action == RT_ACTION_DEATH || (cur.upperBody && cur.upperBody[b])) )
+        if ( actionAnim >= 0 && actionWeight > 0.0f && (wholeBodyAction || (cur.upperBody && cur.upperBody[b])) )
         {
             float quat[4], trans[3];
             RtSampleBone(s_anims[actionAnim], actionPhase, b, quat, trans);
@@ -2255,6 +2281,27 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
                                                                                               : actionWeight)
                                  * (cur.upperBody && cur.upperBody[b] ? 1.0f - bodyAim : 1.0f) * (slashHead ? 0.0f : 1.0f);
             RtBlendPose(mat->quat, mat->trans, quat, trans, weight);
+            // (a whole body action takes the pelvis's bob with it: none of its share is given back)
+            bobTaken = wholeBodyAction ? bobTaken * (1.0f - weight) : 1.0f - (1.0f - bobTaken) * (1.0f - weight);
+        }
+        if ( b == cur.spineBone && bobTaken > 0.0f && (cur.runBob || (prev && prev->runBob)) )
+        {
+            // the run's bob held back at the spine (RtSoftenRunBob), given back for what the aim and an upper body
+            // action took of it: under a reload on the run his upper body bounced with the pelvis's full bob
+            float bob[3];
+            RtSampleRunBob(cur, st.curPhase, bob);
+            if ( prev )
+            {
+                float prevBob[3];
+                RtSampleRunBob(*prev, st.prevPhase, prevBob);
+                for ( int k = 0; k < 3; ++k )
+                    bob[k] = prevBob[k] + (bob[k] - prevBob[k]) * st.blend;
+            }
+            for ( int k = 0; k < 3; ++k )
+            {
+                bobGiven[k] = bob[k] * bobTaken;
+                mat->trans[k] += bobGiven[k];
+            }
         }
         if ( b == cur.spineBone && isPlayer && action == RT_ACTION_KNIFE && actionAnim >= 0 && actionWeight > 0.0f )
         {
@@ -2357,6 +2404,27 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             RtQuatMul(qy, mat->quat, out);
             for ( int k = 0; k < 4; ++k )
                 mat->quat[k] = out[k];
+        }
+        if ( b == cur.spineBone && tankPlayer && b > model->numRootBones && R_RuntimeXModel_DvarOn("leon_boblog") )
+        {
+            // tests: the spine's height over the root (the pelvis's offset and turn), and without the bob given back
+            const int pelvis = b - model->parentList[b - model->numRootBones];
+            const DObjAnimMat *pm = &obj->skel.mat[pelvis];
+            const float *pelvisBase = pelvis >= model->numRootBones ? &model->trans[3 * (pelvis - model->numRootBones)] : 0;
+            const float *spineBase = &model->trans[3 * (b - model->numRootBones)];
+            float heights[2];
+            for ( int pass = 0; pass < 2; ++pass )
+            {
+                float v[3];
+                for ( int k = 0; k < 3; ++k )
+                    v[k] = spineBase[k] + mat->trans[k] - (pass ? bobGiven[k] : 0.0f);
+                const float *q = pm->quat;
+                const float t[3] = { 2.0f * (q[1] * v[2] - q[2] * v[1]), 2.0f * (q[2] * v[0] - q[0] * v[2]),
+                                     2.0f * (q[0] * v[1] - q[1] * v[0]) };
+                heights[pass] = (pelvisBase ? pelvisBase[2] : 0.0f) + pm->trans[2] + v[2] + q[3] * t[2] + (q[0] * t[1] - q[1] * t[0]);
+            }
+            Com_Printf(0, "leon_boblog: t %d %s action %d taken %.2f height %.2f without %.2f\n", timeMs,
+                       RtAnimBaseName(s_anims[st.cur]), (int)action, bobTaken, heights[0], heights[1]);
         }
         mat->transWeight = 2.0f;
         obj->skel.partBits.anim[b >> 5] |= 0x80000000 >> (b & 31);
