@@ -40,8 +40,13 @@ CHARACTER_SOUNDS = [
 LEVELS = {'leon_aim.wav': -22.0}
 # From RE4's core bank (BIO4/snd/core.xwb, block 0: SndCall(0, n), the cue index n), read from next to pl00.xwb when
 # it is there: the pickup - taking ammo (game/mes.cpp: the message's "take" choice, attr 0x200: SE 0x11) or a weapon
-# (attr 0x100: SE 0xF), both core.xsb cues playing wave 20
-CORE_SOUNDS = [('leon_pickup.wav', 20)]
+# (attr 0x100: SE 0xF), both core.xsb cues playing wave 20; and an item used from the case, a heal (Sscrn/ss_item.cpp:
+# SE 8, cue 8 playing wave 17), for a perk with no drink (maps/leon/_drink.gsc)
+CORE_SOUNDS = [('leon_pickup.wav', 20), ('leon_heal.wav', 17)]
+# From the Merchant's own bank (BIO4/snd/em10.xwb, the robed Ganado he is: em10/em10.cpp em10_R1_Trade's SndCall(8, n),
+# em10.xsb cue n), for the Mystery Box's teddy bear: "Come back any time." as he closes his coat after the shop (cue
+# 0x9A playing wave 50, 16-bit mono 16 kHz)
+MERCHANT_SOUNDS = [('merchant_comeback.wav', 50)]
 # The Merchant's shop lines, for the Mystery Box (maps/leon/_merchant.gsc), by the weapon's tier: RE4's shop
 # (Sscrn/ss_shop.cpp shop_msg[]: shopStrPlay -> SndStrReq(1, n), the event stream block; on PC bio4evt.xsb cue n, named
 # by the decimal n) plays streams 0xB4..0xC2 = cues 180..194 = bio4evt.xwb waves 5..19 (16-bit stereo 32 kHz); the
@@ -244,8 +249,13 @@ if __name__ == '__main__':
     if os.path.exists(core):
         sounds += [(core, name, index) for name, index in CORE_SOUNDS]
     else:
-        print(f'no {core}: no pickup sound')
-    evt = os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), 'bio4evt.xwb')
+        print(f'no {core}: no pickup or heal sound')
+    merchant = os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), 'em10.xwb')
+    if os.path.exists(merchant):
+        sounds += [(merchant, name, index) for name, index in MERCHANT_SOUNDS]
+    else:
+        print(f"no {merchant}: no Merchant's goodbye")
+    evt =os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), 'bio4evt.xwb')
     if os.path.exists(evt):
         sounds += [(evt, name, index) for name, index in EVT_SOUNDS]
         sounds += [(evt, clip[0], clip) for clip in EVT_CLIPS]
