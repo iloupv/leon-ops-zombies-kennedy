@@ -4,7 +4,8 @@
 // LEON MOD - not part of the original game. RE4's Merchant at the Mystery Box: his shop lines (the runtime sounds
 // merchant_*, from the player's own RE4: tools/leon-converter/leon_sounds.py) to the player who uses it - "What're ya
 // buyin'?" as it opens, a line by the weapon's tier once it shows it (_zombiemode_weapons' chest_origin notifies
-// "randomization_done", its weapon in weapon_string; the teddy bear has none), and "Not enough cash, stranger." on a
+// "randomization_done", its weapon in weapon_string), "Come back any time." for the teddy bear (no weapon_string: the
+// box flies off - RE4's Merchant as he closes his coat after the shop), and "Not enough cash, stranger." on a
 // use he cannot pay for - at the box, the doors and debris, the wall guns, the perk machines and Pack-a-Punch (BO1's
 // own line for it is the characters' voice, silent under Leon; its deny sounds also play for a perk he has or a
 // fourth perk, so the price is checked here instead, as each one's script checks it).
@@ -14,6 +15,7 @@
 //   good     the rest: "A choice of an avid gun collector..." / "A wise choice, mate..." / "Hehehe, thank you!"
 //   leon_merchant 0  off
 //   leon_boxtest 1   test: 5000 points and the player in front of the box (its use: the use key)
+//   leon_boxtest teddy  the same, its next pull the teddy bear
 //   leon_poortest 1  test: the player down to 10 points
 
 init()
@@ -25,7 +27,7 @@ init()
 	for ( i = 0; i < level.chests.size; i++ )
 		level.chests[i] thread leon_merchant_chest();
 	level thread leon_merchant_buyables();
-	if ( getDvar( "leon_boxtest" ) == "1" )
+	if ( getDvar( "leon_boxtest" ) == "1" || getDvar( "leon_boxtest" ) == "teddy" )
 		level thread leon_merchant_boxtest();
 }
 
@@ -43,6 +45,8 @@ leon_merchant_boxtest()
 	spot = groundpos( chest.origin + forward * 50 + ( 0, 0, 20 ) );
 	player setOrigin( spot );
 	player setPlayerAngles( vectorToAngles( chest.origin - spot ) );
+	if ( getDvar( "leon_boxtest" ) == "teddy" )
+		level.chest_accessed = 8; // (_zombiemode_weapons: the eighth pull of a box never moved is the teddy bear)
 	logPrint( "leon: boxtest at the box " + chest.origin + "\n" );
 }
 
@@ -64,9 +68,12 @@ leon_merchant_chest()
 	for ( ;; )
 	{
 		self.chest_origin waittill( "randomization_done" );
-		if ( !isDefined( self.chest_origin.weapon_string ) || !isDefined( self.chest_user ) )
-			continue; // (the teddy bear: the box moves)
-		leon_merchant_say( self.chest_user, "merchant_" + leon_merchant_tier( self.chest_origin.weapon_string ) );
+		// the teddy bear, as it flies off with the box (the box's own think, on the same notify, has let its user go
+		// already: no wait for a grab)
+		if ( !isDefined( self.chest_origin.weapon_string ) )
+			leon_merchant_say( self.chest_user, "merchant_comeback" );
+		else if ( isDefined( self.chest_user ) )
+			leon_merchant_say( self.chest_user, "merchant_" + leon_merchant_tier( self.chest_origin.weapon_string ) );
 	}
 }
 
