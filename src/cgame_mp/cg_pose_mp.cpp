@@ -1646,23 +1646,24 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         }
         R_RuntimeXModel_SetLookYaw(s_look);
     }
-    // RE4's recoil at 70 % (all of it read too big over the shoulder); an automatic's at a third of that (the light
-    // machine guns, the assault rifles, the SMGs: RE4's recoil, made for one shot at a time, restarted shot after shot
-    // and shook him), a burst's at half
+    // RE4's recoil at 85 % (all of it read too big over the shoulder; 70 % too little a kick); an automatic's at a third
+    // of that (the light machine guns, the assault rifles, the SMGs: RE4's recoil, made for one shot at a time,
+    // restarted shot after shot and shook him), a burst's at half
     {
+        static const float recoil = 0.85f;
         const WeaponDef *fireDef = isPlayer && animWeapon ? BG_GetWeaponDef(animWeapon) : 0;
-        float fireWeight = 0.7f;
+        float fireWeight = recoil;
         if ( fireDef && (fireDef->weapClass == WEAPCLASS_MG || fireDef->fireType == WEAPON_FIRETYPE_FULLAUTO
                          || fireDef->fireType == WEAPON_FIRETYPE_MINIGUN) )
-            fireWeight = 0.7f * 0.35f;
+            fireWeight = recoil * 0.35f;
         else if ( fireDef && fireDef->fireType >= WEAPON_FIRETYPE_BURSTFIRE2
                   && fireDef->fireType <= WEAPON_FIRETYPE_BURSTFIRE4 )
-            fireWeight = 0.7f * 0.5f;
+            fireWeight = recoil * 0.5f;
         // the Ray Gun's (the Handcannon's shot, fired full-auto) at a third of an automatic's: RE4's magnum kick threw
-        // the barrel up 38 degrees at every shot, ~12 now
+        // the barrel up 38 degrees at every shot, ~12 at 70 %
         const WeaponVariantDef *fireVariant = isPlayer && animWeapon ? BG_GetWeaponVariantDef(animWeapon) : 0;
         if ( fireVariant && fireVariant->szInternalName && strstr(fireVariant->szInternalName, "ray_gun") )
-            fireWeight = 0.7f * 0.35f / 3.0f;
+            fireWeight = recoil * 0.35f / 3.0f;
         R_RuntimeXModel_SetFireWeight(fireWeight);
         // and its settle back onto the aim 2.3 times as fast as RE4's (it floated back; at twice still a touch soft);
         // an automatic's kick and settle at 3 (RE4's kick never peaked between its shots: a slow push); not where the

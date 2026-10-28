@@ -2828,7 +2828,7 @@ float __cdecl CG_ShoulderCameraAds(const cg_s *cgameGlob)
 // mod: the shoulder camera's yaw. Aimed in, the view (the aim: where the shots go) moves freely up to
 // SHOULDER_AIM_DEADZONE degrees either side of it - Leon's arms and torso turn to it (the aim correction, the body
 // staying with the camera) - and pushing past drags the camera (and his body) along; out of the aim it is the view's.
-static const float SHOULDER_AIM_DEADZONE = 8.0f;
+static const float SHOULDER_AIM_DEADZONE = 12.0f; // (8 moved him at a nudge of the laser)
 static float s_shoulderCameraYaw;
 static bool s_shoulderCameraYawSet;
 
