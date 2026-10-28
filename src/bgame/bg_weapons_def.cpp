@@ -12,6 +12,7 @@
 #include <ui/ui_shared.h>
 #include <game_mp/g_main_mp.h>
 #include "bg_unlockable_items.h"
+#include "bg_misc.h"
 
 unsigned int bg_firstWeaponTableIndex;
 unsigned int bg_lastParsedWeaponIndex;
@@ -284,9 +285,21 @@ int __cdecl BG_GetWeaponIndexForName(const char *name, void (__cdecl *regWeap)(u
     }
 }
 
+// mod (the Leon mod, player_tankControls): the Thundergun aimed in with the right click, as RE4's mine thrower, its
+// pose set (CG_RuntimeXModel_AnimSet) - its def has no aim, so it fired from the hip and its right click did nothing
+// (PM_TankControls). Its aim's values are in the def all the same (both variants: zoom 65, in 400 ms, out 450 ms).
+static void BG_LeonAimableWeapon(WeaponVariantDef *weapVariantDef)
+{
+    if ( player_tankControls && player_tankControls->current.enabled && weapVariantDef->weapDef
+         && strstr(weapVariantDef->szInternalName, "thundergun") )
+        weapVariantDef->weapDef->aimDownSight = true;
+}
+
 int __cdecl BG_SetupWeaponVariantDef(WeaponVariantDef *weapVariantDef, void (__cdecl *regWeap)(unsigned int))
 {
     int weapIndex; // [esp+4h] [ebp-4h]
+
+    BG_LeonAimableWeapon(weapVariantDef);
 
     if ( ++bg_lastParsedWeaponIndex >= 0x800
         && !Assert_MyHandler(
