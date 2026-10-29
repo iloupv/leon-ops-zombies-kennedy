@@ -285,21 +285,36 @@ int __cdecl BG_GetWeaponIndexForName(const char *name, void (__cdecl *regWeap)(u
     }
 }
 
-// mod (the Leon mod, player_tankControls): the Thundergun aimed in with the right click, as RE4's mine thrower, its
-// pose set (CG_RuntimeXModel_AnimSet) - its def has no aim, so it fired from the hip and its right click did nothing
-// (PM_TankControls). Its aim's values are in the def all the same (both variants: zoom 65, in 400 ms, out 450 ms).
-static void BG_LeonAimableWeapon(WeaponVariantDef *weapVariantDef)
+// mod (the Leon mod, player_tankControls): the weapons it changes, as their defs are set up. The Thundergun aimed in
+// with the right click, as RE4's mine thrower, its pose set (CG_RuntimeXModel_AnimSet) - its def has no aim, so it
+// fired from the hip and its right click did nothing (PM_TankControls). Its aim's values are in the def all the same
+// (both variants: zoom 65, in 400 ms, out 450 ms). Mustang & Sally (the M1911 Pack-a-Punched) one pistol, as RE4's
+// handgun: its pair, a dual wield, floated the other gun in his left hand and could not aim; both guns' rounds in its
+// clip (16), and the aim (a pair's def has none: the M1911's times where it has none of its own either)
+static void BG_LeonWeaponChanges(WeaponVariantDef *weapVariantDef)
 {
-    if ( player_tankControls && player_tankControls->current.enabled && weapVariantDef->weapDef
-         && strstr(weapVariantDef->szInternalName, "thundergun") )
-        weapVariantDef->weapDef->aimDownSight = true;
+    WeaponDef *weapDef = weapVariantDef->weapDef;
+    if ( !player_tankControls || !player_tankControls->current.enabled || !weapDef )
+        return;
+    if ( strstr(weapVariantDef->szInternalName, "thundergun") )
+        weapDef->aimDownSight = true;
+    if ( !I_stricmp(weapVariantDef->szInternalName, "m1911_upgraded_zm") )
+    {
+        weapDef->bDualWield = false;
+        weapDef->aimDownSight = true;
+        weapVariantDef->iClipSize = 16;
+        if ( weapVariantDef->iAdsTransInTime <= 0 )
+            weapVariantDef->iAdsTransInTime = 200;
+        if ( weapVariantDef->iAdsTransOutTime <= 0 )
+            weapVariantDef->iAdsTransOutTime = 250;
+    }
 }
 
 int __cdecl BG_SetupWeaponVariantDef(WeaponVariantDef *weapVariantDef, void (__cdecl *regWeap)(unsigned int))
 {
     int weapIndex; // [esp+4h] [ebp-4h]
 
-    BG_LeonAimableWeapon(weapVariantDef);
+    BG_LeonWeaponChanges(weapVariantDef);
 
     if ( ++bg_lastParsedWeaponIndex >= 0x800
         && !Assert_MyHandler(
