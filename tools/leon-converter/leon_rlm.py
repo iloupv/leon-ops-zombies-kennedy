@@ -149,16 +149,17 @@ def tag_quat(axes):
     return quat_from_axes(to_bo1_dir(axes[0]), to_bo1_dir(axes[1]))
 
 
-def skeleton(body, apose, eyelid=True, tags=TAGS):
+def skeleton(body, apose, eyelid=True, tags=TAGS, names=BO1_BONE_NAMES):
     """[(name, parent index, local trans, local quat)]: tag_origin, then RE4 bone id N at index N + 1, then the tags.
-    eyelid False: bone 0x1C is not one (HUNK's is on his knee), so it is not named as the engine's blink finds it."""
+    eyelid False: bone 0x1C is not one (HUNK's is on his knee), so it is not named as the engine's blink finds it.
+    names: the BO1 names by RE4 bone id (a skeleton numbered as RE4's humans: Leon's, a Ganado's); the rest j_re4_NNN."""
     bones = [('tag_origin', -1, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0))]
     for bone_id, parent, _pad, x, y, z in body['bones']:
         quat = (0.0, 0.0, 0.0, 1.0)
         if apose and bone_id in APOSE_BONES:
             half = math.radians(APOSE_BONES[bone_id]) / 2
             quat = (math.sin(half), 0.0, 0.0, math.cos(half))
-        name = BO1_BONE_NAMES.get(bone_id, f'j_re4_{bone_id:03d}')
+        name = names.get(bone_id, f'j_re4_{bone_id:03d}')
         if bone_id == 0x1C and not eyelid:
             name += '_not_eyelid'
         bones.append((name, 0 if parent == 0xFF else parent + 1, to_bo1((x, y, z)), quat))
@@ -193,22 +194,25 @@ def held_matrix(rot):
 
 
 def build(udas, pack_path, out_path, parts=LEON_BO1, apose=False, motions=(), eyelid=True, tags=TAGS, held=(),
-          max_texture=MAX_TEXTURE, root_move=(), scale=1.0):
+          max_texture=MAX_TEXTURE, root_move=(), scale=1.0, names=BO1_BONE_NAMES, max_bone=None):
     """parts: (model entry, TPL entry, role) of pl00.udas, or with a 4th field, the archive .udas of a model from
     another archive (a weapon's gripping hand; its TPL and images stay Leon's). motions: [(name, FCV bytes)].
     held: (model entry, TPL entry, RE4 bone id, position mm, angles radians) - a model RE4 hangs on a part (an enemy's
     weapon, cEmWep::setParentMatCalc: the part's matrix times the angles' and the position's), made rigid on it.
     root_move: the motions whose root travel is baked in (bake_motion). scale: its size against RE4's (its skeleton,
-    vertices and motions' offsets all scaled)."""
+    vertices and motions' offsets all scaled). names: the bones' BO1 names (skeleton). max_bone: the last RE4 bone id
+    kept; the ones past it fold into their kept ancestor."""
     global _scale
     _scale = scale
     try:
-        build_scaled(udas, pack_path, out_path, parts, apose, motions, eyelid, tags, held, max_texture, root_move)
+        build_scaled(udas, pack_path, out_path, parts, apose, motions, eyelid, tags, held, max_texture, root_move, names,
+                     max_bone)
     finally:
         _scale = 1.0
 
 
-def build_scaled(udas, pack_path, out_path, parts, apose, motions, eyelid, tags, held, max_texture, root_move):
+def build_scaled(udas, pack_path, out_path, parts, apose, motions, eyelid, tags, held, max_texture, root_move, names,
+                 max_bone):
     ent = {i: data for i, _t, data in entries(open(udas, 'rb').read())}
     packs = {}
     for path in pack_path.split(';'):
@@ -227,10 +231,16 @@ def build_scaled(udas, pack_path, out_path, parts, apose, motions, eyelid, tags,
         pack_id, image_id = refs[k]
         return packs.get(pack_id, {}).get(image_id)
     body = read_bin(ent[parts[0][0]])
-    bones = skeleton(body, apose, eyelid, tags)
-    body_ids = {bone[0] for bone in body['bones']}
+    # the bones past max_bone (ones no motion keys: cloth, claws - stiff on their parents) folded into their kept
+    # ancestor, their vertices with them: the engine's DObj holds 160 bones at most (DOBJ_MAX_PARTS)
+    parent_of = {bone[0]: bone[1] for bone in body['bones']}
+    kept = dict(body, bones=[bone for bone in body['bones'] if max_bone is None or bone[0] <= max_bone])
+    bones = skeleton(kept, apose, eyelid, tags, names)
+    body_ids = {bone[0] for bone in kept['bones']}
 
     def bone_of(re4_id):
+        while re4_id not in body_ids and parent_of.get(re4_id, 0xFF) != 0xFF:
+            re4_id = parent_of[re4_id]
         return re4_id + 1 if re4_id in body_ids else 0
 
     textures, tex_index, surfaces = [], {}, []
@@ -339,7 +349,7 @@ def build_scaled(udas, pack_path, out_path, parts, apose, motions, eyelid, tags,
                 return 0, None
             return (m[2][0], m[2][1]) if isinstance(m[2], tuple) else (0, m[2])
         anims = [bake_motion(model, m[1], rest, m[0], first_frame=frames_of(m)[0], max_frames=frames_of(m)[1],
-                             tags=tags, root_move=m[0] in root_move)
+                             tags=tags, root_move=m[0] in root_move, part_count=len(kept['bones']))
                  for m in motions]
         out += anim_section(anims)
         print('baked', ', '.join(f'{n} ({len(fr)} frames, {sp:.0f} in/s)' for n, _f, sp, fr in anims))
@@ -524,6 +534,17 @@ ENEMIES = {
                  'tags': [('tag_saw_engine', 10, (-92.0, -45.0, -31.0), None),
                           ('tag_saw_blade', 10, (-700.0, -100.0, 0.0), None)],
                  'root_move': {'death'}, 'max_texture': 1024, 'scale': 1.25},
+    # Verdugo, the castle's insect boss (em2c/em2c.cpp: cEmMgr's "INSECT BOSS", id 0x2C): his body, BIN 0x005 / TPL
+    # 0x006, carries his tail (parts 0x39..0x4C; BIN 0x086 is the tail alone, for its hiding in the water); his skeleton
+    # is no human's, so no bone takes a BO1 name, and of his 201 bones those past 90 (his cloth and claws: no motion
+    # keys them) fold into their parents. His motions: the idle (Wait 0x007), walk (Walk 0x008) and the dash
+    # (Dash 0x00A), the claw slash (Atk 0x015, its hit frames 16 to 25), the tail sweep (TailAtk 0x01B: its dodge
+    # window, RE4's action button, frames 5 to 30, its hit frames 44 to 78), the roar he taunts with (Threat 0x044),
+    # the flinch (Dm_Normal 0x01D) and the standing death (Die_Normal 0x090, its fall forward baked in).
+    'verdugo': {'parts': [(0x001, 0x002, 'body')], 'held': [], 'names': {}, 'max_bone': 90,
+                'motions': [('idle', 0x003), ('walk', 0x004), ('run', 0x006), ('claw', 0x011), ('tail', 0x017),
+                            ('taunt', 0x040), ('stagger', 0x019), ('death', 0x08C)],
+                'root_move': {'death'}, 'max_texture': 1024},
 }
 
 
@@ -532,9 +553,11 @@ def quat_to_bo1(q):
     return (z, x, y, w)
 
 
-def bake_motion(model, motion_bytes, rest, name, fps=30.0, max_frames=None, first_frame=0, tags=TAGS, root_move=False):
+def bake_motion(model, motion_bytes, rest, name, fps=30.0, max_frames=None, first_frame=0, tags=TAGS, root_move=False,
+                part_count=None):
     """root_move: the root keys' travel (RE4 moves the whole model by them) baked into the root part's offset - a
-    motion that leaves the entity where it is (an enemy's fall, played where he dropped)."""
+    motion that leaves the entity where it is (an enemy's fall, played where he dropped). part_count: the parts the
+    model keeps (the first ones: build's max_bone), all of them evaluated."""
     import re4_motion
     p = re4_motion.player(model, motion_bytes, loop=True)
     frames = int(p.lib.mot_model_max_frame(p.handle))
@@ -549,7 +572,7 @@ def bake_motion(model, motion_bytes, rest, name, fps=30.0, max_frames=None, firs
             # RE4's up axis Y is BO1's Z (to_bo1 cycles the axes, so the turn's sense is kept)
             yaw = pose.root_rot[1]
             bones[0] = ((0.0, 0.0, math.sin(yaw * 0.5), math.cos(yaw * 0.5)), (0.0, 0.0, 0.0))
-        for i in range(model.n_parts):
+        for i in range(part_count or model.n_parts):
             m = pose.l_mat[i]
             # (the root rotation keys are not in the root part's matrix - RE4 applies them on top, as the engine turns
             # the player here; taking them out of it, R^T m, turned him back against the view through the whole turn)
@@ -581,8 +604,9 @@ def build_enemy(udas, pack_path, out_path, name):
     spec = ENEMIES[name]
     arc = {i: data for i, _t, data in entries(open(udas, 'rb').read())}
     build(udas, pack_path, out_path, parts=spec['parts'], motions=[(m, arc[entry]) for m, entry in spec['motions']],
-          eyelid=False, tags=spec['tags'], held=spec['held'], max_texture=spec['max_texture'], root_move=spec['root_move'],
-          scale=spec['scale'])
+          eyelid=False, tags=spec.get('tags', ()), held=spec['held'], max_texture=spec['max_texture'],
+          root_move=spec['root_move'], scale=spec.get('scale', 1.0), names=spec.get('names', BO1_BONE_NAMES),
+          max_bone=spec.get('max_bone'))
 
 
 if __name__ == '__main__':

@@ -9,8 +9,9 @@ own Black Ops. Nothing of either game is shipped; both installs are only read.
   2. converts him (leon_rlm.py --armed: model, textures, RE4's motions baked with the game's own motion code)
      into <out>/mods/leon/rtmodels/leon.rlm, and Ada, HUNK and Luis (pl0c, pl06, pl14: --character) into ada.rlm,
      hunk.rlm and luis.rlm (any that fails is left out; Leon still plays)
-  3. converts the enemies (ENEMIES, leon_rlm.py --enemy: Super Salvador from em20 and its texture pack 00000020) into
-     salvador.rlm (one that fails is left out: the dog rounds go without him)
+  3. converts the enemies (ENEMIES, leon_rlm.py --enemy: Super Salvador from em20 and its texture pack 00000020,
+     Verdugo from em2c and 0000002c) into salvador.rlm and verdugo.rlm (one that fails is left out: the dog rounds go
+     without Salvador, Five's special round keeps its thief)
   4. writes his voice (leon_sounds.py: BIO4/snd/pl00.xwb, core.xwb, ...) into <out>/mods/leon/sound/rt
   5. extracts d3dx9_43.dll and xinput1_3.dll from Black Ops' Redist/DirectX next to the game's exe
   6. writes <out>/mods/leon/rtmodels/leon_ready_v<SETUP_VERSION>.txt (what Melty and the launcher wait for: a new
@@ -31,14 +32,14 @@ import time
 # 2: the guns 20 mm further out in his hand, the shotgun's close with its whole pump; 3: Leon's "Bingo?"; 4: the gun's
 # raise to aim (leon_aim); 5: Ada, HUNK and Luis (CHARACTERS), "Hasta luego!" and "Hey, it's that dog."; 8: the perk's
 # heal sound (leon_heal) and the Merchant's "Come back any time." (merchant_comeback); 9: Super Salvador (ENEMIES) and
-# his sounds (salvador_*)
-SETUP_VERSION = '9'
+# his sounds (salvador_*); 10: Verdugo (verdugo_*)
+SETUP_VERSION = '10'
 # the versions whose characters are this one's: from them only the enemies and the sounds are built (seconds)
-CHARACTERS_KEPT_FROM = ('7', '8')
+CHARACTERS_KEPT_FROM = ('7', '8', '9')
 # the other playable characters: (name, their archive, their texture pack) - leon_rlm.py --character
 CHARACTERS = [('ada', 'pl0c', '0100000c'), ('hunk', 'pl06', '01000006'), ('luis', 'pl14', '01000014')]
 # the enemies: (name, their archive, their texture pack) - leon_rlm.py --enemy
-ENEMIES = [('salvador', 'em20', '00000020')]
+ENEMIES = [('salvador', 'em20', '00000020'), ('verdugo', 'em2c', '0000002c')]
 ARCHIVES = (['pl00', 'em10'] + [f'wep{n:02d}' for n in (0, 1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19)]
             + [archive for _name, archive, _pack in CHARACTERS])
 REQUIRED = {'pl00', 'wep01'}

@@ -8,7 +8,7 @@ aim: leon_aim.wav.
 usage: python -I leon_sounds.py <pl00.xwb> <out dir>   (writes leon_pain_1..3.wav, leon_death.wav, the kick's; with
 core.xwb next to pl00.xwb also leon_pickup.wav, with bio4evt.xwb the Merchant's lines: merchant_*.wav, and Leon's
 "Bingo?": leon_bingo.wav, "Hasta luego!": leon_hasta_luego.wav and "Hey, it's that dog.": leon_that_dog.wav; with em10.xwb
-and em1d.xwb Super Salvador's voice and chainsaw: salvador_*.wav)"""
+and em1d.xwb Super Salvador's voice and chainsaw: salvador_*.wav; with em2c.xwb Verdugo's: verdugo_*.wav)"""
 import array
 import math
 import mmap
@@ -57,6 +57,17 @@ MERCHANT_SOUNDS = [('merchant_comeback.wav', 50)]
 SALVADOR_SOUNDS = [
     ('em1d.xwb', [('salvador_spawn.wav', 50), ('salvador_laugh.wav', 47)]),
     ('em10.xwb', [('salvador_pain.wav', 111), ('salvador_death.wav', 116)]),
+]
+# Verdugo in Five's special round (maps/leon/_verdugo.gsc), from his own bank (em2c.xwb, SndCall(8, n) in
+# em2c/em2c.cpp = em2c.xsb cue n): his roar (Threat: cue 0x45, wave 8), his scream as he comes (Ambush: cue 0x40,
+# wave 0), the slash's swish (the claw's and the tail's motion sequences: cue 0x26, wave 2), the tail's rattle through
+# its sweep (cue 0x3A, wave 34), his growls as he winds up (AtkSign's sequence: cues 0x3D / 0x3E, waves 30 / 31), his
+# hurt cries (em2cDmCk: cues 9 / 6, waves 5 / 13), a hit landing (em2cAtkCk: cue 0xD, wave 24) and his death scream
+# (Die_Normal's sequence, its first: cue 0x44, wave 32)
+VERDUGO_SOUNDS = [
+    ('em2c.xwb', [('verdugo_roar.wav', 8), ('verdugo_scream.wav', 0), ('verdugo_swish.wav', 2), ('verdugo_tail.wav', 34),
+                  ('verdugo_growl_1.wav', 30), ('verdugo_growl_2.wav', 31), ('verdugo_pain_1.wav', 5),
+                  ('verdugo_pain_2.wav', 13), ('verdugo_hit.wav', 24), ('verdugo_death.wav', 32)]),
 ]
 # The Merchant's shop lines, for the Mystery Box (maps/leon/_merchant.gsc), by the weapon's tier: RE4's shop
 # (Sscrn/ss_shop.cpp shop_msg[]: shopStrPlay -> SndStrReq(1, n), the event stream block; on PC bio4evt.xsb cue n, named
@@ -266,12 +277,12 @@ if __name__ == '__main__':
         sounds += [(merchant, name, index) for name, index in MERCHANT_SOUNDS]
     else:
         print(f"no {merchant}: no Merchant's goodbye")
-    for bank, bank_sounds in SALVADOR_SOUNDS:
+    for bank, bank_sounds in SALVADOR_SOUNDS + VERDUGO_SOUNDS:
         path = os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), bank)
         if os.path.exists(path):
             sounds += [(path, name, index) for name, index in bank_sounds]
         else:
-            print(f'no {path}: Super Salvador without {", ".join(n for n, _i in bank_sounds)}')
+            print(f'no {path}: no {", ".join(n for n, _i in bank_sounds)}')
     evt =os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), 'bio4evt.xwb')
     if os.path.exists(evt):
         sounds += [(evt, name, index) for name, index in EVT_SOUNDS]
@@ -297,7 +308,7 @@ if __name__ == '__main__':
             frames = array.array('h', bytes(pcm))
             pcm = array.array('h', [(frames[i] + frames[i + 1]) // 2 for i in range(0, len(frames) - 1, 2)]).tobytes()
             channels = 1
-        if name.startswith('merchant_') or name.startswith('salvador_'):
+        if name.startswith(('merchant_', 'salvador_', 'verdugo_')):
             pcm = loud(pcm)
         elif name in LEVELS:
             pcm = loud(pcm, LEVELS[name])
