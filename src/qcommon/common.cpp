@@ -3774,6 +3774,7 @@ unsigned int Com_Frame_Try_Block_Function()
 
     PROF_SCOPED("Com_Frame");
 
+    Sys_FrameBeat(); // mod: a player's freeze evidence (Sys_HangWatchThread)
     Com_WriteConfiguration(0);
     Com_MeltyTestFrame(); // mod: the Leon mod's Melty test mode
     Com_PendingConnectFrame(); // mod: a command-line +connect, once the front end is up

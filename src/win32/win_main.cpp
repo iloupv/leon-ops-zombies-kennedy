@@ -212,7 +212,10 @@ static void __declspec(noinline) Sys_HeadlessThreadLogReset()
 }
 
 // headless thread dumps go to their own file: appending to console_mp.log while the process lives would be
-// overwritten by the engine's next writes (its CRT FILE keeps its own position)
+// overwritten by the engine's next writes (its CRT FILE keeps its own position); a player's freeze dumps
+// (Sys_HangWatchThread) to bo1_emergency.log, which Melty sends with its report
+static const char *s_threadLogName = "bo1_threads.log";
+
 static void Sys_HeadlessThreadLog(const char *fmt, ...)
 {
     char msg[4096];
@@ -224,7 +227,7 @@ static void Sys_HeadlessThreadLog(const char *fmt, ...)
     // (next to the exe, as bo1_emergency.log: the working folder of a package install is the player's Black Ops folder,
     // never to be written)
     char threadsPath[MAX_PATH + 32];
-    Sys_EmergencyPath("bo1_threads.log", threadsPath, sizeof(threadsPath));
+    Sys_EmergencyPath(s_threadLogName, threadsPath, sizeof(threadsPath));
     HANDLE f = CreateFileA(threadsPath, FILE_APPEND_DATA, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
     if (f != INVALID_HANDLE_VALUE)
     {
@@ -528,6 +531,44 @@ static DWORD __stdcall Sys_HeadlessThreadDumpThread(void *)
     Sleep(10000);
     Sys_HeadlessDumpThreads(2);
     return 0;
+}
+
+// mod: a player's freeze evidence. Melty's freeze reports carried the console log alone, written asynchronously
+// (logfile 1): where the game stopped never reached the file. While the main thread's frames (Sys_FrameBeat: each
+// Com_Frame, a load's Sys_LoadingKeepAlive) stop for 20 s, this writes every thread's stack (Sys_HeadlessDumpThreads)
+// to main\bo1_emergency.log - again 20 s later (which threads still moved), then not until the frames go on. Off
+// headless and on a dedicated server; '+set bo1_hangwatch <ms>' (command line) runs it with that wait (tests).
+static volatile LONG s_frameBeat;
+static unsigned int s_hangWatchMs;
+
+void __cdecl Sys_FrameBeat()
+{
+    InterlockedIncrement(&s_frameBeat);
+}
+
+static DWORD __stdcall Sys_HangWatchThread(void *)
+{
+    LONG seen = s_frameBeat;
+    DWORD since = GetTickCount();
+    int dumps = 0;
+    for (;;)
+    {
+        Sleep(500);
+        const LONG beat = s_frameBeat;
+        if (beat != seen)
+        {
+            seen = beat;
+            since = GetTickCount();
+            dumps = 0;
+            continue;
+        }
+        const DWORD stuck = GetTickCount() - since;
+        if (dumps >= 2 || stuck < s_hangWatchMs * (unsigned int)(dumps + 1))
+            continue;
+        ++dumps;
+        Sys_HeadlessThreadLog("BO1 HANG: no frame for %u ms (dump %d)\n", (unsigned int)stuck, dumps);
+        Sys_HeadlessDumpThreads(dumps);
+    }
 }
 
 // k1: headless client hitch evidence - '+set bo1_hitchwatch <ms>' (command line, headless only): while the main
@@ -1589,6 +1630,7 @@ void __cdecl Sys_LoadingKeepAlive()
     sysEvent_t v1; // [esp+18h] [ebp-30h]
     sysEvent_t ev; // [esp+30h] [ebp-18h]
 
+    Sys_FrameBeat(); // mod: a load going on is no freeze (Sys_HangWatchThread)
     Monkey_KeepAlive();
     do
     {
@@ -2318,6 +2360,15 @@ int __stdcall WinMain(HINSTANCE__ *hInstance, HINSTANCE__ *hPrevInstance, char *
     {
         Sys_HeadlessThreadLogReset();
         CloseHandle(CreateThread(NULL, 0, Sys_HitchWatchThread, NULL, 0, NULL));
+    }
+    // mod: a player's freeze evidence (Sys_HangWatchThread), into bo1_emergency.log (cleared above)
+    s_hangWatchMs = (unsigned int)Sys_CmdlineIntValue(lpCmdLine, "bo1_hangwatch");
+    if ( !s_hangWatchMs && !s_headless && !StartingDedicatedServer(lpCmdLine) )
+        s_hangWatchMs = 20000;
+    if ( s_hangWatchMs && !s_threadDumpMs && !s_hitchWatchMs )
+    {
+        s_threadLogName = "bo1_emergency.log";
+        CloseHandle(CreateThread(NULL, 0, Sys_HangWatchThread, NULL, 0, NULL));
     }
     Sys_InitializeCriticalSections();
     Sys_InitMainThread();
