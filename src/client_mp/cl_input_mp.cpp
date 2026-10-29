@@ -824,6 +824,15 @@ int __cdecl CL_LeonMoveIntent()
     return cl_leonMoveIntent;
 }
 
+// mod (the Leon mod, player_tankControls): whether his turn keys turn him - left / right with the aim key up (held, they
+// step him sideways: PM_TankControls) - for RE4's turn in place under the aim's lowering (CG_RuntimeXModel_Pose)
+static bool cl_leonTurnIntent;
+
+bool __cdecl CL_LeonTurnIntent()
+{
+    return cl_leonTurnIntent;
+}
+
 static void CL_LeonQuickTurn(int localClientNum, usercmd_s *cmd)
 {
     // the run key pressed going back (RE4's back + run: CL_LeonRun) - only that: back tapped twice also fired from a
@@ -969,6 +978,7 @@ usercmd_s *__cdecl CL_CreateCmd(usercmd_s *result, int localClientNum)
     CL_LeonQuickTurn(localClientNum, &cmd); // mod
     CL_LeonSway(localClientNum, &cmd); // mod
     cl_leonMoveIntent = cmd.forwardmove > 0 ? 1 : (cmd.forwardmove < 0 ? -1 : 0); // mod
+    cl_leonTurnIntent = cmd.rightmove != 0 && !cmd.button_bits.testBit(0xBu); // mod
     memcpy(result, &cmd, sizeof(usercmd_s));
     return result;
 }

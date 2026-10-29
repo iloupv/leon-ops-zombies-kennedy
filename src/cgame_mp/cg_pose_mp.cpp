@@ -1802,10 +1802,16 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             s_quickTurnTime = cgameGlob->time;
         if ( aimFrac >= 0.01f || cgameGlob->time < s_aimedTime )
             s_aimedTime = cgameGlob->time;
-        R_RuntimeXModel_SetPlayerMotion(aimFrac > 0.5f, aimFrac < 0.01f && action != RT_ACTION_TURN
-                                                            && action != RT_ACTION_DEATH
-                                                            && cgameGlob->time - s_quickTurnTime > 350
-                                                            && cgameGlob->time - s_aimedTime > 400,
+        // the aim let go, its lowering is no aim: he turns and walks out of it at once (PM_TankControls) - his legs
+        // follow no strafe (the aim key up: PMF_SIGHT_AIMING, 0x10, off), and his turn keys turning him step him round
+        // in RE4's turn in place under the aim easing out (turned standing with the stance's legs, he slid round on
+        // them); with no turn key held the lowering keeps its 0.4 s
+        const bool aimHeld = (cgameGlob->predictedPlayerState.pm_flags & 0x10) != 0;
+        const bool settled = aimFrac < 0.01f && cgameGlob->time - s_aimedTime > 400;
+        R_RuntimeXModel_SetPlayerMotion(aimFrac > 0.5f && aimHeld, (settled || (!aimHeld && CL_LeonTurnIntent()))
+                                                                       && action != RT_ACTION_TURN
+                                                                       && action != RT_ACTION_DEATH
+                                                                       && cgameGlob->time - s_quickTurnTime > 350,
                                         CL_LeonMoveIntent());
     }
     // a player's run (bg_leon.h LEON_EF2_RUNNING): the view's player's from his predicted state, another's from his entity

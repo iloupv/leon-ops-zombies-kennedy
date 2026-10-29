@@ -1698,7 +1698,12 @@ static void PM_TankControls(pmove_t *pm, float frametime)
     // not be aimed in, so it never fired. Its right click is no aim either: he still turns and runs.
     const WeaponDef *tankWeapDef = ps->weapon ? BG_GetWeaponDef(ps->weapon) : 0;
     const bool canAim = !tankWeapDef || tankWeapDef->aimDownSight;
-    const bool aiming = canAim && (cmd->button_bits.testBit(0xBu) || ps->fWeaponPosFrac > 0.0f);
+    // aiming: the aim key held (raising the aim, or aimed in). Not the aim's lowering once it is let go (the weapon's
+    // ADS out time: 0.25 s a pistol, 0.45 s the Thundergun): he turns, walks at his pace and runs again at once - held
+    // as aimed until the ADS fraction reached 0, his turn keys stepped him sideways and the run waited for it, as if
+    // the aim's going were an animation he could not move out of (the pose eases the aim out over his motion:
+    // CG_RuntimeXModel_Pose)
+    const bool aiming = canAim && cmd->button_bits.testBit(0xBu);
     if ( canAim && (!cmd->button_bits.testBit(0xBu) || ps->fWeaponPosFrac < 0.98f) )
         cmd->button_bits.resetBit(0);
     // no reload (bits 4: reload, 5: use / reload) while the mod's kick (maps\leon\_kick.gsc) is offered or plays: F (use)

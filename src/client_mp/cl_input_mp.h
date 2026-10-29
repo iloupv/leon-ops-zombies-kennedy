@@ -99,6 +99,7 @@ void __cdecl CL_CreateNewCommands(int localClientNum);
 usercmd_s *__cdecl CL_CreateCmd(usercmd_s *result, int localClientNum);
 float __cdecl CL_LeonQuickTurnTime(); // mod: seconds into the quick turn, -1 when not turning
 int __cdecl CL_LeonMoveIntent(); // mod: the player's move keys: 1 forward, -1 back, 0 neither
+bool __cdecl CL_LeonTurnIntent(); // mod: the player's turn keys turn him (left / right, the aim key up)
 void __cdecl CL_LeonPressSwitchSeat(int localClientNum); // mod: the change-seat button pressed for one command
 float __cdecl CL_LeonQuickTurnCameraLag(); // mod: degrees the shoulder camera trails the view through the quick turn
 float __cdecl CL_LeonCameraOrbit(); // mod: degrees the shoulder camera orbits round Leon standing still (to look him over)
