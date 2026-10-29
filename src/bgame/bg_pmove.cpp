@@ -1670,11 +1670,23 @@ void __cdecl Pmove_1(pmove_t *pm)
         ps->commandTime = finalTime - 1000;
     pm->numtouch = 0;
     pm->numGlassTouch = 0;
+    // mod (the Leon mod, player_tankControls): each slice of a long command (over 66 ms: a frame's hitch) moves on the
+    // command as it came - PM_TankControls takes the run key out of it (BO1's sprint stays off), turns a turn key into
+    // his turn and scales the move: the second slice ran on what the first had left, his run dropped for that command
+    // (LEON_EF2_RUNNING off - his cycle flicked to the walk and crossfaded back, at every hitch) and his turn stopped
+    const bool tankSlices = player_tankControls && player_tankControls->current.enabled;
+    const usercmd_s cmdAsCame = pm->cmd;
     while ( ps->commandTime != finalTime )
     {
         msec = finalTime - ps->commandTime;
         if ( msec > 66 )
             msec = 66;
+        if ( tankSlices )
+        {
+            pm->cmd.button_bits = cmdAsCame.button_bits;
+            pm->cmd.forwardmove = cmdAsCame.forwardmove;
+            pm->cmd.rightmove = cmdAsCame.rightmove;
+        }
         pm->cmd.serverTime = msec + ps->commandTime;
         PmoveSingle(pm);
         memcpy(&pm->oldcmd, &pm->cmd, sizeof(pm->oldcmd));
