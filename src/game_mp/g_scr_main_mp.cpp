@@ -16829,6 +16829,50 @@ static void __cdecl GScr_LeonSetKickFlags(scr_entref_t entref)
         flags |= LEON_EF2_KICK_READY;
 }
 
+// mod (the Leon mod): the actor each runtime model takes the hits for (GScr_LeonPassDamage), by the model's entity
+// number: the actor's number + 1, and the model's model index (a number freed and taken by another entity is not it)
+static unsigned short s_leonPassDamage[MAX_GENTITIES_SV][2];
+
+// mod (the Leon mod): <model> leonpassdamage( <actor>, <height> ) - a runtime model shown in place of a hidden actor
+// (maps\leon\_salvador.gsc's, larger than the actor) takes the bullets and the knives that reach it - an upright body
+// that tall (sv_world.cpp SV_LeonTraceBody: svFlags 2 marks it), the location by where on it - and each lands on the
+// actor with that location (G_LeonDamageTarget): the actor's head shot is the model's head. The model is solid to
+// nothing else (contents 0x4000, SP's shootable corpses'), the actor to players alone (0x10000): its own body takes no
+// hits of its own
+static void __cdecl GScr_LeonPassDamage(scr_entref_t entref)
+{
+    gentity_s *ent = GetEntity(entref);
+    gentity_s *target = Scr_GetEntity(0);
+    const float height = Scr_GetFloat(1, SCRIPTINSTANCE_SERVER);
+    if ( ent->s.eType != ET_SCRIPTMOVER || !target || !target->actor || height <= 0.0f )
+    {
+        Scr_Error(SCRIPTINSTANCE_SERVER, "leonpassdamage: a script model, for an actor, of a height", 0);
+        return;
+    }
+    ent->r.contents = 0x4000;
+    ent->r.svFlags |= 2;
+    // (its body: as wide as a man's for its height, from the floor)
+    ent->r.mins[0] = ent->r.mins[1] = -0.19f * height;
+    ent->r.mins[2] = 0.0f;
+    ent->r.maxs[0] = ent->r.maxs[1] = 0.19f * height;
+    ent->r.maxs[2] = height;
+    SV_LinkEntity(ent);
+    target->r.contents = 0x10000;
+    s_leonPassDamage[ent->s.number][0] = (unsigned short)(target->s.number + 1);
+    s_leonPassDamage[ent->s.number][1] = (unsigned short)ent->model;
+}
+
+gentity_s *__cdecl G_LeonDamageTarget(gentity_s *ent)
+{
+    if ( !ent || ent->s.number >= MAX_GENTITIES_SV )
+        return ent;
+    const unsigned short *pass = s_leonPassDamage[ent->s.number];
+    if ( !pass[0] || pass[1] != (unsigned short)ent->model || ent->r.contents != 0x4000 )
+        return ent;
+    gentity_s *target = &g_entities[pass[0] - 1];
+    return target->r.inuse && target->actor ? target : ent;
+}
+
 // mod (the Leon mod): <player> leonsethandy( on ) - HUNK's handling (bg_leon.h LEON_POF_HANDY)
 static void __cdecl GScr_LeonSetHandy(scr_entref_t entref)
 {
@@ -17459,6 +17503,7 @@ BuiltinMethodDef methods_3[] =
   { "clearclientflag", GScr_ClearClientFlag, 0 },
   { "leonsetkickflags", GScr_LeonSetKickFlags, 0 }, // mod (the Leon mod)
   { "leonsethandy", GScr_LeonSetHandy, 0 }, // mod (the Leon mod)
+  { "leonpassdamage", GScr_LeonPassDamage, 0 }, // mod (the Leon mod)
   { "fakefire", GScr_FakeFire, 0 },
   { "makeusable", ScrCmd_MakeUsable, 0 },
   { "makeunusable", ScrCmd_MakeUnusable, 0 },

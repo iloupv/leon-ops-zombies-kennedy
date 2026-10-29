@@ -16,6 +16,7 @@
 #include <game_mp/g_main_mp.h>
 #include <glass/glass_server.h>
 #include <DynEntity/DynEntity_server.h>
+#include <clientscript/cscr_stringlist.h>
 
 unsigned int __cdecl SV_ClipHandleForEntity(const gentity_s *ent)
 {
@@ -452,6 +453,82 @@ void __cdecl SV_TraceCapsuleToEntity(const moveclip_t *clip, svEntity_s *check, 
     }
 }
 
+// mod (the Leon mod): a runtime model taking an actor's hits (game_mp/g_scr_main_mp.cpp GScr_LeonPassDamage) is hit as
+// an upright box, its r.mins / r.maxs in its own frame, by bullets and knives alone (locational traces): its server DObj
+// plays none of its motions - it stands in its bind pose, arms out - so the hit's location goes by the height the shot
+// meets the box at, a man's proportions, and its side by where across. Flesh, as an actor's.
+static void SV_LeonTraceBody(const pointtrace_t *clip, gentity_s *touch, trace_t *trace)
+{
+    float axis[4][3];
+    AnglesToAxis(touch->r.currentAngles, axis);
+    for ( int k = 0; k < 3; ++k )
+        axis[3][k] = touch->r.currentOrigin[k];
+    float start[3], end[3];
+    MatrixTransposeTransformVector43(clip->extents.start.vec.v, axis, start);
+    MatrixTransposeTransformVector43(clip->extents.end.vec.v, axis, end);
+    float enter = 0.0f, leave = 1.0f, normal[3] = { 0.0f, 0.0f, 0.0f };
+    int face = -1;
+    for ( int k = 0; k < 3; ++k )
+    {
+        const float d = end[k] - start[k];
+        if ( fabsf(d) < 1e-6f )
+        {
+            if ( start[k] < touch->r.mins[k] || start[k] > touch->r.maxs[k] )
+                return;
+            continue;
+        }
+        float t0 = (touch->r.mins[k] - start[k]) / d, t1 = (touch->r.maxs[k] - start[k]) / d;
+        if ( t0 > t1 )
+        {
+            const float t = t0;
+            t0 = t1;
+            t1 = t;
+        }
+        if ( t0 > enter )
+        {
+            enter = t0;
+            face = k;
+        }
+        if ( t1 < leave )
+            leave = t1;
+        if ( enter > leave )
+            return;
+    }
+    if ( face < 0 || enter >= trace->fraction ) // (a trace from inside it does not meet it)
+        return;
+    normal[face] = end[face] > start[face] ? -1.0f : 1.0f;
+    const float height = touch->r.maxs[2] - touch->r.mins[2];
+    const float h = (start[2] + (end[2] - start[2]) * enter - touch->r.mins[2]) / (height > 0.0f ? height : 1.0f);
+    const bool right = start[1] + (end[1] - start[1]) * enter < 0.0f; // (its +Y its left)
+    hitLocation_t loc;
+    const char *part;
+    if ( h >= 0.86f )
+        loc = HITLOC_HEAD, part = "j_head";
+    else if ( h >= 0.80f )
+        loc = HITLOC_NECK, part = "j_neck";
+    else if ( h >= 0.58f )
+        loc = HITLOC_TORSO_UPR, part = "j_spine4";
+    else if ( h >= 0.46f )
+        loc = HITLOC_TORSO_LWR, part = "j_spinelower";
+    else if ( h >= 0.27f )
+        loc = right ? HITLOC_R_LEG_UPR : HITLOC_L_LEG_UPR, part = right ? "j_hip_ri" : "j_hip_le";
+    else if ( h >= 0.06f )
+        loc = right ? HITLOC_R_LEG_LWR : HITLOC_L_LEG_LWR, part = right ? "j_knee_ri" : "j_knee_le";
+    else
+        loc = right ? HITLOC_R_FOOT : HITLOC_L_FOOT, part = right ? "j_ankle_ri" : "j_ankle_le";
+    trace->fraction = enter;
+    trace->sflags = 0x700000; // (flesh: Bullet_Trace's for an actor)
+    trace->modelIndex = 0;
+    trace->partName = SL_FindString(part, SCRIPTINSTANCE_SERVER);
+    trace->boneIndex = 0;
+    trace->partGroup = loc;
+    MatrixTransformVector(normal, axis, trace->normal.vec.v);
+    trace->walkable = 0;
+    trace->hitType = TRACE_HITTYPE_ENTITY;
+    trace->hitId = (unsigned short)touch->s.number;
+    trace->cflags = touch->r.contents;
+}
+
 void __cdecl SV_TracePointToEntity(const pointtrace_t *clip, svEntity_s *check, trace_t *trace)
 {
     const char *v3; // eax
@@ -490,6 +567,12 @@ void __cdecl SV_TracePointToEntity(const pointtrace_t *clip, svEntity_s *check, 
             || clip->ignoreEntParams->ignoreChildren
             && touch->r.ownerNum.entnum() == clip->ignoreEntParams->baseEntity)))
     {
+        return;
+    }
+    if ( touch->s.eType == ET_SCRIPTMOVER && (touch->r.svFlags & 2) )
+    {
+        if ( clip->bLocational )
+            SV_LeonTraceBody(clip, touch, trace); // mod (the Leon mod)
         return;
     }
     obj = SV_LocationalTraceDObj(clip, touch);

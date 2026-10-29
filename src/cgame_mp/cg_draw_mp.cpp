@@ -392,7 +392,7 @@ bool __cdecl CG_AreAllPlayerNamesVisible()
 
 // mod (the Leon mod): RE4's action prompt for the kick, while the mod's script (zombie_theater_ffotd.gsc) has a
 // staggered zombie in reach in front of the player (bg_leon.h: the script's flag on his player state); the use key (F)
-// then kicks
+// then kicks - or dodges, through Verdugo's tail attack (maps\leon\_verdugo.gsc)
 static void CG_DrawLeonKickPrompt(int localClientNum)
 {
     if ( !BG_LeonKickOffered(CG_GetLocalClientGlobals(localClientNum)->predictedPlayerState.eFlags2) )
@@ -403,7 +403,11 @@ static void CG_DrawLeonKickPrompt(int localClientNum)
     char key[256];
     if ( !UI_GetKeyBindingLocalizedString(localClientNum, "+activate", key, 0) )
         I_strncpyz(key, "F", sizeof(key));
-    const char *text = va("Press ^3[%s]^7 to KICK", key); // the key in yellow, as BO1's use hints
+    // what the key does now (leon_promptverb, from maps\leon\_kick.gsc): KICK, or DODGE through a dodge's window
+    const dvar_s *verbDvar = Dvar_FindVar("leon_promptverb");
+    const char *verb = verbDvar && verbDvar->type == DVAR_TYPE_STRING && verbDvar->current.string
+                               && verbDvar->current.string[0] ? verbDvar->current.string : "KICK";
+    const char *text = va("Press ^3[%s]^7 to %s", key, verb); // the key in yellow, as BO1's use hints
     const float width = (float)UI_TextWidth(text, 0x7FFFFFFF, font, fontScale);
     // (below BO1's reload hint, which it overlapped at 300)
     UI_DrawText(scrPlace, (char *)text, 0x7FFFFFFF, font, -0.5f * width, 335.0f, 2, 1, fontScale, colorWhite, 3);

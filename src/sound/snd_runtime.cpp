@@ -132,10 +132,11 @@ static const snd_alias_t *SND_Runtime_Template3D()
     return any;
 }
 
-// an enemy's sound (maps\leon\_salvador.gsc's Super Salvador: salvador_*), played on him: spatialized
+// an enemy's sound (maps\leon\_salvador.gsc's Super Salvador: salvador_*, maps\leon\_verdugo.gsc's Verdugo:
+// verdugo_*), played on him: spatialized
 static bool SND_Runtime_IsEnemySound(const std::string &name)
 {
-    return !_strnicmp(name.c_str(), "salvador_", 9);
+    return !_strnicmp(name.c_str(), "salvador_", 9) || !_strnicmp(name.c_str(), "verdugo_", 8);
 }
 
 // the zombies announcer's line (any zmb_vox_ann_*: "Kaboom!", the dog round's...), 2D: the settings Leon's event lines
