@@ -86,8 +86,26 @@ namespace
         int elapsed = (std::max)(0, cg->time - command.startTime);
         centity_s *cent = CG_GetEntity(localClientNum, command.entnum);
         // KB stores a RagdollBody pointer in the handle; SP 0x004A98D0 resolves an index.
-        if (cent->pose.isRagdoll && cent->pose.ragdollHandle > 0
-            && ((RagdollBody *)cent->pose.ragdollHandle)->state >= BS_RUNNING)
+        const RagdollBody *ragdoll = cent->pose.isRagdoll && cent->pose.ragdollHandle > 0
+                                         ? (const RagdollBody *)cent->pose.ragdollHandle : nullptr;
+        // mod: SP leaves a running ragdoll's anim tree alone - except, here, for the commands stamped up to the snapshot
+        // that started it. A zombie the Thundergun flings (_zombiemode_weap_thundergun thundergun_fling_zombie: DoDamage,
+        // StartRagdoll, LaunchRagdoll) dies and is flung in one server frame, and its death animscript's commands (the
+        // tree cleared, its deathanim) carry that frame's time. The client starts the ragdoll as that snapshot arrives
+        // (CG_PhysLaunch on the next snapshot's event) and runs it a frame later, while those commands wait for the
+        // client's clock to reach their time (cg_defensive_anim_delay): they came to a running ragdoll and were dropped.
+        // Its tree kept the zombie's walk or attack, looping on the corpse to its removal: the ragdoll drives only the
+        // pelvis, spine, neck and limbs (ragdoll.cfg's baselerp bones - head, wrists, ankles - are left to the anims:
+        // body->numLerpBones = 0, as SP 0x00832521), so its head, hands and feet walked on, and the walk's notetracks
+        // (fly_step_zombie, zmb_attack_whoosh) sounded, as long as it lay there.
+        const bool commandAfterStart = !ragdoll || command.startTime > ragdoll->startSnapTime;
+        if (Ragdoll_TraceOn() && (cent->pose.isRagdoll || (cent->nextState.lerp.eFlags & 0x40000) != 0))
+            Com_Printf(20, "bo1_ragdoll: t=%d ent=%d eType %d anim command %d %s (start %d) - ragdoll %s state %d%s\n", cg->time,
+                       command.entnum, cent->nextState.eType, command.type,
+                       XAnimGetAnimDebugName(DObjGetTree(obj)->anims, command.anim), command.startTime,
+                       cent->pose.isRagdoll ? "yes" : "no", ragdoll ? (int)ragdoll->state : -1,
+                       ragdoll && ragdoll->state >= BS_RUNNING ? (commandAfterStart ? " - dropped" : " - kept (its start)") : "");
+        if (ragdoll && ragdoll->state >= BS_RUNNING && commandAfterStart)
             return;
         XAnimClientNotifyList notifies;
         DObjSetClientNotifies(&notifies);

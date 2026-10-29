@@ -10,6 +10,7 @@
 #include "ragdoll_cmds.h"
 #include <qcommon/com_clients.h>
 #include <qcommon/cmd.h>
+#include <cgame_mp/cg_local_mp.h>
 
 const dvar_t *ragdoll_enable;
 const dvar_t *ragdoll_debug;
@@ -26,6 +27,17 @@ const dvar_t *ragdoll_rotvel_scale;
 const dvar_t *ragdoll_jitter_scale;
 const dvar_t *ragdoll_self_collision_scale;
 const dvar_t *ragdoll_dump_anims;
+const dvar_t *bo1_ragdolltrace;
+
+bool Ragdoll_TraceOn()
+{
+    return bo1_ragdolltrace && bo1_ragdolltrace->current.integer > 0;
+}
+
+int Ragdoll_TraceTime()
+{
+    return CG_GetLocalClientGlobals(0)->time;
+}
 
 phys_free_list<RagdollBody> g_ragdoll_body_pool;
 
@@ -360,6 +372,7 @@ void __cdecl Ragdoll_InitDvars()
     ragdoll_jitter_scale         = _Dvar_RegisterFloat("ragdoll_jitter_scale",         1.0f,         0.0f, 10.0f,      0x80u, "Scale up or down the effect of physics jitter on ragdolls");
     ragdoll_self_collision_scale = _Dvar_RegisterFloat("ragdoll_self_collision_scale", 1.2f,         0.1f, 10.0f,      0x80u, "Scale the size of the collision capsules used to prevent ragdoll limbs from interpenetrating");
     ragdoll_dump_anims           = _Dvar_RegisterBool ("ragdoll_dump_anims",           0,                            0,     "Dump animation data when ragdoll fails");
+    bo1_ragdolltrace             = _Dvar_RegisterInt  ("bo1_ragdolltrace",             0,            0,    60000,      0,     "TEST: log ragdoll bodies every <ms>");
 }
 
 bool ragdollFirstInit;

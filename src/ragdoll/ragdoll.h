@@ -175,6 +175,10 @@ struct RagdollBody // sizeof=0xA28
     // from the SetPhysicsGravity table by CG_CreateRagdollObject (SP 0x0046adb1), read by Ragdoll_CreatePhysObj (SP 0x00832b93).
     bool spPhysGravityOverride;
     int spPhysGravity;
+    // mod: the server time of the snapshot that started this ragdoll on the client (CG_CreateRagdollObject): the anim
+    // commands the server stamped up to it - those of the frame it killed and flung the zombie - still reach the corpse's
+    // anim tree once the ragdoll runs (CG_ApplyAnimCommand, cgame_mp/cg_anim_commands.cpp)
+    int startSnapTime;
 };
 
 void __cdecl Ragdoll_DebugDraw();
@@ -225,6 +229,10 @@ extern const dvar_t *ragdoll_rotvel_scale;
 extern const dvar_t *ragdoll_jitter_scale;
 extern const dvar_t *ragdoll_self_collision_scale;
 extern const dvar_t *ragdoll_dump_anims;
+extern const dvar_t *bo1_ragdolltrace;
+
+bool Ragdoll_TraceOn();
+int Ragdoll_TraceTime();
 
 extern phys_free_list<RagdollBody> g_ragdoll_body_pool;
 extern RagdollDef ragdollDefs[RAGDOLL_MAX_DEFS];
