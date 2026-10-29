@@ -281,6 +281,8 @@ leon_spawn_test()
 		player thread leon_at_box(); // tests: beside the first mystery box (a light right over it)
 	if ( getDvar( "leon_dogtest" ) != "" )
 		level thread leon_dog_test( getDvarFloat( "leon_dogtest" ) ); // tests: two dogs after that many seconds
+	if ( getDvar( "leon_corpsetest" ) != "" )
+		player thread maps\leon\_corpsetest::test( getDvarInt( "leon_corpsetest" ) ); // tests: the Thundergun's corpses
 
 	test = getDvar( "leon_test" );
 	if ( test == "" )
