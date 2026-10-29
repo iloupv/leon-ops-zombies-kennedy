@@ -93,8 +93,10 @@ struct RtAnim
 // the local player's head look (R_RuntimeXModel_SetLookYaw): degrees about up, for the next PoseDObj only
 static thread_local float s_lookYaw;
 static std::vector<RtAnim> s_anims; // this level's
-static const XModel *s_laserModels[2]; // this level's laser sight beam segment and dot (R_RuntimeXModel_Laser)
-static const XModel *s_laserPieces[4]; // the beam's shorter pieces: 8, 4, 2 and 1 units (R_RuntimeXModel_LaserPiece)
+// this level's laser sight beam segment and dot (R_RuntimeXModel_Laser), red and blue (the wonder weapons')
+static const XModel *s_laserModels[2][2];
+// the beam's shorter pieces: 8, 4, 2 and 1 units (R_RuntimeXModel_LaserPiece), red and blue
+static const XModel *s_laserPieces[2][4];
 static const XModel *s_haloModel;      // the kick's halo on a staggered zombie (R_RuntimeXModel_Halo)
 // RE4's HUD's images as 2D materials (R_RuntimeXModel_HudMaterial: cgame_mp/cg_re4hud_mp.cpp), by their name in the file
 struct RtHudMaterial
@@ -188,7 +190,7 @@ static void RtFreeAll()
     s_envScale[0] = 0;
     s_anims.clear();
     memset(s_animStates, 0, sizeof(s_animStates));
-    s_laserModels[0] = s_laserModels[1] = 0;
+    memset(s_laserModels, 0, sizeof(s_laserModels));
     memset(s_laserPieces, 0, sizeof(s_laserPieces));
     s_haloModel = 0;
     s_hudMaterials.clear();
@@ -1194,8 +1196,9 @@ enum RtGlowKind
 };
 
 // the laser's glow at texture coordinates (u, v) in 0..1: radial (the dot: a white-hot core, a red bloom fading
-// out) or across v (the beam: bright along its middle, soft at its edges); the halo's dull yellow; BGRA
-static void RtLaserTexel(RtGlowKind kind, float u, float v, unsigned char *bgra)
+// out) or across v (the beam: bright along its middle, soft at its edges), red or blue (the wonder weapons'); the halo's
+// dull yellow; BGRA
+static void RtLaserTexel(RtGlowKind kind, bool blue, float u, float v, unsigned char *bgra)
 {
     if ( kind == RT_GLOW_HALO )
     {
@@ -1215,15 +1218,19 @@ static void RtLaserTexel(RtGlowKind kind, float u, float v, unsigned char *bgra)
     float glow = 1.0f - d;
     glow = radial ? glow * glow * glow : glow * glow; // the bloom falls off fast
     const float a = core > glow ? core : glow;
-    const float hot = radial ? 200.0f : 20.0f; // the dot's core white-hot; the beam's stays red (thinned far out)
-    bgra[0] = (unsigned char)(40.0f + hot * core); // B
-    bgra[1] = (unsigned char)(40.0f + hot * core); // G
-    bgra[2] = 255;                                    // R
-    bgra[3] = (unsigned char)(255.0f * a * (radial ? 1.0f : 0.25f)); // the beam dull, the dot bright
+    const float hot = radial ? 200.0f : 20.0f; // the dot's core white-hot; the beam keeps its colour (thinned far out)
+    const float red = blue ? 40.0f : 255.0f, green = blue ? 110.0f : 40.0f, bluish = blue ? 255.0f : 40.0f;
+    const float add = hot * core;
+    bgra[0] = (unsigned char)(bluish + add < 255.0f ? bluish + add : 255.0f); // B
+    bgra[1] = (unsigned char)(green + add < 255.0f ? green + add : 255.0f);   // G
+    bgra[2] = (unsigned char)(red + add < 255.0f ? red + add : 255.0f);       // R
+    bgra[3] = (unsigned char)(255.0f * a * (radial ? 1.0f : 0.15f)); // the beam dull (at a quarter it glared), the dot bright
 }
 
-// a version 1 .rlm with one glow texture (the kind's) and one surface of quads (4 corners each, drawn both ways)
-static std::vector<unsigned char> RtMakeQuadModel(const float (*corners)[3], int quadCount, RtGlowKind kind)
+// a version 1 .rlm with one glow texture (the kind's, red or blue) and one surface of quads (4 corners each, drawn
+// both ways)
+static std::vector<unsigned char> RtMakeQuadModel(const float (*corners)[3], int quadCount, RtGlowKind kind,
+                                                  bool blue = false)
 {
     std::vector<unsigned char> out;
     RtPut(out, "RLM1", 4);
@@ -1232,6 +1239,8 @@ static std::vector<unsigned char> RtMakeQuadModel(const float (*corners)[3], int
     RtPutU32(out, 1);
     char texName[32] = {};
     strcpy(texName, kind == RT_GLOW_DOT ? "laser_dot" : (kind == RT_GLOW_HALO ? "kick_halo" : "laser_beam"));
+    if ( blue )
+        strcat(texName, "_blue");
     RtPut(out, texName, 32);
     const unsigned short size = 32;
     RtPut(out, &size, 2);
@@ -1248,7 +1257,7 @@ static std::vector<unsigned char> RtMakeQuadModel(const float (*corners)[3], int
             for ( int x = 0; x < w; ++x )
             {
                 unsigned char bgra[4];
-                RtLaserTexel(kind, ((float)x + 0.5f) / (float)w, ((float)y + 0.5f) / (float)w, bgra);
+                RtLaserTexel(kind, blue, ((float)x + 0.5f) / (float)w, ((float)y + 0.5f) / (float)w, bgra);
                 RtPut(out, bgra, 4);
             }
         }
@@ -1295,7 +1304,7 @@ static std::vector<unsigned char> RtMakeQuadModel(const float (*corners)[3], int
 
 static void RtBuildLaserModels(int zoneIndex, bool gpu)
 {
-    s_laserModels[0] = s_laserModels[1] = 0;
+    memset(s_laserModels, 0, sizeof(s_laserModels));
     memset(s_laserPieces, 0, sizeof(s_laserPieces));
     s_haloModel = 0;
     const Material *effect = RtFindTemplateMaterial(s_effectTechsets, ARRAYSIZE(s_effectTechsets));
@@ -1313,23 +1322,33 @@ static void RtBuildLaserModels(int zoneIndex, bool gpu)
         { { 0, -w * 0.5f, -w * 0.5f }, { L, -w * 0.5f, -w * 0.5f }, { L, w * 0.5f, w * 0.5f }, { 0, w * 0.5f, w * 0.5f } },
         { { 0, -w * 0.5f, w * 0.5f }, { L, -w * 0.5f, w * 0.5f }, { L, w * 0.5f, -w * 0.5f }, { 0, w * 0.5f, -w * 0.5f } } };
     const float dot[1][4][3] = { { { 0, -d, -d }, { 0, d, -d }, { 0, d, d }, { 0, -d, d } } };
-    std::vector<unsigned char> data = RtMakeQuadModel(&beam[0][0], 4, RT_GLOW_BEAM);
-    s_laserModels[0] = RtBuildModel("leon_laser", data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
-    // the beam's shorter pieces (halving: 8, 4, 2, 1), to end it at the dot
-    static const char *const s_pieceNames[4] = { "leon_laser_8", "leon_laser_4", "leon_laser_2", "leon_laser_1" };
-    for ( int p = 0; p < 4; ++p )
+    std::vector<unsigned char> data;
+    // each in red and in blue (the wonder weapons': CG_DrawLaser)
+    for ( int c = 0; c < 2; ++c )
     {
-        const float l = L / (float)(2 << p);
-        const float piece[4][4][3] = {
-            { { 0, -w, 0 }, { l, -w, 0 }, { l, w, 0 }, { 0, w, 0 } },
-            { { 0, 0, -w }, { l, 0, -w }, { l, 0, w }, { 0, 0, w } },
-            { { 0, -w * 0.5f, -w * 0.5f }, { l, -w * 0.5f, -w * 0.5f }, { l, w * 0.5f, w * 0.5f }, { 0, w * 0.5f, w * 0.5f } },
-            { { 0, -w * 0.5f, w * 0.5f }, { l, -w * 0.5f, w * 0.5f }, { l, w * 0.5f, -w * 0.5f }, { 0, w * 0.5f, -w * 0.5f } } };
-        data = RtMakeQuadModel(&piece[0][0], 4, RT_GLOW_BEAM);
-        s_laserPieces[p] = RtBuildModel(s_pieceNames[p], data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
+        const bool blue = c == 1;
+        const char *const color = blue ? "_blue" : "";
+        char name[32]; // (not va's: RtBuildModel's own va calls would write over it)
+        sprintf_s(name, "leon_laser%s", color);
+        data = RtMakeQuadModel(&beam[0][0], 4, RT_GLOW_BEAM, blue);
+        s_laserModels[c][0] = RtBuildModel(name, data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
+        // the beam's shorter pieces (halving: 8, 4, 2, 1), to end it at the dot
+        for ( int p = 0; p < 4; ++p )
+        {
+            const float l = L / (float)(2 << p);
+            const float piece[4][4][3] = {
+                { { 0, -w, 0 }, { l, -w, 0 }, { l, w, 0 }, { 0, w, 0 } },
+                { { 0, 0, -w }, { l, 0, -w }, { l, 0, w }, { 0, 0, w } },
+                { { 0, -w * 0.5f, -w * 0.5f }, { l, -w * 0.5f, -w * 0.5f }, { l, w * 0.5f, w * 0.5f }, { 0, w * 0.5f, w * 0.5f } },
+                { { 0, -w * 0.5f, w * 0.5f }, { l, -w * 0.5f, w * 0.5f }, { l, w * 0.5f, -w * 0.5f }, { 0, w * 0.5f, -w * 0.5f } } };
+            data = RtMakeQuadModel(&piece[0][0], 4, RT_GLOW_BEAM, blue);
+            sprintf_s(name, "leon_laser%s_%d", color, 8 >> p);
+            s_laserPieces[c][p] = RtBuildModel(name, data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
+        }
+        data = RtMakeQuadModel(&dot[0][0], 1, RT_GLOW_DOT, blue);
+        sprintf_s(name, "leon_laser%s_dot", color);
+        s_laserModels[c][1] = RtBuildModel(name, data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
     }
-    data = RtMakeQuadModel(&dot[0][0], 1, RT_GLOW_DOT);
-    s_laserModels[1] = RtBuildModel("leon_laser_dot", data.data(), (int)data.size(), zoneIndex, effect, 0, gpu);
     // the kick's halo: one quad facing +X, 20 units across (CG_LeonKickHalos turns it to the camera and scales it)
     const float h = 10.0f;
     const float halo[1][4][3] = { { { 0, -h, -h }, { 0, h, -h }, { 0, h, h }, { 0, -h, h } } };
@@ -1412,16 +1431,17 @@ Material *__cdecl R_RuntimeXModel_HudMaterial(const char *name)
     return 0;
 }
 
-// the laser sight's beam segment (16 units along +X) or dot, or 0 (no runtime models, or no effect material)
-const XModel *__cdecl R_RuntimeXModel_Laser(bool dot)
+// the laser sight's beam segment (16 units along +X) or dot, red or blue, or 0 (no runtime models, or no effect
+// material)
+const XModel *__cdecl R_RuntimeXModel_Laser(bool dot, bool blue)
 {
-    return s_laserModels[dot ? 1 : 0];
+    return s_laserModels[blue ? 1 : 0][dot ? 1 : 0];
 }
 
-// the beam's shorter pieces: 0..3, 8 / 4 / 2 / 1 units along +X, or 0
-const XModel *__cdecl R_RuntimeXModel_LaserPiece(int piece)
+// the beam's shorter pieces: 0..3, 8 / 4 / 2 / 1 units along +X, red or blue, or 0
+const XModel *__cdecl R_RuntimeXModel_LaserPiece(int piece, bool blue)
 {
-    return piece >= 0 && piece < 4 ? s_laserPieces[piece] : 0;
+    return piece >= 0 && piece < 4 ? s_laserPieces[blue ? 1 : 0][piece] : 0;
 }
 
 // the kick's halo on a staggered zombie (a dull yellow glow quad facing +X, 20 units across), or 0

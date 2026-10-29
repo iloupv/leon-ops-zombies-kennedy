@@ -3089,12 +3089,14 @@ static void CG_LeonAimSound(int localClientNum)
 }
 
 // the laser's beam and dot (CG_ShoulderLaser, a player's): from the muzzle (orient's origin) along orient's forward
-// axis to where that line hits; lighting: that player's own handles (200)
-static void CG_DrawLaser(const cg_s *cgameGlob, int entNum, const orientation_t &orient, unsigned __int16 *lighting)
+// axis to where that line hits, red or blue (a wonder weapon's: CG_BlueLaserWeapon); lighting: that player's own
+// handles (200)
+static void CG_DrawLaser(const cg_s *cgameGlob, int entNum, const orientation_t &orient, unsigned __int16 *lighting,
+                         bool blue)
 {
     // the beam: the laser models made with the runtime models (r_runtime_xmodel.cpp), segments end to end from the
     // muzzle to where the line hits, and the dot there (the engine's FX beam / sprite laser draws nothing here)
-    const XModel *beam = R_RuntimeXModel_Laser(false), *dot = R_RuntimeXModel_Laser(true);
+    const XModel *beam = R_RuntimeXModel_Laser(false, blue), *dot = R_RuntimeXModel_Laser(true, blue);
     if (!beam || !dot)
         return;
     trace_t trace;
@@ -3142,7 +3144,7 @@ static void CG_DrawLaser(const cg_s *cgameGlob, int entNum, const orientation_t 
     }
     for (int p = 0; p < 4 && segment < 199; ++p)
     {
-        const XModel *piece = R_RuntimeXModel_LaserPiece(p);
+        const XModel *piece = R_RuntimeXModel_LaserPiece(p, blue);
         const float pieceLength = (float)(8 >> p) * placement.scale;
         if (!piece || d + pieceLength > lineEnd)
             continue;
@@ -3181,6 +3183,21 @@ static bool CG_LaserlessWeapon(unsigned int weapon)
         return true;
     const WeaponVariantDef *variant = BG_GetWeaponVariantDef(weapon);
     return variant && variant->szInternalName && strstr(variant->szInternalName, "thundergun");
+}
+
+// the wonder weapons' laser is blue: the Ray Gun, the Wunderwaffe, the Winter's Howl, the Scavenger, the V-R11, the
+// Baby Gun and the Wave Gun (and their Pack-a-Punched ones: the same names with _upgraded)
+static bool CG_BlueLaserWeapon(unsigned int weapon)
+{
+    static const char *const s_wonderWeapons[] = { "ray_gun", "tesla_gun", "freezegun", "sniper_explosive", "humangun",
+                                                   "shrink_ray", "microwavegun" };
+    const WeaponVariantDef *variant = weapon ? BG_GetWeaponVariantDef(weapon) : 0;
+    if (!variant || !variant->szInternalName)
+        return false;
+    for (const char *wonder : s_wonderWeapons)
+        if (strstr(variant->szInternalName, wonder))
+            return true;
+    return false;
 }
 
 // mod (co-op): another player's laser sight, as his aim reaches this client (CG_RuntimeXModel_RemoteLaserOn): from his
@@ -3224,7 +3241,7 @@ static void CG_RemoteLaser(int localClientNum, centity_s *cent, DObj *obj)
     if (Vec3Normalize(orient.axis[2]) < 0.001f)
         PerpendicularVector(orient.axis[0], orient.axis[2]);
     Vec3Cross(orient.axis[2], orient.axis[0], orient.axis[1]);
-    CG_DrawLaser(cgameGlob, es->number, orient, s_laserLighting[es->number & 63]);
+    CG_DrawLaser(cgameGlob, es->number, orient, s_laserLighting[es->number & 63], CG_BlueLaserWeapon(es->weapon));
 }
 
 // mod: Resident Evil 4's laser sight: while the local player aims over the shoulder, a laser from the muzzle of the
@@ -3319,7 +3336,8 @@ void __cdecl CG_ShoulderLaser(int localClientNum, centity_s *cent, DObj *obj)
         return;
     if (R_RuntimeXModel_DvarOn("leon_barrellog")) // (tests: the frames it shows)
         Com_Printf(0, "leon: laser drawn at %d\n", cgameGlob->time);
-    CG_DrawLaser(cgameGlob, cent->nextState.number, orient, s_laserLighting[cent->nextState.number & 63]);
+    CG_DrawLaser(cgameGlob, cent->nextState.number, orient, s_laserLighting[cent->nextState.number & 63],
+                 CG_BlueLaserWeapon(cgameGlob->predictedPlayerState.weapon));
 }
 
 void CG_OffsetThirdPersonView(int localClientNum)
