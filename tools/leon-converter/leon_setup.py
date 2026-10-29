@@ -33,10 +33,11 @@ import time
 # 2: the guns 20 mm further out in his hand, the shotgun's close with its whole pump; 3: Leon's "Bingo?"; 4: the gun's
 # raise to aim (leon_aim); 5: Ada, HUNK and Luis (CHARACTERS), "Hasta luego!" and "Hey, it's that dog."; 8: the perk's
 # heal sound (leon_heal) and the Merchant's "Come back any time." (merchant_comeback); 9: Super Salvador (ENEMIES) and
-# his sounds (salvador_*); 10: Verdugo (verdugo_*); 11: RE4's HUD (re4hud.rlh)
-SETUP_VERSION = '11'
+# his sounds (salvador_*); 10: Verdugo (verdugo_*); 11: RE4's HUD (re4hud.rlh); 12: Luis's name plate in it, made of
+# RE4's plates' letters (re4_hud.py luis_plate)
+SETUP_VERSION = '12'
 # the versions whose characters are this one's: from them only the enemies, the HUD and the sounds are built (seconds)
-CHARACTERS_KEPT_FROM = ('7', '8', '9', '10')
+CHARACTERS_KEPT_FROM = ('7', '8', '9', '10', '11')
 # the other playable characters: (name, their archive, their texture pack) - leon_rlm.py --character
 CHARACTERS = [('ada', 'pl0c', '0100000c'), ('hunk', 'pl06', '01000006'), ('luis', 'pl14', '01000014')]
 # the enemies: (name, their archive, their texture pack) - leon_rlm.py --enemy

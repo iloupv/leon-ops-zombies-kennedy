@@ -184,15 +184,18 @@ void __cdecl CG_DrawRE4Hud(int localClientNum)
     }
     CG_RE4HudPic(place, 0.0f, 0.0f, HUD_FRAME_W, HUD_FRAME_H, colorWhite, "frame");
 
-    // the character's name plate on the arm (Luis has none in RE4: his name in the HUD's font)
+    // the character's name plate on the arm (Luis has none in RE4: re4_hud.py makes his of its plates' letters, and
+    // without it his name is in the HUD's font)
     const dvar_s *character = Dvar_FindVar("leon_character");
     const char *name = character && character->type == DVAR_TYPE_STRING && character->current.string
                        && character->current.string[0] ? character->current.string : "leon";
-    // each plate's lettering (its opaque box in the image, pixels): scaled to one height on the arm
+    // each plate's lettering (its opaque box in the image, pixels): scaled to one height on the arm. Luis's is set at
+    // Leon's plate's scale on its baseline: Leon's box's height, his i's dot over it
     static const struct { const char *character; float w, h, left, top, textW, textH; } s_plates[] = {
         { "leon", 256.0f, 128.0f, 18.0f, 30.0f, 222.0f, 67.0f },
         { "ada", 280.0f, 136.0f, 19.0f, 20.0f, 245.0f, 99.0f },
         { "hunk", 376.0f, 136.0f, 15.0f, 23.0f, 344.0f, 96.0f },
+        { "luis", 255.0f, 128.0f, 18.0f, 30.0f, 220.0f, 67.0f },
     };
     const float plateText = 52.0f, plateLeft = 398.0f, plateMid = 313.0f, plateRoom = 165.0f;
     bool plated = false;
