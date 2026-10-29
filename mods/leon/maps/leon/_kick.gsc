@@ -8,9 +8,11 @@
 // after it recovers; while one is staggered in reach in front of a player, the engine shows him RE4's
 // action prompt (his kick flags: <player> leonsetkickflags( ready, kicking ), on his player state - bgame/bg_leon.h) and
 // the use key (F) kicks: RE4's kick on him (his client's pose, from leon_kick_stamp; the others' from his flags), and
-// every zombie its sweep catches dies at once and is sent flying (a launched ragdoll). A staggered zombie wears a dull
-// yellow halo through its stagger, seen from afar (it can be kicked): leon_staggered lists them for every player's
-// client (CG_LeonKickHalos). Every player kicks (player_init, from _leon's setup of each player).
+// each zombie its sweep catches either dies and is sent flying (a launched ragdoll) or is knocked down and gets back up
+// (the Thundergun's fall and get-up) - Ada's kills more often. A staggered zombie wears a dull yellow halo through its
+// stagger, seen from afar (it can be kicked): leon_staggered lists them for every player's client (CG_LeonKickHalos).
+// Super Salvador (maps\leon\_salvador.gsc) staggers his own way, and is never kicked. Every player kicks (player_init,
+// from _leon's setup of each player).
 //   leon_kick 0      off
 //   leon_kicktest 1  test: every 3 s the nearest zombie is put in front of the player and staggered (2: another
 //                    one beside it too, for the sweep; 3: 400" ahead instead)
@@ -118,12 +120,16 @@ leon_stagger_watch()
 		share = 0.15;
 		if ( leon )
 			share = 0.07;
+		if ( isDefined( self.leon_salvador ) )
+			share = share / 4; // (his health a boss's: a share of it as large never came)
 		if ( amount < full * share )
 			continue;
 		if ( !isDefined( mod ) || ( mod != "MOD_PISTOL_BULLET" && mod != "MOD_RIFLE_BULLET" ) )
 			continue;
 		if ( isDefined( self.has_legs ) && !self.has_legs )
 			continue; // a crawler cannot reel
+		if ( isDefined( self.leon_knocked ) )
+			continue; // (down from a kick, or getting up)
 		part = "";
 		if ( isDefined( partName ) )
 			part = partName;
@@ -149,6 +155,11 @@ leon_is_leg( part )
 leon_stagger()
 {
 	self endon( "death" );
+	if ( isDefined( self.leon_salvador ) )
+	{
+		self maps\leon\_salvador::stagger(); // his RE4 flinch, no halo: never kicked
+		return;
+	}
 	if ( cointoss() )
 		reel = %ai_zombie_shot_arm_left;
 	else
@@ -161,6 +172,20 @@ leon_stagger()
 	self.leon_reel = reel;
 	self animcustom( ::leon_stagger_anim );
 	wait length;
+}
+
+// a kicked zombie that did not die: down and back up, stepped with physics as the reel is
+leon_knocked_anim()
+{
+	self endon( "death" );
+	self AnimMode( "gravity" );
+	self OrientMode( "face current" );
+	self ClearAnim( %body, 0.2 );
+	self SetFlaggedAnimKnobAllRestart( "leon_knocked", self.leon_fall, %body, 1, 0.2, 1 );
+	self waittillmatch( "leon_knocked", "end" );
+	self SetFlaggedAnimKnobAllRestart( "leon_knocked", self.leon_getup, %body, 1, 0.2, 1 );
+	self waittillmatch( "leon_knocked", "end" );
+	self.leon_knocked = undefined;
 }
 
 leon_stagger_anim()
@@ -217,7 +242,7 @@ leon_kick_target()
 	for ( i = 0; i < zombies.size; i++ )
 	{
 		z = zombies[i];
-		if ( !z leon_staggered() )
+		if ( !z leon_staggered() || isDefined( z.leon_salvador ) )
 			continue;
 		offset = z.origin - self.origin;
 		d = length( ( offset[0], offset[1], 0 ) );
@@ -298,7 +323,7 @@ leon_kick()
 	{
 		z = zombies[i];
 		offset = z.origin - center;
-		if ( length( ( offset[0], offset[1], 0 ) ) > sweep || abs( offset[2] ) > 60 )
+		if ( length( ( offset[0], offset[1], 0 ) ) > sweep || abs( offset[2] ) > 60 || isDefined( z.leon_salvador ) )
 			continue;
 		z thread leon_kicked( self, forward, strong );
 		hits++;
@@ -326,6 +351,29 @@ leon_kick()
 
 leon_kicked( player, forward, strong )
 {
+	// not every kick kills: half the zombies it catches (Ada's, her character's perk: four in five) die, the others are
+	// knocked down and get back up - the Thundergun's fall and get-up (animscripts\zombie_pain playThundergunPainAnim's,
+	// hit from the front)
+	chance = 50;
+	if ( isDefined( strong ) && strong )
+		chance = 80;
+	if ( getDvar( "leon_kickkill" ) != "" )
+		chance = getDvarInt( "leon_kickkill" ); // tests: that share every kick
+	if ( randomInt( 100 ) >= chance && isDefined( self.animname ) && self.animname == "zombie" && self.has_legs
+	     && isDefined( level._zombie_knockdowns ) && isDefined( level._zombie_getups ) )
+	{
+		fall = random( level._zombie_knockdowns["zombie"]["front"]["has_legs"] );
+		if ( fall == %ai_zombie_thundergun_hit_deadfallknee || fall == %ai_zombie_thundergun_hit_forwardtoface )
+			self.leon_getup = random( level._zombie_getups["zombie"]["belly"]["early"] );
+		else
+			self.leon_getup = random( level._zombie_getups["zombie"]["back"]["early"] );
+		self.leon_fall = fall;
+		self.leon_stagger_end = undefined; // (its halo and its kick prompt go)
+		self.leon_knocked = true; // (no stagger while it is down or getting up)
+		self animcustom( ::leon_knocked_anim );
+		logPrint( "leon: kick knocked a zombie down at " + getTime() + "\n" );
+		return;
+	}
 	// (no endon "death": the kill below sends it, and the ragdoll comes after)
 	// dismembered: a limb torn off (BO1's own zombie gibs)
 	gibs = array( "right_arm", "left_arm", "right_leg", "left_leg", "no_legs" );

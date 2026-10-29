@@ -7,7 +7,8 @@ aim: leon_aim.wav.
 
 usage: python -I leon_sounds.py <pl00.xwb> <out dir>   (writes leon_pain_1..3.wav, leon_death.wav, the kick's; with
 core.xwb next to pl00.xwb also leon_pickup.wav, with bio4evt.xwb the Merchant's lines: merchant_*.wav, and Leon's
-"Bingo?": leon_bingo.wav, "Hasta luego!": leon_hasta_luego.wav and "Hey, it's that dog.": leon_that_dog.wav)"""
+"Bingo?": leon_bingo.wav, "Hasta luego!": leon_hasta_luego.wav and "Hey, it's that dog.": leon_that_dog.wav; with em10.xwb
+and em1d.xwb Super Salvador's voice and chainsaw: salvador_*.wav)"""
 import array
 import math
 import mmap
@@ -47,6 +48,20 @@ CORE_SOUNDS = [('leon_pickup.wav', 20), ('leon_heal.wav', 17)]
 # em10.xsb cue n), for the Mystery Box's teddy bear: "Come back any time." as he closes his coat after the shop (cue
 # 0x9A playing wave 50, 16-bit mono 16 kHz)
 MERCHANT_SOUNDS = [('merchant_comeback.wav', 50)]
+# Super Salvador in the dog rounds (maps/leon/_salvador.gsc), from the Ganados' banks next to pl00.xwb (bank, [(output
+# file, wave)]): the island's (em1d.xwb) "¡Te voy a matar!" as he comes (wave 50, its soldiers' find shout: cue 0x22,
+# Se_tbl[4] of voice set 1, the island chainsaw carrier's - em20/em20_set.cpp) and his chase laugh (wave 47, cue 0x27,
+# the set's Se_tbl[7] played every 4 to 8 s on the move: em10.cpp em10BreathSe); the village's (em10.xwb) chase line
+# (wave 119), and the chainsaw man's (voice set 3: em10.cpp Em10SetSeTbl) flinch (cue 0x6F, wave 111) and death
+# (cue 0x36, wave 116); his saw: the idle's putter (cue 0x4D, every 60 frames while it runs, wave 58), its start (cue
+# 0x4C, wave 57), the swing's rev (C_SawCriAtk: cue 0x50, wave 68) with its roar (cue 0x3D, wave 36), the saw in the
+# neck (C_SawHit: cue 0x4F, wave 69). The waves picked by ear where RE4's code does not name the line.
+SALVADOR_SOUNDS = [
+    ('em1d.xwb', [('salvador_spawn.wav', 50), ('salvador_laugh.wav', 47)]),
+    ('em10.xwb', [('salvador_chase.wav', 119), ('salvador_pain.wav', 111), ('salvador_death.wav', 116),
+                  ('salvador_saw.wav', 58), ('salvador_saw_start.wav', 57), ('salvador_saw_swing.wav', 68),
+                  ('salvador_roar.wav', 36), ('salvador_saw_hit.wav', 69)]),
+]
 # The Merchant's shop lines, for the Mystery Box (maps/leon/_merchant.gsc), by the weapon's tier: RE4's shop
 # (Sscrn/ss_shop.cpp shop_msg[]: shopStrPlay -> SndStrReq(1, n), the event stream block; on PC bio4evt.xsb cue n, named
 # by the decimal n) plays streams 0xB4..0xC2 = cues 180..194 = bio4evt.xwb waves 5..19 (16-bit stereo 32 kHz); the
@@ -255,6 +270,12 @@ if __name__ == '__main__':
         sounds += [(merchant, name, index) for name, index in MERCHANT_SOUNDS]
     else:
         print(f"no {merchant}: no Merchant's goodbye")
+    for bank, bank_sounds in SALVADOR_SOUNDS:
+        path = os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), bank)
+        if os.path.exists(path):
+            sounds += [(path, name, index) for name, index in bank_sounds]
+        else:
+            print(f'no {path}: Super Salvador without {", ".join(n for n, _i in bank_sounds)}')
     evt =os.path.join(os.path.dirname(os.path.abspath(sys.argv[1])), 'bio4evt.xwb')
     if os.path.exists(evt):
         sounds += [(evt, name, index) for name, index in EVT_SOUNDS]
@@ -280,7 +301,7 @@ if __name__ == '__main__':
             frames = array.array('h', bytes(pcm))
             pcm = array.array('h', [(frames[i] + frames[i + 1]) // 2 for i in range(0, len(frames) - 1, 2)]).tobytes()
             channels = 1
-        if name.startswith('merchant_'):
+        if name.startswith('merchant_') or name.startswith('salvador_'):
             pcm = loud(pcm)
         elif name in LEVELS:
             pcm = loud(pcm, LEVELS[name])
