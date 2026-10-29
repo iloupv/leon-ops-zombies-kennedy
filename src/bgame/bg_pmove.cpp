@@ -1627,7 +1627,7 @@ void __cdecl PM_CalcMeleeChargeTime(playerState_s *ps, int *outTime, float *outC
     if ( BG_IsBayonetWeapon(weaponIndex) )
         value = player_bayonetRange->current.value;
     else
-        value = player_meleeRange->current.value;
+        value = BG_PlayerMeleeRange(); // (mod: the knife's reach under RE4's controls)
     range = value;
     if ( (float)ps->meleeChargeDist > value )
         chargeTime = (float)weapDef->meleeChargeDelay * 0.001;
@@ -1670,11 +1670,23 @@ void __cdecl Pmove_1(pmove_t *pm)
         ps->commandTime = finalTime - 1000;
     pm->numtouch = 0;
     pm->numGlassTouch = 0;
+    // mod (the Leon mod, player_tankControls): each slice of a long command (over 66 ms: a frame's hitch) moves on the
+    // command as it came - PM_TankControls takes the run key out of it (BO1's sprint stays off), turns a turn key into
+    // his turn and scales the move: the second slice ran on what the first had left, his run dropped for that command
+    // (LEON_EF2_RUNNING off - his cycle flicked to the walk and crossfaded back, at every hitch) and his turn stopped
+    const bool tankSlices = player_tankControls && player_tankControls->current.enabled;
+    const usercmd_s cmdAsCame = pm->cmd;
     while ( ps->commandTime != finalTime )
     {
         msec = finalTime - ps->commandTime;
         if ( msec > 66 )
             msec = 66;
+        if ( tankSlices )
+        {
+            pm->cmd.button_bits = cmdAsCame.button_bits;
+            pm->cmd.forwardmove = cmdAsCame.forwardmove;
+            pm->cmd.rightmove = cmdAsCame.rightmove;
+        }
         pm->cmd.serverTime = msec + ps->commandTime;
         PmoveSingle(pm);
         memcpy(&pm->oldcmd, &pm->cmd, sizeof(pm->oldcmd));
@@ -1698,7 +1710,12 @@ static void PM_TankControls(pmove_t *pm, float frametime)
     // not be aimed in, so it never fired. Its right click is no aim either: he still turns and runs.
     const WeaponDef *tankWeapDef = ps->weapon ? BG_GetWeaponDef(ps->weapon) : 0;
     const bool canAim = !tankWeapDef || tankWeapDef->aimDownSight;
-    const bool aiming = canAim && (cmd->button_bits.testBit(0xBu) || ps->fWeaponPosFrac > 0.0f);
+    // aiming: the aim key held (raising the aim, or aimed in). Not the aim's lowering once it is let go (the weapon's
+    // ADS out time: 0.25 s a pistol, 0.45 s the Thundergun): he turns, walks at his pace and runs again at once - held
+    // as aimed until the ADS fraction reached 0, his turn keys stepped him sideways and the run waited for it, as if
+    // the aim's going were an animation he could not move out of (the pose eases the aim out over his motion:
+    // CG_RuntimeXModel_Pose)
+    const bool aiming = canAim && cmd->button_bits.testBit(0xBu);
     if ( canAim && (!cmd->button_bits.testBit(0xBu) || ps->fWeaponPosFrac < 0.98f) )
         cmd->button_bits.resetBit(0);
     // no reload (bits 4: reload, 5: use / reload) while the mod's kick (maps\leon\_kick.gsc) is offered or plays: F (use)

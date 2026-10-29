@@ -1728,7 +1728,6 @@ void __cdecl G_UseOffHand(gentity_s *ent)
 
 void __cdecl FireWeaponMelee(gentity_s *ent, int gametime)
 {
-    int integer; // [esp+10h] [ebp-58h]
     weaponParms wp; // [esp+18h] [ebp-50h] BYREF
     int weaponIndex; // [esp+64h] [ebp-4h]
 
@@ -1742,10 +1741,6 @@ void __cdecl FireWeaponMelee(gentity_s *ent, int gametime)
         Weapon_SetWeaponParamsWeapon(&wp, weaponIndex);
         G_GetPlayerViewOrigin(&ent->client->ps, wp.muzzleTrace);
         BG_GetPlayerViewDirection(&ent->client->ps, wp.forward, wp.right, wp.up);
-        if ( BG_IsBayonetWeapon(weaponIndex) )
-            integer = player_bayonetRange->current.integer;
-        else
-            integer = player_meleeRange->current.integer;
         if ( !player_meleeRange
             && !Assert_MyHandler("C:\\projects_pc\\cod\\codsrc\\src\\game\\g_weapon.cpp", 1646, 0, "%s", "player_meleeRange") )
         {
@@ -1771,13 +1766,9 @@ void __cdecl FireWeaponMelee(gentity_s *ent, int gametime)
         {
             __debugbreak();
         }
-        Weapon_Melee(
-            ent,
-            &wp,
-            *(float *)&integer,
-            player_meleeWidth->current.value,
-            player_meleeHeight->current.value,
-            gametime);
+        // (mod: a knife's reach, the Leon mod's under RE4's controls - BG_PlayerMeleeRange / Width / Height)
+        const float range = BG_IsBayonetWeapon(weaponIndex) ? player_bayonetRange->current.value : BG_PlayerMeleeRange();
+        Weapon_Melee(ent, &wp, range, BG_PlayerMeleeWidth(), BG_PlayerMeleeHeight(), gametime);
     }
 }
 

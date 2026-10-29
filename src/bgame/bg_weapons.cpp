@@ -3877,7 +3877,7 @@ void __cdecl PM_Weapon_MeleeInit(pmove_t *pm)
     if ( weapDef->bHasBayonet )
         value = player_bayonetRange->current.value;
     else
-        value = player_meleeRange->current.value;
+        value = BG_PlayerMeleeRange(); // (mod: the knife's reach under RE4's controls)
     v1 = (ps->pm_flags & 0x20000) != 0 && (float)ps->meleeChargeDist > value;
     if ( v1 )
     {

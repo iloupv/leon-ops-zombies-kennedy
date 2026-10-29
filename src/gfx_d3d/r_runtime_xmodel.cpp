@@ -380,6 +380,17 @@ void __cdecl R_RuntimeXModel_SetReloadSet(const char *set)
     s_reloadSetGiven = true;
 }
 
+// the motion set the next R_RuntimeXModel_PoseDObj's run comes from when it is not its animSet's (a gun held with one
+// RE4 weapon's stance and run with in another's: the Thundergun); 0 the default set's
+static thread_local const char *s_runSet;
+static thread_local bool s_runSetGiven;
+
+void __cdecl R_RuntimeXModel_SetRunSet(const char *set)
+{
+    s_runSet = set;
+    s_runSetGiven = true;
+}
+
 void __cdecl R_RuntimeXModel_SetRunning(int running)
 {
     s_running = running;
@@ -1847,10 +1858,12 @@ static bool RtIsTurnInPlace(int anim)
     return !strcmp(name, "turn_left") || !strcmp(name, "turn_right");
 }
 
-static int RtChooseCycle(const XModel *model, const RtAnimState &st, bool turnToMotion, const char *set)
+// (runSet: the set his run comes from - his weapon's own but where another's carries it better, the Thundergun's:
+// R_RuntimeXModel_SetRunSet; the rest stays his weapon's)
+static int RtChooseCycle(const XModel *model, const RtAnimState &st, bool turnToMotion, const char *set, const char *runSet)
 {
     const int idle = RtFindSetAnim(model, set, "idle"), walk = RtFindSetAnim(model, set, "walk");
-    const int run = RtFindSetAnim(model, set, "run"), back = RtFindSetAnim(model, set, "back");
+    const int run = RtFindSetAnim(model, runSet, "run"), back = RtFindSetAnim(model, set, "back");
     const int still = idle >= 0 ? idle : RtFindAnim(model, 0);
     const bool moving = st.cur >= 0 && strcmp(RtAnimBaseName(s_anims[st.cur]), "idle") && !RtIsTurnInPlace(st.cur);
     if ( st.speed < (moving ? 6.0f : 12.0f) || (walk < 0 && run < 0) )
@@ -1901,7 +1914,7 @@ static int RtChooseCycle(const XModel *model, const RtAnimState &st, bool turnTo
 // Advances the entity's locomotion state to timeMs (once per game time; the pose functions run several times a
 // frame) and returns a copy.
 static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const float *origin, const float *angles,
-                                     int timeMs, bool turnToMotion, const char *set)
+                                     int timeMs, bool turnToMotion, const char *set, const char *runSet)
 {
     while ( _InterlockedCompareExchange(&s_animStateLock, 1, 0) )
         _mm_pause();
@@ -1939,7 +1952,7 @@ static RtAnimState RtUpdateAnimState(const DObj *obj, const XModel *model, const
             st.yawRate += (AngleNormalize180(angles[1] - st.lastYaw) / dt - st.yawRate) * k;
             st.turnStill = fabsf(st.yawRate) <= 20.0f ? st.turnStill + dt : 0.0f;
 
-            int target = RtChooseCycle(model, st, turnToMotion, set);
+            int target = RtChooseCycle(model, st, turnToMotion, set, runSet);
             // a reversal (back step <-> walk) passes through standing still for a moment: the cycle goes to the
             // idle only once he has stood for 0.15 s, so it goes straight from one step to the other, in stride
             st.slowTime = st.speed < 6.0f ? st.slowTime + dt : 0.0f;
@@ -2063,6 +2076,9 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     const char *const actionMotion = s_actionMotion; // (for this call only)
     s_actionMotion = 0;
     const char *const reloadSet = s_reloadSetGiven ? s_reloadSet : animSet; // (for this call only)
+    const char *const runSet = s_runSetGiven ? s_runSet : animSet; // (for this call only)
+    s_runSetGiven = false;
+    s_runSet = 0;
     const float firePrevTime = s_firePrevTime;
     s_firePrevTime = -1.0f;
     float firePrevPhase = -1.0f, fireCross = 1.0f; // the previous shot's motion, crossfaded out (RT_FIRE_CROSSFADE)
@@ -2073,7 +2089,7 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     const XModel *model = obj->localModels[0];
     if ( RtFindAnim(model, 0) < 0 )
         return 0.0f;
-    const RtAnimState st = RtUpdateAnimState(obj, model, origin, angles, timeMs, turnToMotion, animSet);
+    const RtAnimState st = RtUpdateAnimState(obj, model, origin, angles, timeMs, turnToMotion, animSet, runSet);
     if ( st.cur < 0 )
         return 0.0f;
     if ( turnInPlace )

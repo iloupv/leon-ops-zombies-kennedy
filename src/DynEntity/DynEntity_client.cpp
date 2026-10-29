@@ -2386,7 +2386,7 @@ void __cdecl DynEntCl_MeleeEvent(int localClientNum, int attackerEntNum)
         if (BG_IsBayonetWeapon(weaponIndex))
             value = player_bayonetRange->current.value;
         else
-            value = player_meleeRange->current.value;
+            value = BG_PlayerMeleeRange(); // (mod: the knife's reach under RE4's controls)
         for (traceIndex = 0; traceIndex < 5; ++traceIndex)
         {
             if (!player_meleeRange
@@ -2432,11 +2432,11 @@ void __cdecl DynEntCl_MeleeEvent(int localClientNum, int attackerEntNum)
             end[0] = (float)(value * forward[0]) + eyePos[0];
             end[1] = (float)(value * forward[1]) + eyePos[1];
             end[2] = (float)(value * forward[2]) + eyePos[2];
-            v4 = player_meleeWidth->current.value * (float)traceOffsets_0[traceIndex][0];
+            v4 = BG_PlayerMeleeWidth() * (float)traceOffsets_0[traceIndex][0];
             end[0] = (float)(v4 * right[0]) + end[0];
             end[1] = (float)(v4 * right[1]) + end[1];
             end[2] = (float)(v4 * right[2]) + end[2];
-            v3 = player_meleeHeight->current.value * (float)traceOffsets_0[traceIndex][1];
+            v3 = BG_PlayerMeleeHeight() * (float)traceOffsets_0[traceIndex][1];
             end[0] = (float)(v3 * up[0]) + end[0];
             end[1] = (float)(v3 * up[1]) + end[1];
             end[2] = (float)(v3 * up[2]) + end[2];

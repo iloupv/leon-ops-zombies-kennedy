@@ -845,9 +845,10 @@ static const char *CG_RuntimeXModel_AnimSet(unsigned int weapon)
     // RE4's sets (the converter's WEAPON_SETS) by the BO1 weapon: its name where one has a clear match, else its class.
     // The Thundergun, a big gun in both hands: the shotgun's stance - carried low at his side, shouldered to aim with
     // the left hand under its barrel - with the shot's kick and no pump (the double barrel's set), reloaded as the mine
-    // thrower (CG_RuntimeXModel_ReloadSet). The mine thrower's aim is a scope's (RE4 aims it in first person) and its
-    // shot racks it with the left hand: the Thundergun was held up to his face, his head bowed over it as if looked
-    // through, and every blast threw it up near upright (64 degrees) for the rack.
+    // thrower (CG_RuntimeXModel_ReloadSet) and run with as the Typewriter (CG_RuntimeXModel_RunSet). The mine thrower's
+    // aim is a scope's (RE4 aims it in first person) and its shot racks it with the left hand: the Thundergun was held
+    // up to his face, his head bowed over it as if looked through, and every blast threw it up near upright (64 degrees)
+    // for the rack.
     if ( strstr(name, "thundergun") )
         return "dbshotgun";
     // The other wonder weapons: RE4's mine thrower (a shouldered launcher racked by the left hand)
@@ -912,6 +913,27 @@ static const char *CG_RuntimeXModel_ReloadSet(unsigned int weapon)
     return CG_RuntimeXModel_AnimSet(weapon);
 }
 
+// the set a gun's run comes from (R_RuntimeXModel_SetRunSet): its own set's, but the Thundergun's - held, walked and
+// aimed with the shotgun's stance (CG_RuntimeXModel_AnimSet), run with the Chicago Typewriter's. The shotgun's run
+// keeps the gun level across his belly as its walk does, rolled over and pushed out ahead of him - fine for a
+// shotgun's slim barrel, but the Thundergun's drum bobbed out in front of him at every stride, like a box he carried. The
+// Typewriter's carries it low at his right hip in both hands, its muzzle down ahead of him, a heavy gun run with
+// (the mine thrower's, its old set, held it rolled across him too; the rocket launcher's hung it muzzle down along his
+// leg). His walk, its back step and his turns stay the stance's: walking he carries it as he stands.
+static const char *CG_RuntimeXModel_RunSet(unsigned int weapon)
+{
+    // TEST SWITCH leon_runset "<set>": every gun run with that set's run ("handgun": the default one)
+    const dvar_s *force = Dvar_FindVar("leon_runset");
+    if ( force && force->type == DVAR_TYPE_STRING && force->current.string && force->current.string[0] )
+        return strcmp(force->current.string, "handgun") ? force->current.string : 0;
+    const char *set = CG_RuntimeXModel_AnimSet(weapon);
+    const WeaponVariantDef *variant = weapon ? BG_GetWeaponVariantDef(weapon) : 0;
+    if ( set && !strcmp(set, "dbshotgun") && variant && variant->szInternalName
+         && strstr(variant->szInternalName, "thundergun") )
+        return "smg";
+    return set;
+}
+
 // mod: the local player's voice: the runtime sound "<character>_<sound>" for the character the mod's scripts gave him
 // (leon_character: maps\leon\_character.gsc - ada_pain, hunk_death...), else Leon's ("leon_<sound>")
 static bool CG_LeonVoice(int localClientNum, const char *sound)
@@ -948,6 +970,19 @@ static bool s_leonKnifeOut;
 bool __cdecl CG_RuntimeXModel_KnifeOut()
 {
     return s_leonKnifeOut;
+}
+
+// mod: a bought knife - the Bowie, the Sickle (bowie_knife_zm, sickle_knife_zm): a melee weapon given only as it is
+// bought (_zombiemode_bowie's, a spawn gives BO1's own knife_zm). BO1 shows it off with a first-person flourish, a
+// weapon switch the engine leaves out under RE4's controls (G_LeonSkipSwitch): RE4's slash shows it off instead, once,
+// as it becomes his melee weapon (his player state's, another player's entity's) - his gun back in hand after it
+static bool CG_LeonBoughtKnife(unsigned int weapon)
+{
+    if ( !weapon || weapon >= BG_GetNumWeapons() )
+        return false;
+    const WeaponVariantDef *variant = BG_GetWeaponVariantDef(weapon);
+    const char *name = variant && variant->szInternalName ? variant->szInternalName : "";
+    return strstr(name, "bowie") || strstr(name, "sickle");
 }
 
 // the local player's gun has its magazine out, through RE4's reload (CG_LeonReloadClip hides it)
@@ -1088,6 +1123,8 @@ struct RtRemoteActions
     bool kicking, kickVoiced, down;
     int kickVariant; // his kick's roundhouse (LEON_EF2_KICK2 as it began)
     float aim;
+    unsigned int meleeWeapon; // his entity's melee weapon (a knife bought slashes: CG_LeonBoughtKnife), once seen
+    bool meleeSeen;
 };
 static RtRemoteActions s_remoteActions[64];
 
@@ -1274,17 +1311,23 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                 s_knifeStart = cgameGlob->time;
                 s_leonHitStart = s_kickStart = -100000;
             }
-            // a new knife's flourish (the Bowie's, as it is bought: zombie_bowie_flourish, BO1's first-person show of
-            // it) slashes it once, the knife in his fist (CG_AttachWeapon) - RE4 has no such motion
-            static unsigned int s_flourishWeapon;
-            const WeaponVariantDef *heldVariant = ps->weapon ? BG_GetWeaponVariantDef(ps->weapon) : 0;
-            const bool flourish = heldVariant && heldVariant->szInternalName && strstr(heldVariant->szInternalName, "flourish");
-            if ( flourish && ps->weapon != s_flourishWeapon )
+            // a knife bought (the Bowie: CG_LeonBoughtKnife) slashes once as it becomes his melee weapon, the new knife
+            // in his fist (CG_AttachWeapon), in place of BO1's flourish - its weapon switch left out (G_LeonSkipSwitch),
+            // his gun stays in hand and he may aim again after the slash; it was the flourish held for 2.5 s, raised
+            // and put away, no aim through it (not the melee weapon this client first sees: none was bought then)
+            static unsigned int s_meleeWeapon = ~0u;
+            if ( ps->meleeWeapon != s_meleeWeapon )
             {
-                s_knifeStart = cgameGlob->time;
-                s_leonHitStart = s_kickStart = -100000;
+                if ( s_meleeWeapon != ~0u && CG_LeonBoughtKnife(ps->meleeWeapon) )
+                {
+                    s_knifeStart = cgameGlob->time;
+                    s_leonHitStart = s_kickStart = -100000;
+                    if ( R_RuntimeXModel_DvarOn("leon_actionlog") )
+                        Com_Printf(0, "leon: knife bought (%s) at %d: slashed\n", BG_WeaponName(ps->meleeWeapon),
+                                   cgameGlob->time);
+                }
+                s_meleeWeapon = ps->meleeWeapon;
             }
-            s_flourishWeapon = flourish ? ps->weapon : 0;
             const dvar_s *kickStamp = Dvar_FindVar("leon_kick_stamp");
             const char *stampText = kickStamp && kickStamp->type == DVAR_TYPE_STRING && kickStamp->current.string
                 ? kickStamp->current.string : "";
@@ -1570,6 +1613,16 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                 CG_RemoteVoice(pose->localClientNum, obj, "death");
             }
             r.down = down;
+            // a knife bought: his slash, as the local player's (not the one this client first sees him with, nor one
+            // bought while he was out of its view: posed again after a gap)
+            const unsigned int melee = es->lerp.u.player.meleeWeapon;
+            if ( r.meleeSeen && dt > 0.0f && melee != r.meleeWeapon && CG_LeonBoughtKnife(melee) )
+            {
+                r.knifeStart = now;
+                r.reloadStart = -100000;
+            }
+            r.meleeWeapon = melee;
+            r.meleeSeen = true;
         }
         aimFrac = r.aim;
         aimPitch = AngleNormalize180(es->lerp.apos.trBase[0]);
@@ -1771,10 +1824,16 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             s_quickTurnTime = cgameGlob->time;
         if ( aimFrac >= 0.01f || cgameGlob->time < s_aimedTime )
             s_aimedTime = cgameGlob->time;
-        R_RuntimeXModel_SetPlayerMotion(aimFrac > 0.5f, aimFrac < 0.01f && action != RT_ACTION_TURN
-                                                            && action != RT_ACTION_DEATH
-                                                            && cgameGlob->time - s_quickTurnTime > 350
-                                                            && cgameGlob->time - s_aimedTime > 400,
+        // the aim let go, its lowering is no aim: he turns and walks out of it at once (PM_TankControls) - his legs
+        // follow no strafe (the aim key up: PMF_SIGHT_AIMING, 0x10, off), and his turn keys turning him step him round
+        // in RE4's turn in place under the aim easing out (turned standing with the stance's legs, he slid round on
+        // them); with no turn key held the lowering keeps its 0.4 s
+        const bool aimHeld = (cgameGlob->predictedPlayerState.pm_flags & 0x10) != 0;
+        const bool settled = aimFrac < 0.01f && cgameGlob->time - s_aimedTime > 400;
+        R_RuntimeXModel_SetPlayerMotion(aimFrac > 0.5f && aimHeld, (settled || (!aimHeld && CL_LeonTurnIntent()))
+                                                                       && action != RT_ACTION_TURN
+                                                                       && action != RT_ACTION_DEATH
+                                                                       && cgameGlob->time - s_quickTurnTime > 350,
                                         CL_LeonMoveIntent());
     }
     // a player's run (bg_leon.h LEON_EF2_RUNNING): the view's player's from his predicted state, another's from his entity
@@ -1788,7 +1847,10 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     R_RuntimeXModel_SetFirePrev(firePrev);
     R_RuntimeXModel_SetKickVariant(kickVariant);
     if ( isPlayer && animWeapon )
+    {
         R_RuntimeXModel_SetReloadSet(CG_RuntimeXModel_ReloadSet(animWeapon));
+        R_RuntimeXModel_SetRunSet(CG_RuntimeXModel_RunSet(animWeapon));
+    }
     // a minigun (the Death Machine: no aim down the sights) is held in the Typewriter's aim all the time - RE4's hip
     // stance - turned up and down with the view: unaimed it hung at his side, at the floor, while its shots left from
     // the view (his eye); the rest (his turn, his head's look) goes by the real aim
