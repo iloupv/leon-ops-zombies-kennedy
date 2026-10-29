@@ -96,6 +96,13 @@ static std::vector<RtAnim> s_anims; // this level's
 static const XModel *s_laserModels[2]; // this level's laser sight beam segment and dot (R_RuntimeXModel_Laser)
 static const XModel *s_laserPieces[4]; // the beam's shorter pieces: 8, 4, 2 and 1 units (R_RuntimeXModel_LaserPiece)
 static const XModel *s_haloModel;      // the kick's halo on a staggered zombie (R_RuntimeXModel_Halo)
+// RE4's HUD's images as 2D materials (R_RuntimeXModel_HudMaterial: cgame_mp/cg_re4hud_mp.cpp), by their name in the file
+struct RtHudMaterial
+{
+    char name[32];
+    Material *material;
+};
+static std::vector<RtHudMaterial> s_hudMaterials;
 
 // Per entity locomotion state (by DObj entnum): the measured ground speed and the playing / fading-out cycles.
 struct RtAnimState
@@ -184,6 +191,7 @@ static void RtFreeAll()
     s_laserModels[0] = s_laserModels[1] = 0;
     memset(s_laserPieces, 0, sizeof(s_laserPieces));
     s_haloModel = 0;
+    s_hudMaterials.clear();
     for ( void *p : s_allocs )
         _aligned_free(p);
     s_allocs.clear();
@@ -1330,6 +1338,80 @@ static void RtBuildLaserModels(int zoneIndex, bool gpu)
     Com_Printf(0, "runtime models: laser sight on '%s' (%s)\n", effect->info.name, effect->techniqueSet->name);
 }
 
+// ---- RE4's HUD's images (cgame_mp/cg_re4hud_mp.cpp) -----------------------------------------------------------------
+// rtmodels/re4hud.rlh (tools/leon-converter/re4_hud.py, from the player's RE4 at setup): each image a 2D material, a copy
+// of the HUD's own "white" (its 2D technique, blended by the colour's alpha) with the image as its colour map. Made
+// once per level zone, as the laser's models (linked into it again, they asserted): one there already is taken as it is.
+static void RtLoadHud(int zoneIndex, bool gpu)
+{
+    s_hudMaterials.clear();
+    void *file = 0;
+    const int size = FS_ReadFile("rtmodels/re4hud.rlh", &file);
+    if ( size <= 0 || !file )
+        return; // (not converted: BO1's own ammo counter stays)
+    const Material *templ = DB_FindXAssetEntry(ASSET_TYPE_MATERIAL, "white")
+        ? DB_FindXAssetHeader(ASSET_TYPE_MATERIAL, (char *)"white", 1, -1).material : 0;
+    const unsigned int colorMapHash = R_HashString("colorMap");
+    bool colorMap = false;
+    for ( int i = 0; templ && i < templ->textureCount; ++i )
+        colorMap |= templ->textureTable[i].nameHash == colorMapHash;
+    if ( !colorMap )
+    {
+        Com_PrintWarning(0, "runtime models: no 2D material to draw RE4's HUD with\n");
+        FS_FreeFile(file);
+        return;
+    }
+    RtReader r = { (const unsigned __int8 *)file, (const unsigned __int8 *)file, (const unsigned __int8 *)file + size };
+    const void *magic = r.take(4);
+    const unsigned int count = magic && !memcmp(magic, "RLH1", 4) ? r.u32() : 0;
+    for ( unsigned int i = 0; i < count && r.ok; ++i )
+    {
+        RtHudMaterial hud;
+        memset(hud.name, 0, sizeof(hud.name));
+        if ( r.end - r.p >= 32 )
+            memcpy(hud.name, r.p, 31); // (the record's name, read again by RtCreateImage)
+        const char *materialName = va("re4hud_%s", hud.name);
+        const XAssetEntryPoolEntry *made = DB_FindXAssetEntry(ASSET_TYPE_MATERIAL, materialName);
+        if ( made && made->entry.zoneIndex == zoneIndex )
+        {
+            // (this zone has it: its record skipped)
+            r.take(32);
+            const unsigned int width = r.u16(), height = r.u16(), mips = r.u8();
+            r.u8();
+            r.u16();
+            size_t bytes = 0;
+            for ( unsigned int m = 0; m < mips; ++m )
+                bytes += (size_t)((width >> m) ? (width >> m) : 1) * ((height >> m) ? (height >> m) : 1) * 4;
+            r.take(bytes);
+            hud.material = DB_FindXAssetHeader(ASSET_TYPE_MATERIAL, (char *)materialName, 1, -1).material;
+        }
+        else
+        {
+            bool masked;
+            GfxImage *image = RtCreateImage(r, "re4hud", zoneIndex, gpu, &masked);
+            if ( !image )
+                break;
+            hud.material = RtCreateMaterial(templ, image, materialName, zoneIndex);
+        }
+        if ( r.ok && hud.material )
+            s_hudMaterials.push_back(hud);
+    }
+    FS_FreeFile(file);
+    Com_Printf(0, "runtime models: RE4's HUD, %u images, on '%s' (%s)\n", (unsigned int)s_hudMaterials.size(),
+               templ->info.name, templ->techniqueSet->name);
+}
+
+// RE4's HUD's image `name` as a 2D material (re4_hud.py's names: frame, digit0..9, empty, disc, name_<character>), or 0
+Material *__cdecl R_RuntimeXModel_HudMaterial(const char *name)
+{
+    for ( const RtHudMaterial &hud : s_hudMaterials )
+    {
+        if ( !strcmp(hud.name, name) )
+            return hud.material;
+    }
+    return 0;
+}
+
 // the laser sight's beam segment (16 units along +X) or dot, or 0 (no runtime models, or no effect material)
 const XModel *__cdecl R_RuntimeXModel_Laser(bool dot)
 {
@@ -1498,6 +1580,7 @@ static void RtLoadForLevel(const char *mapName)
     const XAssetEntryPoolEntry *laser = DB_FindXAssetEntry(ASSET_TYPE_XMODEL, "leon_laser");
     if ( loaded && !(laser && laser->entry.zoneIndex == zoneIndex) )
         RtBuildLaserModels(zoneIndex, gpu);
+    RtLoadHud(zoneIndex, gpu);
     RtPublishLoaded(zoneIndex);
     if ( gpu )
         RB_Resource_Flush();

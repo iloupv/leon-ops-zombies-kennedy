@@ -442,6 +442,8 @@ set(SRC_CGAME_MP
 	"${SRC_DIR}/cgame_mp/cg_consolecmds_mp.h"
 	"${SRC_DIR}/cgame_mp/cg_draw_mp.cpp"
 	"${SRC_DIR}/cgame_mp/cg_draw_mp.h"
+	"${SRC_DIR}/cgame_mp/cg_re4hud_mp.cpp"
+	"${SRC_DIR}/cgame_mp/cg_re4hud_mp.h"
 	"${SRC_DIR}/cgame_mp/cg_draw_net_mp.cpp"
 	"${SRC_DIR}/cgame_mp/cg_draw_net_mp.h"
 	"${SRC_DIR}/cgame_mp/cg_ents_mp.cpp"

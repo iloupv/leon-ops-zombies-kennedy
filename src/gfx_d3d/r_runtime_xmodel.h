@@ -10,6 +10,8 @@ const struct XModel *__cdecl R_RuntimeXModel_Laser(bool dot);
 const struct XModel *__cdecl R_RuntimeXModel_LaserPiece(int piece); // the beam's 8 / 4 / 2 / 1 unit pieces (0..3)
 // mod: the kick's halo on a staggered zombie (cg_view_mp.cpp CG_LeonKickHalos), or 0
 const struct XModel *__cdecl R_RuntimeXModel_Halo();
+// mod: RE4's HUD's image `name` as a 2D material (rtmodels/re4hud.rlh: cgame_mp/cg_re4hud_mp.cpp), or 0
+struct Material *__cdecl R_RuntimeXModel_HudMaterial(const char *name);
 // an upper-body action over the locomotion / aim (the local player's weapon): a shot, timed from it, or a reload,
 // stretched over its duration
 enum RtAction
