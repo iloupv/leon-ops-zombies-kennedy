@@ -258,12 +258,21 @@ choose()
 	shown = "";
 	shownPerk = "";
 	was = true; // (a press already held at the spawn is none)
+	// tests: leon_chartest <character> - the presses made for him (a headless client makes none), from 4 s in and
+	// half a second apart, until he plays that one (e.g. Leon to Ada: RE4's HUD's meter after the switch)
+	testTo = getDvar( "leon_chartest" );
+	testAt = getTime() + 4000;
 	// his weapon switch (weapnext: the mouse wheel, the pad's Y) presses the change-seat button meanwhile, not the weapon
 	// (the engine's CG_NextWeapon_f reads leon_charprompt on his client)
 	self setClientDvar( "leon_charprompt", "1" );
 	while ( getTime() < until )
 	{
 		pressed = self changeSeatButtonPressed();
+		if ( testTo != "" && self current() != testTo && getTime() >= testAt && !was )
+		{
+			pressed = true;
+			testAt = getTime() + 500;
+		}
 		if ( pressed && !was )
 		{
 			name = self current();

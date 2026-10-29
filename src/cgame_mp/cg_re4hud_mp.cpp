@@ -1,8 +1,8 @@
 // mod (the Leon mod): RE4's HUD in place of BO1's ammo counter (leon_re4hud). RE4's life meter (game/cockpit.cpp
-// LifeMeter): the stone ring whose channel the life fills - half of it at full health, all of it with Juggernog; green,
-// yellow under two thirds, red under one third, as RE4's (pl_class.cpp cPlayer::getLifeLevel) - and inside it the rounds
-// in the gun in RE4's digits (BulletInfo) with the reserve smaller under them, its EMPTY badge for none; the character's
-// name plate on the ring's arm. In the bottom right corner of the HUD's safe area (scrPlaceView: its margins), drawn
+// LifeMeter): the stone ring whose channel the life fills - half of it at full health, all of it with Juggernog, a gain
+// filling in; green, yellow under two thirds, red under one third, as RE4's (pl_class.cpp cPlayer::getLifeLevel) - and
+// inside it the rounds in the gun in RE4's digits (BulletInfo), red when few are left, with the reserve smaller under
+// them, its EMPTY badge for none; the character's name plate on the ring's arm. In the bottom right corner of the HUD's safe area (scrPlaceView: its margins), drawn
 // from RE4's own images, converted from the player's RE4 at setup (tools/leon-converter/re4_hud.py:
 // R_RuntimeXModel_HudMaterial); with none of them, BO1's ammo counter stays.
 #include "cg_re4hud_mp.h"
@@ -116,35 +116,54 @@ void __cdecl CG_DrawRE4Hud(int localClientNum)
     place.x = scrPlace->realViewableMax[0] - HUD_FRAME_W * place.k;
     place.y = scrPlace->realViewableMax[1] - HUD_FRAME_H * place.k;
 
-    // the life: its share of the most it can be, its state as RE4's - fine over two thirds, caution over one, danger
-    // under (and down: danger, empty). The most it can be is the most he has had since he was last down: the max
-    // health stat (stats[2]) stays the spawn's 100 under SP's setmaxhealth - Juggernog's 250, a character's own more -
-    // while his health regenerates to the real one
+    // the life: its share of his max health, its state as RE4's - fine over two thirds, caution over one, danger under
+    // (and down: danger, empty). His max is the player state's max health stat (stats[2]), kept in step with SP's
+    // setmaxhealth (game_sp's PlayerCmdSP_setmaxhealth): the spawn's 100, Juggernog's 250, a character's own more
+    // (Leon's 50) - and back to 100 when Leon is switched for Ada at the start, her full health a full meter (the
+    // meter took the most he had had since he was last down for his max: Leon's 150 read Ada's 100 as two thirds)
     const bool down = ps->pm_type == 6 || ps->pm_type == 7;
-    static int s_lifeMax[1];
-    int &lifeMax = s_lifeMax[localClientNum & 0];
-    if ( down || ps->stats[0] <= 0 )
-        lifeMax = 0;
-    lifeMax = ps->stats[0] > lifeMax ? ps->stats[0] : lifeMax;
-    lifeMax = ps->stats[2] > lifeMax ? ps->stats[2] : lifeMax;
+    const int lifeMax = ps->stats[2] > 0 ? ps->stats[2] : ps->stats[0];
     float life = lifeMax > 0 ? (float)ps->stats[0] / (float)lifeMax : 0.0f;
     life = down ? 0.0f : (life < 0.0f ? 0.0f : (life > 1.0f ? 1.0f : life));
+    // and as the meter shows it: a loss at once, a gain (the regen's, a revive's) filling in as RE4's own meter eases
+    // to the life (LifeMeter::move: nine tenths of the shown life and a tenth of the real one each of its 30 frames
+    // a second). _gameskill's regen gives the life back in steps - all of it at once after its delay, or a tenth
+    // every 50 ms when he was very hurt - which the meter showed as jumps
+    static float s_shownLife[1] = { -1.0f };
+    static int s_shownTime[1];
+    float &shown = s_shownLife[localClientNum & 0];
+    int &shownTime = s_shownTime[localClientNum & 0];
+    const int elapsed = cgameGlob->time - shownTime;
+    shownTime = cgameGlob->time;
+    if ( shown < 0.0f || life <= shown || elapsed < 0 || elapsed > 1000 ) // (a new level, a pause: as it is)
+        shown = life;
+    else
+    {
+        shown = life - (life - shown) * powf(0.9f, (float)elapsed * 0.03f);
+        if ( life - shown < 0.002f )
+            shown = life;
+    }
+    float meter = shown;
     const dvar_s *lifeTest = Dvar_FindVar("leon_re4hudtest"); // tests: the meter at that share (percent)
     if ( lifeTest && lifeTest->type == DVAR_TYPE_STRING && lifeTest->current.string && lifeTest->current.string[0] )
-        life = (float)atof(lifeTest->current.string) * 0.01f;
+        meter = (float)atof(lifeTest->current.string) * 0.01f;
     static const float s_fine[4] = { 0.15f, 0.60f, 0.19f, 0.95f };
     static const float s_caution[4] = { 0.70f, 0.56f, 0.06f, 0.95f };
     static const float s_danger[4] = { 0.66f, 0.08f, 0.05f, 0.95f };
-    const float *state = life > 2.0f / 3.0f ? s_fine : (life > 1.0f / 3.0f ? s_caution : s_danger);
+    const float *state = meter > 2.0f / 3.0f ? s_fine : (meter > 1.0f / 3.0f ? s_caution : s_danger);
     // the channel: half of it the life's whole without Juggernog, all of it with (his health then raised to the most)
     const bool jugg = BG_HasPerk(ps->perks, BG_GetPerkIndexForName("specialty_armorvest"));
-    const float fill = jugg ? life : 0.5f * life;
-    static int s_loggedLife = -1;
-    if ( R_RuntimeXModel_DvarOn("leon_re4hudlog") && (int)(life * 100.0f) != s_loggedLife ) // tests: each change of it
+    const float fill = jugg ? meter : 0.5f * meter;
+    static int s_loggedLife = -1, s_loggedShown = -1, s_loggedMax = -1;
+    if ( R_RuntimeXModel_DvarOn("leon_re4hudlog") && ((int)(life * 100.0f) != s_loggedLife
+                                                      || (int)(meter * 100.0f) != s_loggedShown || lifeMax != s_loggedMax) )
     {
+        // (tests: each change of it, of the meter, of his max)
         s_loggedLife = (int)(life * 100.0f);
-        Com_Printf(0, "leon_re4hud: t %d life %d/%d (%d %%), pm_type %d\n", cgameGlob->time, ps->stats[0], lifeMax,
-                   s_loggedLife, ps->pm_type);
+        s_loggedShown = (int)(meter * 100.0f);
+        s_loggedMax = lifeMax;
+        Com_Printf(0, "leon_re4hud: t %d life %d/%d (%d %%) shown %d %%, pm_type %d\n", cgameGlob->time, ps->stats[0],
+                   lifeMax, s_loggedLife, s_loggedShown, ps->pm_type);
     }
 
     // the ring's dark screen, the rounds on it (below)
@@ -165,15 +184,18 @@ void __cdecl CG_DrawRE4Hud(int localClientNum)
     }
     CG_RE4HudPic(place, 0.0f, 0.0f, HUD_FRAME_W, HUD_FRAME_H, colorWhite, "frame");
 
-    // the character's name plate on the arm (Luis has none in RE4: his name in the HUD's font)
+    // the character's name plate on the arm (Luis has none in RE4: re4_hud.py makes his of its plates' letters, and
+    // without it his name is in the HUD's font)
     const dvar_s *character = Dvar_FindVar("leon_character");
     const char *name = character && character->type == DVAR_TYPE_STRING && character->current.string
                        && character->current.string[0] ? character->current.string : "leon";
-    // each plate's lettering (its opaque box in the image, pixels): scaled to one height on the arm
+    // each plate's lettering (its opaque box in the image, pixels): scaled to one height on the arm. Luis's is set at
+    // Leon's plate's scale on its baseline: Leon's box's height, his i's dot over it
     static const struct { const char *character; float w, h, left, top, textW, textH; } s_plates[] = {
         { "leon", 256.0f, 128.0f, 18.0f, 30.0f, 222.0f, 67.0f },
         { "ada", 280.0f, 136.0f, 19.0f, 20.0f, 245.0f, 99.0f },
         { "hunk", 376.0f, 136.0f, 15.0f, 23.0f, 344.0f, 96.0f },
+        { "luis", 255.0f, 128.0f, 18.0f, 30.0f, 220.0f, 67.0f },
     };
     const float plateText = 52.0f, plateLeft = 398.0f, plateMid = 313.0f, plateRoom = 165.0f;
     bool plated = false;
@@ -207,17 +229,39 @@ void __cdecl CG_DrawRE4Hud(int localClientNum)
         return;
     const WeaponDef *weapDef = BG_GetWeaponDef(weapon);
     const int clip = BG_GetAmmoInClip(ps, weapon);
-    const bool low = CG_CheckPlayerForLowAmmoSpecific(cgameGlob, weapon);
-    static const float s_low[4] = { 1.0f, 0.35f, 0.25f, 1.0f };
+    // the rounds in the gun red when few are left, as RE4's: BO1's own low clip (CG_CheckPlayerForLowClipSpecific, its
+    // ammo counter's flashing clip: the weapon's lowAmmoWarningThreshold of a full clip, or under); a weapon without
+    // one (no threshold, or a clip that is all its ammo) at a quarter of its clip. The reserve red as BO1's own when
+    // it runs low (CG_CheckPlayerForLowAmmoSpecific: a fifth of the most it holds) - the clip took that colour before,
+    // whatever the clip held
+    const int clipSize = BG_GetClipSize(weapon);
+    const bool ownLow = weapDef->lowAmmoWarningThreshold > 0.0f && !BG_WeaponIsClipOnly(weapon);
+    const bool lowClip = ownLow ? CG_CheckPlayerForLowClipSpecific(cgameGlob, weapon)
+                                : clipSize > 0 && (float)clip <= (float)clipSize * 0.25f;
     const bool reserveShown = !weapDef->suppressAmmoReserveDisplay;
+    const int reserve = BG_GetTotalAmmoReserve(ps, weapon);
+    const bool lowReserve = reserveShown && CG_CheckPlayerForLowAmmoSpecific(cgameGlob, weapon);
+    static const float s_low[4] = { 1.0f, 0.35f, 0.25f, 1.0f };
+    static unsigned int s_loggedWeapon;
+    static int s_loggedLow = -1;
+    if ( R_RuntimeXModel_DvarOn("leon_re4hudlog")
+         && (weapon != s_loggedWeapon || (int)lowClip + 2 * (int)lowReserve != s_loggedLow) ) // tests: each change
+    {
+        s_loggedWeapon = weapon;
+        s_loggedLow = (int)lowClip + 2 * (int)lowReserve;
+        Com_Printf(0, "leon_re4hud: t %d weapon %s clip %d/%d (low at %.2f of it%s): %s, reserve %d: %s\n",
+                   cgameGlob->time, BG_WeaponName(weapon), clip, clipSize,
+                   ownLow ? weapDef->lowAmmoWarningThreshold : 0.25f, ownLow ? "" : ", the HUD's",
+                   lowClip ? "red" : "white", reserve, lowReserve ? "red" : "grey");
+    }
     const float clipBottom = RING_Y + (reserveShown ? 30.0f : 55.0f);
     if ( clip > 0 )
-        CG_RE4HudNumber(place, clip, RING_X, clipBottom, 0.8f, low ? s_low : colorWhite);
+        CG_RE4HudNumber(place, clip, RING_X, clipBottom, 0.8f, lowClip ? s_low : colorWhite);
     else
         CG_RE4HudPic(place, RING_X - 56.0f, clipBottom - 100.0f, 112.0f, 112.0f, colorWhite, "empty");
     if ( reserveShown )
     {
         static const float s_reserve[4] = { 0.82f, 0.82f, 0.82f, 1.0f };
-        CG_RE4HudNumber(place, BG_GetTotalAmmoReserve(ps, weapon), RING_X, RING_Y + 98.0f, 0.45f, s_reserve);
+        CG_RE4HudNumber(place, reserve, RING_X, RING_Y + 98.0f, 0.45f, lowReserve ? s_low : s_reserve);
     }
 }

@@ -269,8 +269,10 @@ leon_spawn_test()
 	}
 	if ( getDvar( "leon_wallbuy" ) == "1" )
 		player thread leon_goto_wallbuy(); // tests: in front of a wall weapon (its use hint)
-	if ( getDvar( "leon_emptyclip" ) == "1" )
-		player thread leon_empty_clip(); // tests: a reload to make (a headless client fires only aimed in)
+	// tests: a reload to make (1: a headless client fires only aimed in), or that many rounds left in the gun - and in
+	// reserve, with a second count (RE4's HUD's low clip and reserve: "2 10")
+	if ( getDvar( "leon_emptyclip" ) != "" )
+		player thread leon_empty_clip( strTok( getDvar( "leon_emptyclip" ), " " ) );
 	if ( getDvar( "leon_endtest" ) != "" )
 		level thread leon_end_test( getDvarFloat( "leon_endtest" ) ); // tests: the game ends after that many seconds
 	if ( getDvar( "leon_hurttest" ) != "" )
@@ -372,13 +374,17 @@ leon_goto_wallbuy()
 	logPrint( "leon: at wall weapon " + trig.zombie_weapon_upgrade + " " + trig.origin + "\n" );
 }
 
-// One round left in the clip every 3 s (tests: a reload is always there to make).
-leon_empty_clip()
+// That many rounds left in the clip every 3 s (tests: with one a reload is always there to make), and in reserve when
+// a second count is given.
+leon_empty_clip( counts )
 {
 	self endon( "disconnect" );
 	for ( ;; )
 	{
-		self setWeaponAmmoClip( self getCurrentWeapon(), 1 );
+		weapon = self getCurrentWeapon();
+		self setWeaponAmmoClip( weapon, int( counts[0] ) );
+		if ( counts.size > 1 )
+			self setWeaponAmmoStock( weapon, int( counts[1] ) );
 		wait 3;
 	}
 }

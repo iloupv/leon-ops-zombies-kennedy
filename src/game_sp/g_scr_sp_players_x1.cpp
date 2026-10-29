@@ -194,7 +194,15 @@ void PlayerCmdSP_setmaxhealth(scr_entref_t entref)
     ent->health = value;
     ent->maxHealth = value;
     if (ent->client)
+    {
         ent->client->sess.maxHealth = value;
+        // mod (the Leon mod): and the player state's max health stat (stats[2], STAT_MAX_HEALTH), which SP leaves at the
+        // spawn's (g_player_maxhealth, ClientSpawn) - the client's only word of his max: RE4's HUD
+        // (cgame_mp/cg_re4hud_mp.cpp) reads his life as a share of it. Juggernog's 250, Leon's 50 more
+        // (maps\leon\_character.gsc perks) and a revive's (_laststand's preMaxHealth) all come through here. SP's fall
+        // damage, a share of that stat, keeps the spawn's (ClientEvents, game_mp/g_active_mp.cpp)
+        ent->client->ps.stats[2] = value;
+    }
 }
 
 // ---------------------------------------------------------------------------------------------
