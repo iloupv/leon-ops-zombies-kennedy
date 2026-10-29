@@ -1,5 +1,6 @@
 #include <bgame/bg_leon.h>
 #include <gfx_d3d/r_runtime_xmodel.h>
+#include "cg_re4hud_mp.h"
 #include <cgame/cg_sp_hud.h>
 #include <win32/win_main.h>
 #include <cgame/cg_sp_client_ext.h>
@@ -510,6 +511,7 @@ void __cdecl CG_Draw2DInternal(int localClientNum)
                     {
                         CG_Draw2dHudElems(localClientNum, 0);
                         Menu_PaintAll(localClientNum, &cgDC[localClientNum]);
+                        CG_DrawRE4Hud(localClientNum); // mod (over the HUD menus' ammo panel)
                     }
                     CG_Draw2dHudElems(localClientNum, 1);
                 }

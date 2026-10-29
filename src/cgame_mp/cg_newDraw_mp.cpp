@@ -28,6 +28,7 @@
 #include <client/cl_keys.h>
 #include <qcommon/com_clients.h>
 #include <stringed/stringed_hooks.h>
+#include "cg_re4hud_mp.h"
 
 const char *cg_drawTalkNames[5] =
 { "NONE", "ALL", "FRIENDLY", "ENEMY", NULL };
@@ -4136,6 +4137,8 @@ LABEL_59:
                 CG_DrawInvalidCmdHint(localClientNum, &rect, font, scale, color, textStyle);
                 break;
             case 120:
+                if ( CG_RE4HudHidesAmmoCounter() ) // mod: RE4's HUD shows the rounds (cg_re4hud_mp.cpp); the same below
+                    break;
                 CG_DrawPlayerWeaponAmmoClip(
                     localClientNum,
                     &rect,
@@ -4149,12 +4152,18 @@ LABEL_59:
                     textAlignMode);
                 break;
             case 121:
+                if ( CG_RE4HudHidesAmmoCounter() )
+                    break;
                 CG_DrawPlayerWeaponAmmoClipDualWield(localClientNum, &rect, font, scale, color, material, textStyle);
                 break;
             case 122:
+                if ( CG_RE4HudHidesAmmoCounter() )
+                    break;
                 CG_DrawPlayerWeaponAmmoStock(localClientNum, &rect, font, scale, color, material, textStyle);
                 break;
             case 123:
+                if ( CG_RE4HudHidesAmmoCounter() )
+                    break;
                 CG_DrawPlayerWeaponLowAmmoWarning(
                     localClientNum,
                     &rect,
