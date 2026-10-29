@@ -178,12 +178,27 @@ knocked( player, gib )
 }
 
 // a trap's kill on him (_zombiemode_traps zombie_trap_death, in place of its damage or before its ragdoll): never - the
-// trap's thread held here till he dies (a trap killed Super Salvador as a zombie). Its mark on him (marked_for_death: the
-// trap passes him over) off once he is out of it, so his hits still score and the Nuke still finds him
+// trap's thread held here till he dies (a trap killed Super Salvador as a zombie). His flinch instead (spawn_enemy's
+// staggerFunc), once a run of that trap: it steps him back out of it, and on every way back in it held him at its edge
+// for the whole run. Its mark on him (marked_for_death: the trap passes him over) off once he is out of it, so his hits
+// still score and the Nuke still finds him
 trap_immune( trap )
 {
 	self thread trap_unmark( trap );
+	if ( isDefined( trap ) && !isDefined( trap.leon_flinched ) && isDefined( self.leon_boss_stagger ) )
+	{
+		trap.leon_flinched = true;
+		trap thread trap_flinch_reset();
+		self thread [[ self.leon_boss_stagger ]]();
+	}
 	self waittill( "death" );
+}
+
+// self: a trap - its flinch on the bosses again once it is switched on again (its run over: trap_done)
+trap_flinch_reset()
+{
+	self waittill( "trap_done" );
+	self.leon_flinched = undefined;
 }
 
 trap_unmark( trap )

@@ -4,15 +4,16 @@
 
 // LEON MOD - not part of the original game. Super Salvador, RE4's island chainsaw carrier (em20's type 22), comes in
 // every Hellhound round: 9 s into it, out of the dogs' lightning at a dog's spawn spot, shouting "Te voy a matar!" - an
-// RE4 enemy on a hidden zombie (maps\leon\_rtenemy.gsc), running 40 % faster than a zombie runs. His model, a quarter
+// RE4 enemy on a hidden zombie (maps\leon\_rtenemy.gsc), running 20 % faster than a zombie runs. His model, a quarter
 // larger than RE4's (tools/leon-converter/leon_rlm.py ENEMIES), takes his hits at its size (leonpassdamage). The engine
 // plays his idle by how he moves, and for every step the Mercenaries' chainsaw walk, the saw swung round and round
 // (em10.cpp CSawWalkAtk), smoking and throwing sparks - the Mercenaries' Waterworld's chainsaw heard starting as he comes,
 // then revving all the while, a swish on every sweep. He laughs and shouts as he comes.
 // He takes no dog's place while the round's dogs still come (the dogs' spawning waits on the enemies there are), and
 // holds its end once they all have. A player the saw reaches is caught - one hit, down (or the game over) - and he spins
-// on. Head and leg shots and the Thundergun stagger him (his chainsaw flinch), with no halo: he is never kicked. His kill:
-// 1000 points and a Fire Sale; the last enemy of the round, his death drops its Max Ammo, as the last dog's does.
+// on. Head and leg shots, the Thundergun and a trap stagger him (his chainsaw flinch), with no halo: he is never
+// kicked, and a trap does not kill him. His kill: 1000 points and a Fire Sale; the last enemy of the round, his death
+// drops its Max Ammo, as the last dog's does.
 //   leon_salvador 0        off
 //   leon_salvadortest 1    test: one comes 5 s into the level, dog round or not (2: and the player cannot be hurt; 3: and
 //                          he is staggered every 6 s; 4: and shot at his head, chest and legs in turn; 5: none then,
@@ -100,8 +101,8 @@ salvador_thundergun_test( player )
 	}
 }
 
-// test: a trap's kill on him (the map's first trap's zombie_trap_death, as its trigger runs it on a zombie in it - he is
-// not in it, so its mark comes off at once), then whether he lives and is unmarked, 3 s on
+// test: a trap's kill on him twice (the map's first trap's zombie_trap_death, as its trigger runs it on a zombie in it -
+// he is not in it, so its mark comes off at once), each time whether he lives and is unmarked, 3 s on
 salvador_trap_test()
 {
 	self endon( "death" );
@@ -114,10 +115,13 @@ salvador_trap_test()
 	wait 1;
 	logPrint( "leon: salvador trap test - a " + traps[0]._trap_type + " trap's kill at " + getTime() + ", health "
 	          + self.health + "\n" );
-	self thread maps\_zombiemode_traps::zombie_trap_death( traps[0], 50 );
-	wait 3;
-	logPrint( "leon: salvador trap test - alive " + isAlive( self ) + ", health " + self.health + ", marked "
-	          + isDefined( self.marked_for_death ) + "\n" );
+	for ( i = 0; i < 2; i++ ) // (the second, the same run of it: no flinch again)
+	{
+		self thread maps\_zombiemode_traps::zombie_trap_death( traps[0], 50 );
+		wait 3;
+		logPrint( "leon: salvador trap test - alive " + isAlive( self ) + ", health " + self.health + ", marked "
+		          + isDefined( self.marked_for_death ) + "\n" );
+	}
 }
 
 salvador_where_log()
@@ -255,13 +259,14 @@ salvador_spawn( spot, target )
 	return ai;
 }
 
-// 40 % faster than a zombie's run (kept: a zombie's scripts may set its pace back; at 70 % he was on the player at once)
+// 20 % faster than a zombie's run (kept: a zombie's scripts may set its pace back; at 70 %, then 40 %, he was on the
+// player at once)
 salvador_pace()
 {
 	self endon( "death" );
 	for ( ;; )
 	{
-		self.moveplaybackrate = 1.4;
+		self.moveplaybackrate = 1.2;
 		wait 0.5;
 	}
 }
