@@ -286,11 +286,11 @@ int __cdecl BG_GetWeaponIndexForName(const char *name, void (__cdecl *regWeap)(u
 }
 
 // mod (the Leon mod, player_tankControls): the weapons it changes, as their defs are set up. The Thundergun aimed in
-// with the right click, as RE4's mine thrower, its pose set (CG_RuntimeXModel_AnimSet) - its def has no aim, so it
-// fired from the hip and its right click did nothing (PM_TankControls). Its aim's values are in the def all the same
-// (both variants: zoom 65, in 400 ms, out 450 ms). Mustang & Sally (the M1911 Pack-a-Punched) one pistol, as RE4's
-// handgun: its pair, a dual wield, floated the other gun in his left hand and could not aim; both guns' rounds in its
-// clip (16), and the aim (a pair's def has none: the M1911's times where it has none of its own either)
+// with the right click, in its pose set's aim (CG_RuntimeXModel_AnimSet: the shotgun's stance) - its def has no aim,
+// so it fired from the hip and its right click did nothing (PM_TankControls). Its aim's values are in the def all the
+// same (both variants: zoom 65, in 400 ms, out 450 ms). Mustang & Sally (the M1911 Pack-a-Punched) one pistol, as
+// RE4's handgun: its pair, a dual wield, floated the other gun in his left hand and could not aim; both guns' rounds in
+// its clip (16), and the aim (a pair's def has none: the M1911's times where it has none of its own either)
 static void BG_LeonWeaponChanges(WeaponVariantDef *weapVariantDef)
 {
     WeaponDef *weapDef = weapVariantDef->weapDef;
