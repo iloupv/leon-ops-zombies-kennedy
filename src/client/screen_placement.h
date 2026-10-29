@@ -67,6 +67,16 @@ void __cdecl ScrPlace_SetupUnsafeViewport(
                 int viewportY,
                 int viewportWidth,
                 int viewportHeight);
+// mod: a viewport whose viewable area - where the HUD and the menus align to the screen's edges - is that share of it
+// (1: the whole of it, PC's own; a console's TV safe area, 0.9: a margin of 5 % at each edge)
+void __cdecl ScrPlace_SetupSafeViewport(
+                ScreenPlacement *scrPlace,
+                int viewportX,
+                int viewportY,
+                int viewportWidth,
+                int viewportHeight,
+                float safeAreaHorz,
+                float safeAreaVert);
 double __cdecl ScrPlace_ApplyXinverse(const ScreenPlacement *scrPlace, float x, int horzAlign);
 double __cdecl ScrPlace_ApplyYinverse(const ScreenPlacement *scrPlace, float y, int vertAlign);
 double __cdecl ScrPlace_ApplyX(const ScreenPlacement *scrPlace, float x, int horzAlign);

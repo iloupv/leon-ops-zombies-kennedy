@@ -38,12 +38,47 @@ void __cdecl ScrPlace_SetupUI3DForFullscreen(ScreenPlacement *ui3DScrPlace, Scre
     }
 }
 
+static void ScrPlace_SetupFloatViewportSafe(
+                ScreenPlacement *scrPlace,
+                float viewportX,
+                float viewportY,
+                float viewportWidth,
+                float viewportHeight,
+                float safeAreaHorz,
+                float safeAreaVert);
+
 void __cdecl ScrPlace_SetupFloatViewport(
                 ScreenPlacement *scrPlace,
                 float viewportX,
                 float viewportY,
                 float viewportWidth,
                 float viewportHeight)
+{
+    ScrPlace_SetupFloatViewportSafe(scrPlace, viewportX, viewportY, viewportWidth, viewportHeight, 1.0f, 1.0f);
+}
+
+void __cdecl ScrPlace_SetupSafeViewport(
+                ScreenPlacement *scrPlace,
+                int viewportX,
+                int viewportY,
+                int viewportWidth,
+                int viewportHeight,
+                float safeAreaHorz,
+                float safeAreaVert)
+{
+    ScrPlace_SetupFloatViewportSafe(scrPlace, (float)viewportX, (float)viewportY, (float)viewportWidth,
+                                    (float)viewportHeight, safeAreaHorz, safeAreaVert);
+}
+
+// (mod: the PC's viewable area, the whole viewport, was fixed at 1.0)
+static void ScrPlace_SetupFloatViewportSafe(
+                ScreenPlacement *scrPlace,
+                float viewportX,
+                float viewportY,
+                float viewportWidth,
+                float viewportHeight,
+                float safeAreaHorz,
+                float safeAreaVert)
 {
     float adjustedRealWidth; // [esp+84h] [ebp-10h]
 
@@ -62,8 +97,8 @@ void __cdecl ScrPlace_SetupFloatViewport(
         viewportHeight,
         viewportWidth / adjustedRealWidth,
         viewportHeight / viewportHeight,
-        1.0,
-        1.0,
+        safeAreaHorz,
+        safeAreaVert,
         scrPlace->realViewableMin,
         scrPlace->realViewableMax,
         scrPlace->virtualViewableMin,
@@ -75,8 +110,8 @@ void __cdecl ScrPlace_SetupFloatViewport(
         viewportHeight,
         viewportWidth / adjustedRealWidth,
         viewportHeight / viewportHeight,
-        1.0,
-        1.0,
+        safeAreaHorz,
+        safeAreaVert,
         scrPlace->realTweakableMin,
         scrPlace->realTweakableMax,
         scrPlace->virtualTweakableMin,
