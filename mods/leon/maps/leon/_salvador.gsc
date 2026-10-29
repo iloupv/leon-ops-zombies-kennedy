@@ -10,13 +10,14 @@
 // (em10.cpp CSawWalkAtk), smoking and throwing sparks - the Mercenaries' Waterworld's chainsaw heard starting as he comes,
 // then revving all the while, a swish on every sweep. He laughs and shouts as he comes.
 // He takes no dog's place while the round's dogs still come (the dogs' spawning waits on the enemies there are), and
-// holds its end once they all have. A player the saw reaches is caught - one hit, down (or the game over) - and he saws
-// him (C_SawCriHit). Head and leg shots stagger him (his chainsaw flinch) with no halo: he is never kicked. His kill:
+// holds its end once they all have. A player the saw reaches is caught - one hit, down (or the game over) - and he spins
+// on. Head and leg shots and the Thundergun stagger him (his chainsaw flinch), with no halo: he is never kicked. His kill:
 // 1000 points and a Fire Sale; the last enemy of the round, his death drops its Max Ammo, as the last dog's does.
 //   leon_salvador 0        off
 //   leon_salvadortest 1    test: one comes 5 s into the level, dog round or not (2: and the player cannot be hurt; 3: and
 //                          he is staggered every 6 s; 4: and shot at his head, chest and legs in turn; 5: none then,
-//                          the first round ended at once and the next a dog round - its dogs and enemies logged)
+//                          the first round ended at once and the next a dog round - its dogs and enemies logged; 6:
+//                          and the Thundergun fired at him whenever he is near - with leon_give thundergun_zm)
 
 init()
 {
@@ -50,7 +51,7 @@ salvador_test()
 		players = getEntArray( "player", "classname" );
 	}
 	test = getDvar( "leon_salvadortest" );
-	if ( test == "2" || test == "3" || test == "4" || test == "5" )
+	if ( test == "2" || test == "3" || test == "4" || test == "5" || test == "6" )
 	{
 		players[0] enableInvulnerability();
 		level.leon_boss_testgod = true;
@@ -65,11 +66,44 @@ salvador_test()
 	ai = salvador_come( 0 );
 	if ( test == "4" && isDefined( ai ) )
 		ai thread salvador_shot_test( players[0] );
+	if ( test == "6" && isDefined( ai ) )
+		ai thread salvador_thundergun_test( players[0] );
 	while ( test == "3" && isDefined( ai ) && isAlive( ai ) )
 	{
 		wait 6;
 		if ( isDefined( ai ) && isAlive( ai ) )
 			ai thread stagger();
+	}
+}
+
+// test: the Thundergun fired at him by the player (_zombiemode_weap_thundergun wait_for_thundergun_fired: its blast on
+// the player's weapon_fired, the gun in his hand), turned to him, once he is within 250 - again 6 s on; and where he is,
+// every second (standing still after his flinch: held)
+salvador_thundergun_test( player )
+{
+	self endon( "death" );
+	self thread salvador_where_log();
+	for ( ;; )
+	{
+		wait 0.25;
+		if ( distance( self.origin, player.origin ) > 250 )
+			continue;
+		player setPlayerAngles( vectorToAngles( self.origin + ( 0, 0, 40 ) - player getEye() ) );
+		wait 0.05;
+		logPrint( "leon: salvador thundergun fired at " + getTime() + ", " + int( distance( self.origin, player.origin ) )
+		          + " away, holding " + player getCurrentWeapon() + "\n" );
+		player notify( "weapon_fired" );
+		wait 6;
+	}
+}
+
+salvador_where_log()
+{
+	self endon( "death" );
+	for ( ;; )
+	{
+		wait 1;
+		logPrint( "leon: salvador where " + getTime() + " " + self.origin + " busy " + isDefined( self.leon_busy ) + "\n" );
 	}
 }
 
@@ -191,7 +225,7 @@ salvador_spawn( spot, target )
 	model thread salvador_saw_rev( ai );
 	ai thread salvador_swings( model );
 	ai thread salvador_voice( model );
-	ai thread salvador_attacks( model );
+	ai thread salvador_attacks();
 	ai thread salvador_died();
 	model thread maps\leon\_rtenemy::corpse( ai, "salvador_death" );
 	logPrint( "leon: salvador at " + spot.origin + " health " + health + " round " + level.round_number + "\n" );
@@ -237,7 +271,8 @@ salvador_saw( ai )
 	}
 }
 
-// self: his model - the chainsaw's rev once its start is over (2.6 s), then again as each ends (1.96 s), to his death
+// self: his model - the chainsaw's rev once its start is over (2.6 s), then again as each ends (1.63 s: RE4's 1.96 s a
+// fifth faster, tools/leon-converter/leon_sounds.py SPEEDS), to his death
 salvador_saw_rev( ai )
 {
 	ai endon( "death" );
@@ -246,7 +281,7 @@ salvador_saw_rev( ai )
 	for ( ;; )
 	{
 		self playSound( "salvador_sawrev" );
-		wait 1.9;
+		wait 1.6;
 	}
 }
 
@@ -305,8 +340,10 @@ salvador_voice( model )
 }
 
 // the Mercenaries' chainsaw walk sweeps the saw round as he goes (em10.cpp CSawWalkAtk: its sweeps catch whoever they
-// touch): a player in its reach is caught. Not once the game is over (solo, his catch ended it: he sawed on at it)
-salvador_attacks( model )
+// touch): a player in its reach is down at once, whatever his health, and he goes on sawing - the spin is his kill, he
+// stops for none (a sawing kill motion over the player was the village chainsaw man's, not his). Not while he flinches,
+// nor once the game is over; a player it caught (the invulnerable tests') not again for a second
+salvador_attacks()
 {
 	self endon( "death" );
 	for ( ;; )
@@ -316,33 +353,20 @@ salvador_attacks( model )
 			continue;
 		// the saw's reach, a quarter over RE4's (his size): 70 in front, 60 degrees either side of his facing
 		target = self maps\leon\_rtenemy::in_reach( 70, 0.5 );
-		if ( isDefined( target ) )
-			self thread salvador_catch( model, target );
+		if ( !isDefined( target ) || ( isDefined( target.leon_sawn ) && getTime() < target.leon_sawn ) )
+			continue;
+		target.leon_sawn = getTime() + 1000;
+		self maps\leon\_rtenemy::hit( target, 0, true );
+		logPrint( "leon: salvador caught player " + target getEntityNumber() + " at " + getTime() + "\n" );
 	}
 }
 
-// caught: the saw's kill (C_SawCriHit, 99 frames: 3.3 s), turned to the player, and the player down at once, whatever
-// his health
-salvador_catch( model, player )
-{
-	self endon( "death" );
-	self.leon_busy = "kill";
-	yaw = vectorToAngles( player.origin - self.origin );
-	self maps\leon\_rtenemy::hold( yaw[1] );
-	model maps\leon\_rtenemy::motion( "kill" );
-	self maps\leon\_rtenemy::hit( player, 0, true );
-	logPrint( "leon: salvador caught player " + player getEntityNumber() + " at " + getTime() + "\n" );
-	wait 3.3;
-	self maps\leon\_rtenemy::free();
-}
-
-// maps\leon\_kick.gsc's stagger on him (self): his chainsaw flinch (Dm_Small's, 76 frames: 2.5 s), stepping back as
-// RE4's does (its root's travel, a quarter over for his size) - not through his kill
+// maps\leon\_kick.gsc's stagger on him (self), and the Thundergun's blast (maps\leon\_rtenemy.gsc flung / knocked): his
+// chainsaw flinch (Dm_Small's, 76 frames: 2.5 s), stepping back as RE4's does (its root's travel, a quarter over for his
+// size)
 stagger()
 {
 	self endon( "death" );
-	if ( isDefined( self.leon_busy ) && self.leon_busy == "kill" )
-		return;
 	model = self.leon_model;
 	self notify( "leon_interrupt" );
 	self.leon_busy = "stagger";

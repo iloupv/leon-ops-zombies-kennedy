@@ -523,14 +523,14 @@ WEAPON_SETS.append(('dbshotgun', 'wep07.udas',
 # model with the sack, BIN 0x1E0 / TPL 0x1E1; Em20WeaponSet's chainsaw, Wep_type 4 - em10WeaponInit - BIN 0x104 / TPL
 # 0x105 on the right hand, part 0xA, em10WeaponSet's place for it). His motions are em10.cpp's for the chainsaw: the
 # idle (em10SetWaitMotion 0xE6); for every step he takes, the Mercenaries' chainsaw walk, the saw swung round and round
-# (CSawWalkAtk 0x2BC); the kill (C_SawCriHit 0x100), the flinch (Dm_Small's chainsaw 0xF7) and the standing death
-# (Die_Normal 0x67, its fall forward baked in). A quarter larger than RE4's, to stand out; tags on the saw's engine and
-# its blade for his smoke and sparks (maps\leon\_salvador.gsc). The textures at half the characters' cap: an enemy seen
-# from a distance.
+# (CSawWalkAtk 0x2BC), which is also his kill (no sawing motion over the player: the village chainsaw man's); the flinch
+# (Dm_Small's chainsaw 0xF7) and the standing death (Die_Normal 0x67, its fall forward baked in). A quarter larger
+# than RE4's, to stand out; tags on the saw's engine and its blade for his smoke and sparks (maps\leon\_salvador.gsc).
+# The textures at half the characters' cap: an enemy seen from a distance.
 ENEMIES = {
     'salvador': {'parts': [(0x1DC, 0x1DD, 'body')],
                  'held': [(0x100, 0x101, 10, (-304.24, -17.86, -57.43), (1.4835298, 0.0, -1.5707964))],
-                 'motions': [('idle', 0xE2), ('walk', 0x2B8), ('kill', 0xFC), ('stagger', 0xF3), ('death', 0x63)],
+                 'motions': [('idle', 0xE2), ('walk', 0x2B8), ('stagger', 0xF3), ('death', 0x63)],
                  'tags': [('tag_saw_engine', 10, (-92.0, -45.0, -31.0), None),
                           ('tag_saw_blade', 10, (-700.0, -100.0, 0.0), None)],
                  'root_move': {'death'}, 'max_texture': 1024, 'scale': 1.25},
