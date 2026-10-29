@@ -407,6 +407,10 @@ extern const dvar_s *bg_shock_visionset_outTime;
 extern const dvar_s *player_meleeRange;
 extern const dvar_s *player_meleeWidth;
 extern const dvar_s *player_meleeHeight;
+// mod (the Leon mod): a player's melee reach, player_meleeRange / Width / Height with RE4's controls' own (bg_leon.h)
+float __cdecl BG_PlayerMeleeRange();
+float __cdecl BG_PlayerMeleeWidth();
+float __cdecl BG_PlayerMeleeHeight();
 extern const dvar_s *player_bayonetRange;
 extern const dvar_s *player_bayonetTargetDist;
 extern const dvar_s *player_burstFireCooldown;

@@ -27,7 +27,7 @@ init()
 	level thread maps\leon\_kick::init(); // RE4's stagger and kick
 	level thread maps\leon\_merchant::init(); // RE4's Merchant at the Mystery Box
 	maps\leon\_drink::init(); // a perk with no drink: RE4's heal sound
-	maps\leon\_knife::init(); // a knife bought with no flourish: RE4's slash shows it off
+	maps\leon\_knife::init(); // a knife bought with no flourish: RE4's slash shows it off; the knife's reach test
 	maps\leon\_rtenemy::init(); // the RE4 enemies':
 	maps\leon\_salvador::init(); // Super Salvador in the Hellhound rounds
 	maps\leon\_verdugo::init(); // Verdugo in Five's special round, in the thief's place

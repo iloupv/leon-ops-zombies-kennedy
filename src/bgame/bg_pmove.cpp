@@ -1627,7 +1627,7 @@ void __cdecl PM_CalcMeleeChargeTime(playerState_s *ps, int *outTime, float *outC
     if ( BG_IsBayonetWeapon(weaponIndex) )
         value = player_bayonetRange->current.value;
     else
-        value = player_meleeRange->current.value;
+        value = BG_PlayerMeleeRange(); // (mod: the knife's reach under RE4's controls)
     range = value;
     if ( (float)ps->meleeChargeDist > value )
         chargeTime = (float)weapDef->meleeChargeDelay * 0.001;

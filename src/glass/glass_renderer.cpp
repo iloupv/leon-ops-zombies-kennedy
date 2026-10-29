@@ -1217,11 +1217,11 @@ void __thiscall GlassRenderer::Melee(
         end[0] = (float)(range * *forward) + *eyePos;
         end[1] = (float)(range * forward[1]) + eyePos[1];
         end[2] = (float)(range * forward[2]) + eyePos[2];
-        v9 = player_meleeWidth->current.value * (float)traceOffsets_0[traceIndex][0];
+        v9 = BG_PlayerMeleeWidth() * (float)traceOffsets_0[traceIndex][0]; // (mod: the knife's reach under RE4's controls)
         end[0] = (float)(v9 * *right) + end[0];
         end[1] = (float)(v9 * right[1]) + end[1];
         end[2] = (float)(v9 * right[2]) + end[2];
-        v8 = player_meleeHeight->current.value * (float)traceOffsets_0[traceIndex][1];
+        v8 = BG_PlayerMeleeHeight() * (float)traceOffsets_0[traceIndex][1];
         end[0] = (float)(v8 * *up) + end[0];
         end[1] = (float)(v8 * up[1]) + end[1];
         end[2] = (float)(v8 * up[2]) + end[2];

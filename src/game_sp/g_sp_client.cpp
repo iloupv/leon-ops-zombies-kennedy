@@ -675,7 +675,7 @@ bool G_SP_HeadlessFightCommand(client_t *client, usercmd_s *cmd)
         target = ent;
         Vec3Copy(point, aim);
     }
-    const float meleeReach = player_meleeRange->current.value + 16.0f;
+    const float meleeReach = BG_PlayerMeleeRange() + 16.0f; // (the Leon mod's reach under RE4's controls too)
     if (thiefVisible && target != thief && (!target || nearest > meleeReach * meleeReach))
     {
         target = thief;
@@ -761,7 +761,7 @@ bool G_SP_HeadlessFightCommand(client_t *client, usercmd_s *cmd)
         // percent of a zombie's health; standing still to knife was what downed the test client at
         // round 12 (f2-report, 175600-180600: melee 1, move 0 0, AK 13+120). With a loaded or reloading
         // gun it now fires from the hip at close range and backs away (below).
-        if (sqrtf(nearest) <= player_meleeRange->current.value + 16.0f && (knifeAlways || (clip <= 0 && reserve <= 0)))
+        if (sqrtf(nearest) <= BG_PlayerMeleeRange() + 16.0f && (knifeAlways || (clip <= 0 && reserve <= 0)))
         {
             melee = true;
             if (!client->lastUsercmd.button_bits.testBit(2))

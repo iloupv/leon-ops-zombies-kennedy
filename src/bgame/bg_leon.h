@@ -32,3 +32,7 @@
 // (Leon's, 26 % over) stayed past the run's cut, and from a run to a walk he played the run slowed down. In the one bit
 // of the high half no player uses (the low half is the scripts' client flags: each change runs client_flag_callback)
 #define LEON_EF2_RUNNING 0x80000u
+// The knife's reach under RE4's controls (BG_PlayerMeleeRange / Width / Height: bg_misc.cpp): BO1's melee trace 16"
+// longer (64 to 80) and its rays' spread half as wide again (10 to 15 either way, across and up / down)
+#define LEON_MELEE_RANGE_ADD 16.0f
+#define LEON_MELEE_SPREAD 1.5f

@@ -1030,8 +1030,8 @@ void __cdecl GlassCl_MeleeEvent(int localClientNum, int attackerEntNum)
                 CG_GetViewDirection(localClientNum, attackerEntNum, forward, right, up);
                 if ( BG_IsBayonetWeapon(attacker->nextState.weapon) )
                     integer = player_bayonetRange->current.integer;
-                else
-                    integer = player_meleeRange->current.integer;
+                else // (mod: the knife's reach under RE4's controls)
+                    *(float *)&integer = BG_PlayerMeleeRange();
                 clGlasses->renderer->AddMeleeAction(eyePos, forward, right, up, *(float *)&integer);
             }
         }

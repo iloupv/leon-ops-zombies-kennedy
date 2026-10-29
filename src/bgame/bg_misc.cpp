@@ -2122,6 +2122,32 @@ void __cdecl BG_RegisterDvars()
     BG_Wind_RegisterDvars();
 }
 
+// mod (the Leon mod, player_tankControls): the knife's reach - BO1's melee trace from the eye along the view out to
+// player_meleeRange, its rays spread by player_meleeWidth / Height (64, 10, 10) - longer and wider under RE4's controls
+// (LEON_MELEE_RANGE_ADD, LEON_MELEE_SPREAD: bg_leon.h): over the shoulder camera he aims the slash by his facing alone,
+// with no crosshair, and a zombie a step off its narrow line was missed. Read wherever a player's melee is traced or
+// measured, the server's hit, the lunge's choice (on the server and in the prediction alike) and the client's glass and
+// props, so they all reach as far (player_tankControls is the server's on every client)
+static bool BG_LeonMeleeReach()
+{
+    return player_tankControls && player_tankControls->current.enabled;
+}
+
+float __cdecl BG_PlayerMeleeRange()
+{
+    return player_meleeRange->current.value + (BG_LeonMeleeReach() ? LEON_MELEE_RANGE_ADD : 0.0f);
+}
+
+float __cdecl BG_PlayerMeleeWidth()
+{
+    return player_meleeWidth->current.value * (BG_LeonMeleeReach() ? LEON_MELEE_SPREAD : 1.0f);
+}
+
+float __cdecl BG_PlayerMeleeHeight()
+{
+    return player_meleeHeight->current.value * (BG_LeonMeleeReach() ? LEON_MELEE_SPREAD : 1.0f);
+}
+
 char *__cdecl BG_GetEntityTypeName(int eType)
 {
     if ( eType < ET_EVENTS )
