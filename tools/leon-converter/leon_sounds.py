@@ -37,8 +37,11 @@ CHARACTER_SOUNDS = [
                   ('luis_kickb.wav', 4)]),
 ]
 # the levels some are brought to (loud: dB RMS): the aim's soft rustle is mastered ~24 dB under his voice, for RE4's quiet
-# - lost under BO1's fight, it is brought up ~15 dB, still well under his voice
-LEVELS = {'leon_aim.wav': -22.0}
+# - lost under BO1's fight, it is brought up ~15 dB, still well under his voice; the heal's chime (-17.6 dB), played as
+# his lines at Juggernog (the announcer's settings), went unheard ~6 dB under them: brought up to theirs
+LEVELS = {'leon_aim.wav': -22.0, 'leon_heal.wav': -12.0}
+# the speeds some play at (their rate raised: shorter and higher): Super Salvador's chainsaw rev a fifth faster, scarier
+SPEEDS = {'salvador_sawrev.wav': 1.2}
 # From RE4's core bank (BIO4/snd/core.xwb, block 0: SndCall(0, n), the cue index n), read from next to pl00.xwb when
 # it is there: the pickup - taking ammo (game/mes.cpp: the message's "take" choice, attr 0x200: SE 0x11) or a weapon
 # (attr 0x100: SE 0xF), both core.xsb cues playing wave 20; and an item used from the case, a heal (Sscrn/ss_item.cpp:
@@ -318,5 +321,6 @@ if __name__ == '__main__':
             pcm = loud(pcm)
         elif name in LEVELS:
             pcm = loud(pcm, LEVELS[name])
+        rate = int(rate * SPEEDS.get(name, 1.0))
         open(os.path.join(sys.argv[2], name), 'wb').write(wav(channels, rate, bits, pcm))
         print(f'{name}: wave {index}, {channels} ch, {rate} Hz, {len(pcm) / (2 * channels * rate):.2f} s')

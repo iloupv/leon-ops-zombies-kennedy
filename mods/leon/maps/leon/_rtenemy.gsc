@@ -78,6 +78,9 @@ spawn_enemy( origin, yaw, modelName, health, staggerFunc )
 	ai.no_gib = 1; // (no limbs of the hidden zombie flying)
 	ai.shrinked = true; // (_zombiemode_audio do_zombies_playvocals plays nothing for him: his voice is RE4's)
 	ai.disableMelee = true; // (animscripts\zombie_melee CanMeleeInternal: his attacks are this script's)
+	// no pain on his zombie (animscripts\zombie_pain): a hit stood it still through a stumble, and the Thundergun's
+	// knockdown (playThundergunPainAnim: its fall and getting up) held him in place, his model idle, for seconds
+	ai disable_pain();
 	ai.leon_boss = true;
 	ai.leon_boss_stagger = staggerFunc;
 	ai.custom_damage_func = ::hit_damage;
@@ -157,15 +160,19 @@ hit_damage( player )
 }
 
 // the Thundergun's blast on him (_zombiemode_weap_thundergun: in place of its fling, its knockdown and its
-// disintegration of a zombie): a share of his health, and he stands
+// disintegration of a zombie): a share of his health, and his own stagger (spawn_enemy's staggerFunc)
 flung( player )
 {
 	self DoDamage( int( self.maxhealth * 0.2 ), player.origin, player );
+	if ( isAlive( self ) && isDefined( self.leon_boss_stagger ) )
+		self thread [[ self.leon_boss_stagger ]]();
 }
 
 knocked( player, gib )
 {
 	self DoDamage( int( self.maxhealth * 0.1 ), player.origin, player );
+	if ( isAlive( self ) && isDefined( self.leon_boss_stagger ) )
+		self thread [[ self.leon_boss_stagger ]]();
 }
 
 // his zombie held where it stands, turned to yaw, while a motion plays on him (his own path off) - till free
