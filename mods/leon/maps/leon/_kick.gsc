@@ -11,8 +11,9 @@
 // each zombie its sweep catches either dies and is sent flying (a launched ragdoll) or is knocked down and gets back up
 // (the Thundergun's fall and get-up) - Ada's kills more often. A staggered zombie wears a dull yellow halo through its
 // stagger, seen from afar (it can be kicked): leon_staggered lists them for every player's client (CG_LeonKickHalos).
-// Super Salvador (maps\leon\_salvador.gsc) staggers his own way, and is never kicked. Every player kicks (player_init,
-// from _leon's setup of each player).
+// The RE4 bosses (maps\leon\_rtenemy.gsc's: Super Salvador, Verdugo) stagger their own way, and are never kicked;
+// through Verdugo's tail attack the prompt and the key dodge it instead (leon_dodge_window). Every player kicks
+// (player_init, from _leon's setup of each player).
 //   leon_kick 0      off
 //   leon_kicktest 1  test: every 3 s the nearest zombie is put in front of the player and staggered (2: another
 //                    one beside it too, for the sweep; 3: 400" ahead instead)
@@ -40,6 +41,7 @@ player_init()
 		return;
 	self leonsetkickflags( 0, 0 );
 	self setClientDvar( "leon_kick_stamp", "0" );
+	self setClientDvar( "leon_promptverb", "KICK" );
 	list = "";
 	if ( isDefined( level.leon_staggered ) )
 		for ( i = 0; i < level.leon_staggered.size; i++ )
@@ -120,7 +122,7 @@ leon_stagger_watch()
 		share = 0.15;
 		if ( leon )
 			share = 0.07;
-		if ( isDefined( self.leon_salvador ) )
+		if ( isDefined( self.leon_boss ) )
 			share = share / 4; // (his health a boss's: a share of it as large never came)
 		if ( amount < full * share )
 			continue;
@@ -155,9 +157,9 @@ leon_is_leg( part )
 leon_stagger()
 {
 	self endon( "death" );
-	if ( isDefined( self.leon_salvador ) )
+	if ( isDefined( self.leon_boss ) )
 	{
-		self maps\leon\_salvador::stagger(); // his RE4 flinch, no halo: never kicked
+		self [[ self.leon_boss_stagger ]](); // his RE4 flinch, no halo: never kicked
 		return;
 	}
 	if ( cointoss() )
@@ -242,7 +244,7 @@ leon_kick_target()
 	for ( i = 0; i < zombies.size; i++ )
 	{
 		z = zombies[i];
-		if ( !z leon_staggered() || isDefined( z.leon_salvador ) )
+		if ( !z leon_staggered() || isDefined( z.leon_boss ) )
 			continue;
 		offset = z.origin - self.origin;
 		d = length( ( offset[0], offset[1], 0 ) );
@@ -261,6 +263,7 @@ leon_kick_watch()
 	self endon( "disconnect" );
 	ready = false;
 	held = true; // (a use key already down - rebuilding a window, buying - is no press: only a new one kicks)
+	shownVerb = "KICK";
 	for ( ;; )
 	{
 		wait 0.05;
@@ -269,10 +272,22 @@ leon_kick_watch()
 		held = pressed;
 		if ( isDefined( self.leon_kicking ) )
 			continue;
-		target = self leon_kick_target();
+		// a dodge's window (maps\leon\_verdugo.gsc's tail attack: leon_dodge_window) takes the prompt and the key first
+		dodge = isDefined( self.leon_dodge_window );
+		target = undefined;
+		if ( !dodge )
+			target = self leon_kick_target();
 		// not offered while the use key is held from before: the offer takes the use key (Player_LeonKickTakesUse), and
 		// a window being rebuilt with it held stopped - or was kicked from once that held key counted
-		offer = isDefined( target ) && ( !pressed || fresh );
+		offer = ( dodge || isDefined( target ) ) && ( !pressed || fresh );
+		verb = "KICK";
+		if ( dodge )
+			verb = "DODGE";
+		if ( offer && verb != shownVerb )
+		{
+			self setClientDvar( "leon_promptverb", verb ); // (the engine's prompt: CG_DrawLeonKickPrompt)
+			shownVerb = verb;
+		}
 		if ( offer != ready )
 		{
 			ready = offer;
@@ -281,7 +296,15 @@ leon_kick_watch()
 			else
 				self leonsetkickflags( 0, 0 );
 		}
-		if ( offer && fresh )
+		if ( offer && fresh && dodge )
+		{
+			self.leon_dodge_window = undefined;
+			self notify( "leon_dodge" );
+			self leonsetkickflags( 0, 0 );
+			ready = false;
+			held = true;
+		}
+		else if ( offer && fresh )
 		{
 			self leon_kick();
 			ready = false;
@@ -323,7 +346,7 @@ leon_kick()
 	{
 		z = zombies[i];
 		offset = z.origin - center;
-		if ( length( ( offset[0], offset[1], 0 ) ) > sweep || abs( offset[2] ) > 60 || isDefined( z.leon_salvador ) )
+		if ( length( ( offset[0], offset[1], 0 ) ) > sweep || abs( offset[2] ) > 60 || isDefined( z.leon_boss ) )
 			continue;
 		z thread leon_kicked( self, forward, strong );
 		hits++;
