@@ -317,12 +317,17 @@ void __cdecl SND_Runtime_LoadForLevel()
             // (an event line on a level without the announcer: the voice group, full)
             if ( eventLine && !announcer )
                 a.flags = (a.flags & ~0x3F0000u) | (2u << 16);
-            // an enemy's, spatialized, and heard at least 1500 units off: his chainsaw is the warning he is coming
+            // an enemy's, spatialized, and heard at least 1500 units off: his chainsaw is the warning he is coming. Up to
+            // three of each at once (on him, and in all): the template's one on an entity rejected each again while the
+            // last still played - Super Salvador's chainsaw rev, played again as it ends, and its swish on sweeps that
+            // come faster than it lasts, half of them dropped
             if ( enemy )
             {
                 a.flags |= 2u;
                 a.distMax = a.distMax > 1500 ? a.distMax : 1500;
                 a.distMin = a.distMin < a.distMax ? a.distMin : 0;
+                a.limitCount = a.limitCount > 3 ? a.limitCount : 3;
+                a.entityLimitCount = a.entityLimitCount > 3 ? a.entityLimitCount : 3;
             }
         }
         snd_alias_list_t &list = s_runtimeLists[i];

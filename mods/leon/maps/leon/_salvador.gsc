@@ -7,7 +7,8 @@
 // RE4 enemy on a hidden zombie (maps\leon\_rtenemy.gsc), running 40 % faster than a zombie runs. His model, a quarter
 // larger than RE4's (tools/leon-converter/leon_rlm.py ENEMIES), takes his hits at its size (leonpassdamage). The engine
 // plays his idle by how he moves, and for every step the Mercenaries' chainsaw walk, the saw swung round and round
-// (em10.cpp CSawWalkAtk), smoking and throwing sparks, its engine heard all the while. He laughs and shouts as he comes.
+// (em10.cpp CSawWalkAtk), smoking and throwing sparks - the Mercenaries' Waterworld's chainsaw heard starting as he comes,
+// then revving all the while, a swish on every sweep. He laughs and shouts as he comes.
 // He takes no dog's place while the round's dogs still come (the dogs' spawning waits on the enemies there are), and
 // holds its end once they all have. A player the saw reaches is caught - one hit, down (or the game over) - and he saws
 // him (C_SawCriHit). Head and leg shots stagger him (his chainsaw flinch) with no halo: he is never kicked. His kill:
@@ -183,10 +184,12 @@ salvador_spawn( spot, target )
 		playFx( level._effect["lightning_dog_spawn"], spot.origin );
 	playSoundAtPosition( "zmb_hellhound_bolt", spot.origin );
 	model playSound( "salvador_spawn" );
+	model playSound( "salvador_sawstart" );
 	ai thread salvador_pace();
 	ai thread salvador_counted();
 	model thread salvador_saw( ai );
-	model thread salvador_saw_sound( ai );
+	model thread salvador_saw_rev( ai );
+	ai thread salvador_swings( model );
 	ai thread salvador_voice( model );
 	ai thread salvador_attacks( model );
 	ai thread salvador_died();
@@ -234,16 +237,54 @@ salvador_saw( ai )
 	}
 }
 
-// self: his model - the running chainsaw, again every 2 s (its sound 2.14 s: em10.cpp's Csaw_se_wait, 60 frames), from
-// his coming to his death
-salvador_saw_sound( ai )
+// self: his model - the chainsaw's rev once its start is over (2.6 s), then again as each ends (1.96 s), to his death
+salvador_saw_rev( ai )
 {
 	ai endon( "death" );
 	self endon( "death" );
+	wait 2.6;
 	for ( ;; )
 	{
-		self playSound( "salvador_saw" );
-		wait 2;
+		self playSound( "salvador_sawrev" );
+		wait 1.9;
+	}
+}
+
+// the chainsaw's swish on each sweep of his walk (em10.cpp em10_R1_CSawWalkAtk: SndCall(8, 0x3D) on the frames its motion
+// flags 0x20 - 3, 28, 46 and 67 of 85), the walk followed as the engine plays it (r_runtime_xmodel.cpp
+// RtUpdateAnimState): at his ground speed over the walk's own (99.7 in/s: RE4's a quarter over, his size), at half to
+// twice its pace, from its top again once he has stood or been busy (his kill, a stagger: their own motions)
+salvador_swings( model )
+{
+	self endon( "death" );
+	swings = array( 3, 28, 46, 67 );
+	phase = 0.0;
+	last = self.origin;
+	for ( ;; )
+	{
+		wait 0.05;
+		moved = self.origin - last;
+		last = self.origin;
+		speed = length( ( moved[0], moved[1], 0 ) ) / 0.05;
+		if ( isDefined( self.leon_busy ) || speed < 12 )
+		{
+			phase = 0.0;
+			continue;
+		}
+		rate = speed / 99.7;
+		if ( rate < 0.5 )
+			rate = 0.5;
+		if ( rate > 2 )
+			rate = 2;
+		next = phase + 0.05 * 30 * rate;
+		for ( i = 0; i < swings.size; i++ )
+		{
+			if ( ( phase < swings[i] && next >= swings[i] ) || ( phase < swings[i] + 85 && next >= swings[i] + 85 ) )
+				model playSound( "salvador_sawswing" );
+		}
+		phase = next;
+		if ( phase >= 85 )
+			phase = phase - 85;
 	}
 }
 
