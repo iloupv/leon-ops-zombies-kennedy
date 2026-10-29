@@ -351,14 +351,16 @@ leon_kick()
 
 leon_kicked( player, forward, strong )
 {
-	// not every kick kills: half the zombies it catches (Ada's, her character's perk: four in five) die, the others are
-	// knocked down and get back up - the Thundergun's fall and get-up (animscripts\zombie_pain playThundergunPainAnim's,
-	// hit from the front)
+	// a staggered zombie the kick catches dies, and so does one not yet in the playable area (at its window); of the
+	// others the sweep catches half (Ada's, her character's perk: four in five) die, the rest are knocked down and get
+	// back up - the Thundergun's fall and get-up (animscripts\zombie_pain playThundergunPainAnim's, hit from the front)
 	chance = 50;
 	if ( isDefined( strong ) && strong )
 		chance = 80;
 	if ( getDvar( "leon_kickkill" ) != "" )
 		chance = getDvarInt( "leon_kickkill" ); // tests: that share every kick
+	if ( self leon_staggered() || !isDefined( self.completed_emerging_into_playable_area ) )
+		chance = 100;
 	if ( randomInt( 100 ) >= chance && isDefined( self.animname ) && self.animname == "zombie" && self.has_legs
 	     && isDefined( level._zombie_knockdowns ) && isDefined( level._zombie_getups ) )
 	{
