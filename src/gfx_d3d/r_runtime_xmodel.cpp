@@ -87,7 +87,7 @@ struct RtAnim
     int neckChainCount;
     int recoilPeak;      // a shot's motion: the frame its kick peaks (the upper body turned most from its first); 0
     int reloadRaise;     // a reload's motion: the frame its raise back to RE4's aim starts (its last half's farthest
-                         // from its end pose); 0
+                         // from its end pose; the rifles': RE4's own, RtReloadEnd); 0
     const float *runBob; // the run: its spine's held-back bob per frame (RtSoftenRunBob, 3 floats a frame); 0
 };
 // the local player's head look (R_RuntimeXModel_SetLookYaw): degrees about up, for the next PoseDObj only
@@ -815,6 +815,40 @@ static void RtSampleRunBob(const RtAnim &anim, float phase, float *out)
         out[k] = anim.runBob[3 * f0 + k] + (anim.runBob[3 * f1 + k] - anim.runBob[3 * f0 + k]) * frac;
 }
 
+// The rifles' reloads by RE4's own frames (game/pl_class.cpp PlReloadEndTbl, at the slowest reload level, whose motions
+// the converter bakes): where RE4 stops one that is not aimed - past it, the aim let go, wep/pl_rifle.cpp
+// wep09_r2_reload lowers the gun with its down motion instead of raising it back into the scope. The measured raise
+// (RtBuildModel: the last half's frame farthest from the end) missed both. The bolt rifle's bolt cycle (its frames 81 to
+// 108: the gun tilted up, the left hand over the top to the bolt, back and forth) is farther from its end than its
+// raise: the reload stopped at 87, the bolt never worked - the rifle tilted up, held there and slid back into his
+// stance. The semi-auto's reload is turned farthest from its end in its middle, before the half: none found, played
+// whole - the rifle went up into the scope's aim, then dropped back into his stance as the reload ended.
+static int RtReloadEnd(const char *name)
+{
+    struct ReloadEnd { const char *name; int frame; };
+    static const ReloadEnd s_reloadEnds[] = { { "rifle:reload", 108 }, { "semi:reload", 57 } };
+    for ( const ReloadEnd &e : s_reloadEnds )
+    {
+        if ( !strcmp(name, e.name) )
+            return e.frame;
+    }
+    return 0;
+}
+
+// The bolt rifle's bolt cycle inside its reload (the frames above: from the gun tilting up for it to RE4's end of the
+// reload, the bolt home), played for BO1's rechamber after each shot (RT_ACTION_BOLT): RE4 works the bolt between its
+// shots with a motion of its own (wep09's 0x1B, out of the scope: pl_rifle.cpp wep09_r3_fire20), which the converter
+// does not bake - the rechamber played nothing, he stood with the rifle while BO1 worked its bolt. False for a reload
+// without one.
+static bool RtBoltFrames(const char *name, int *first, int *last)
+{
+    if ( strcmp(name, "rifle:reload") )
+        return false;
+    *first = 81;
+    *last = 108;
+    return true;
+}
+
 // builds a model from .rlm data (a file's, or one made in memory); returns the DB's copy
 static const XModel *RtBuildModel(const char *name, const void *data, int size, int zoneIndex, const Material *templ,
                                   const Material *atestTempl, bool gpu)
@@ -1147,6 +1181,10 @@ static const XModel *RtBuildModel(const char *name, const void *data, int size, 
             // half, the magazine still going in there (the Killer7's at 44 of 55) - played whole, as before)
             if ( anim.reloadRaise <= anim.frameCount / 2 + 1 )
                 anim.reloadRaise = 0;
+            // the rifles': RE4's own frame where their reload stops when it is not aimed (RtReloadEnd)
+            const int end = RtReloadEnd(anim.name);
+            if ( end > 0 && end < anim.frameCount - 1 )
+                anim.reloadRaise = end;
             if ( R_RuntimeXModel_DvarOn("leon_actionlog") ) // (tests)
                 Com_Printf(0, "runtime model: '%s' raises back to the aim from frame %d of %d\n", anim.name,
                            anim.reloadRaise, anim.frameCount);
@@ -2247,6 +2285,27 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             actionWeight = actionWeight < 0.0f ? 0.0f : actionWeight;
         }
     }
+    else if ( action == RT_ACTION_BOLT && actionDuration > 0.0f )
+    {
+        // the bolt worked after a shot: the bolt cycle of the reload (RtBoltFrames) over BO1's rechamber, eased in over
+        // its first 0.15 s from the aim or the stance the shot left him in, and out over its last 0.15 s (it starts
+        // and ends tilted, between the two)
+        actionAnim = RtFindSetAnim(model, reloadSet, "reload");
+        int first, last;
+        if ( actionAnim >= 0 && RtBoltFrames(s_anims[actionAnim].name, &first, &last) )
+        {
+            float t = actionTime / actionDuration;
+            t = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
+            actionPhase = (float)first + t * (float)(last - first);
+            float in = actionTime / 0.15f, out = (actionDuration - actionTime) / 0.15f;
+            in = in < 0.0f ? 0.0f : (in > 1.0f ? 1.0f : in);
+            out = out < 0.0f ? 0.0f : (out > 1.0f ? 1.0f : out);
+            actionWeight = (in < out ? in : out);
+            actionWeight = actionWeight * actionWeight * (3.0f - 2.0f * actionWeight);
+        }
+        else
+            actionAnim = -1;
+    }
     // the quick turn and the kick take the whole body; aimed in their last frames, the aim takes the upper body from
     // them (they blended out over it: the gun came up from the turn's low arms, the kick's swing pulled it aside). So
     // does a grenade's throw, whose follow-through runs 1.3 s past the release: aimed in it, the throw played on over
@@ -2568,5 +2627,6 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     }
     if ( fade )
         fade->bones = numBones; // (its last pose complete)
-    return action == RT_ACTION_FIRE && actionAnim >= 0 ? actionWeight : 0.0f;
+    // (the bolt worked after the shot is the shot's too: its swing is no aim error for CG_ShoulderLaser to learn)
+    return (action == RT_ACTION_FIRE || action == RT_ACTION_BOLT) && actionAnim >= 0 ? actionWeight : 0.0f;
 }

@@ -34,6 +34,9 @@ enum RtAction
     RT_ACTION_RELOAD_LOOP,
     RT_ACTION_RELOAD_END,
     RT_ACTION_MOTION, // a motion named for the pose (R_RuntimeXModel_SetActionMotion) played once, on the whole body
+    // the bolt worked after a shot (BO1's rechamber) over its duration: the bolt cycle of the set's reload (the bolt
+    // rifle's: RtBoltFrames)
+    RT_ACTION_BOLT,
 };
 // a baked motion's root yaw (degrees) at time seconds into it (held at its end), and its length (seconds); false when
 // no runtime model has it (the converter keeps the root yaw of RE4's turns: ROOT_YAW_MOTIONS)
@@ -65,7 +68,7 @@ bool __cdecl R_RuntimeXModel_PlayerEasing();
 int __cdecl R_RuntimeXModel_TakePlayerSteps(bool *run);
 // mod: a dvar set non-zero (bool, int, or a string set from the command line or a script); false when it does not exist
 bool __cdecl R_RuntimeXModel_DvarOn(const char *name);
-// returns the shot's (recoil's) weight on the pose this frame, 0..1 (0: no shot playing)
+// returns the shot's (recoil's) weight on the pose this frame, 0..1 (0: no shot playing; the bolt worked after it too)
 float __cdecl R_RuntimeXModel_PoseDObj(struct DObj *obj, const float *origin, const float *angles, int timeMs,
                                       bool isPlayer, float aimFrac, float aimPitch, RtAction action = RT_ACTION_NONE,
                                       float actionTime = 0.0f, float actionDuration = 0.0f,

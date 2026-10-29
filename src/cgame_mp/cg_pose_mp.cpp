@@ -950,14 +950,16 @@ bool __cdecl CG_RuntimeXModel_ClipOut()
 
 // RE4's reload motion of a magazine gun's set: the frame its magazine comes out (the release, its drop) and the frame
 // the new one is in (the weapon object's ItemMgr.reload frame at RE4's slowest reload level, whose motions we play:
-// objFn57 31, wep06 44, objMachinegun 40, objTompson 40, objHkSniper 34); false for the round-by-round ones (the
-// shotguns, the revolvers, the magnum), the bolt rifle, the launchers
+// objFn57 31, wep06 44, objMachinegun 40, objTompson 40, objHkSniper 34); the bolt rifle's from its motion's hands
+// (objSniper's ItemMgr.reload, at frame 10, refills before the magazine is out): the left hand pulls the magazine at
+// 16, holds it up in its fist and seats it at 40 - the L96's stayed in the gun meanwhile, the fist up with nothing in
+// it; false for the round-by-round ones (the shotguns, the revolvers, the magnum), the launchers
 static bool CG_RuntimeXModel_ClipFrames(const char *set, float *outFrame, float *inFrame)
 {
     struct ClipFrames { const char *set; float out, in; };
     static const ClipFrames s_clipFrames[] = { { "", 6.0f, 31.0f }, { "government", 6.0f, 44.0f },
                                                { "tmp", 8.0f, 40.0f }, { "smg", 10.0f, 40.0f },
-                                               { "semi", 8.0f, 34.0f } };
+                                               { "semi", 8.0f, 34.0f }, { "rifle", 16.0f, 40.0f } };
     for ( const ClipFrames &c : s_clipFrames )
     {
         if ( strcmp(set ? set : "", c.set) )
@@ -1072,6 +1074,7 @@ struct RtRemoteActions
 {
     int frame; // the cgame time of the last update (behind it: a new level, all reset)
     int fireStart, prevFireStart, reloadStart, reloadLength, knifeStart, readyStart, throwStart, kickStart, downStart;
+    int boltStart, boltLength; // his rechamber (a bolt action's bolt worked after a shot: RT_ACTION_BOLT)
     bool kicking, kickVoiced, down;
     int kickVariant; // his kick's roundhouse (LEON_EF2_KICK2 as it began)
     float aim;
@@ -1085,8 +1088,8 @@ static RtRemoteActions &CG_RemoteActions(int clientNum, int now)
     {
         memset(&r, 0, sizeof(r));
         r.fireStart = r.prevFireStart = r.reloadStart = r.knifeStart = r.readyStart = r.throwStart = r.kickStart
-            = r.downStart = -100000;
-        r.reloadLength = 1;
+            = r.downStart = r.boltStart = -100000;
+        r.reloadLength = r.boltLength = 1;
         r.kickVoiced = true;
         r.frame = now;
     }
@@ -1105,7 +1108,7 @@ void __cdecl CG_RuntimeXModel_RemoteEvent(int localClientNum, int clientNum, int
     case EV_FIRE_WEAPON_LASTSHOT_LEFT:
         r.prevFireStart = now - r.fireStart < 3000 ? r.fireStart : -100000;
         r.fireStart = now;
-        r.knifeStart = r.throwStart = -100000;
+        r.knifeStart = r.throwStart = r.boltStart = -100000;
         break;
     case EV_RELOAD:
     case EV_RELOAD_FROM_EMPTY:
@@ -1116,7 +1119,15 @@ void __cdecl CG_RuntimeXModel_RemoteEvent(int localClientNum, int clientNum, int
         const int ms = variant ? (event == EV_RELOAD_FROM_EMPTY ? variant->iReloadEmptyTime : variant->iReloadTime) : 0;
         r.reloadStart = now;
         r.reloadLength = ms > 300 ? ms : 1500;
-        r.knifeStart = -100000;
+        r.knifeStart = r.boltStart = -100000;
+        break;
+    }
+    case EV_RECHAMBER_WEAPON:
+    {
+        // (over the gun's own rechamber time, as his reload)
+        const WeaponDef *def = weapon ? BG_GetWeaponDef(weapon) : 0;
+        r.boltStart = now;
+        r.boltLength = def && def->iRechamberTime > 50 ? def->iRechamberTime : 1000;
         break;
     }
     case EV_MELEE_SWIPE:
@@ -1136,7 +1147,8 @@ void __cdecl CG_RuntimeXModel_RemoteEvent(int localClientNum, int clientNum, int
 }
 
 // mod (co-op): whether another player's laser sight is on (CG_ShoulderLaser), as the local player's: aimed in all the
-// way, and not down, kicking, slashing, throwing or reloading (off while reloading, as in RE4); posed this last 1/4 s
+// way, and not down, kicking, slashing, throwing, reloading (off while reloading, as in RE4) or working a bolt; posed
+// this last 1/4 s
 bool __cdecl CG_RuntimeXModel_RemoteLaserOn(int localClientNum, int clientNum)
 {
     const int now = CG_GetLocalClientGlobals(localClientNum)->time;
@@ -1144,8 +1156,9 @@ bool __cdecl CG_RuntimeXModel_RemoteLaserOn(int localClientNum, int clientNum)
     if ( !r.frame || now < r.frame || now - r.frame > 250 )
         return false;
     const int reloadAgo = now - r.reloadStart, knifeAgo = now - r.knifeStart, throwAgo = now - r.throwStart,
-              kickAgo = now - r.kickStart;
+              kickAgo = now - r.kickStart, boltAgo = now - r.boltStart;
     return r.aim >= 0.98f && !r.down && !r.kicking && (reloadAgo < 0 || reloadAgo >= r.reloadLength)
+        && (boltAgo < 0 || boltAgo >= r.boltLength)
         && (knifeAgo < 0 || knifeAgo >= 1000) && (throwAgo < 0 || throwAgo >= 1000) && (kickAgo < 0 || kickAgo >= 2000);
 }
 
@@ -1214,6 +1227,8 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         static bool s_wasFirstRaise;
         // a round-by-round reload's stage (bSegmentedReload): 1 the open, 2 a round, 3 the close; its start and length
         static int s_stage, s_stageStart = -100000, s_stageLength = 1;
+        // BO1's rechamber after a bolt action's shot (the bolt worked: RT_ACTION_BOLT), its start and length
+        static int s_boltStart = -100000, s_boltLength = 1;
         const playerState_s *ps = &cgameGlob->predictedPlayerState;
         const int state = ps->weaponstate;
         const bool firing = state == WEAPON_FIRING || state == WEAPON_FIRING_LEFT || state == WEAPON_FIRING_BOTH
@@ -1314,6 +1329,13 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             }
             if ( !reloading )
                 s_stage = 0;
+            if ( state == WEAPON_RECHAMBERING && s_lastState != WEAPON_RECHAMBERING )
+            {
+                s_boltStart = cgameGlob->time;
+                s_boltLength = ps->weaponTime > 50 ? ps->weaponTime : 50;
+            }
+            if ( state != WEAPON_RECHAMBERING )
+                s_boltStart = -100000;
             if ( reloading && !wasReloading )
             {
                 s_reloadStart = cgameGlob->time;
@@ -1337,14 +1359,17 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             s_lastWeaponTime = ps->weaponTime;
         }
         // the weapon's reload by stages, when it reloads round by round and its motion set has them (the magnum's, the
-        // shotgun's: converter's reload_start / reload_loop / reload_end)
-        bool segmentedReload = false;
+        // shotgun's: converter's reload_start / reload_loop / reload_end); and whether its rechamber works the bolt
+        // rifle's bolt (RT_ACTION_BOLT: the bolt rifle's set - a pump shotgun rechambers too, its pump in its shot's
+        // motion)
+        bool segmentedReload = false, boltRifle = false;
         reloadFrom = 0.0f;
         {
             const WeaponDef *reloadDef = ps->weapon ? BG_GetWeaponDef(ps->weapon) : 0;
             const char *set = CG_RuntimeXModel_AnimSet(ps->weapon);
             if ( reloadDef && reloadDef->bSegmentedReload )
                 segmentedReload = R_RuntimeXModel_HasAnim(set ? va("%s:reload_loop", set) : "reload_loop");
+            boltRifle = reloadDef && reloadDef->bBoltAction && set && !strcmp(set, "rifle");
         }
         const float turnTime = CL_LeonQuickTurnTime();
         if ( s_leonDown )
@@ -1417,6 +1442,13 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             actionTime = (float)(cgameGlob->time - s_raiseStart) * 0.001f;
             actionDuration = (float)s_raiseLength * 0.001f;
         }
+        else if ( s_boltStart > -100000 && boltRifle )
+        {
+            // the bolt worked after a shot, over BO1's rechamber (the shot's motion, 8 frames, is over by then)
+            action = RT_ACTION_BOLT;
+            actionTime = (float)(cgameGlob->time - s_boltStart) * 0.001f;
+            actionDuration = (float)s_boltLength * 0.001f;
+        }
         else if ( cgameGlob->time - s_fireStart < 3000 ) // the motion ends itself (the shotgun's, with its pump: 1.3 s)
         {
             action = RT_ACTION_FIRE;
@@ -1471,9 +1503,15 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         if ( (int)ps->weapon != s_loggedWeapon && R_RuntimeXModel_DvarOn("leon_actionlog") )
         {
             const WeaponDef *logDef = ps->weapon ? BG_GetWeaponDef(ps->weapon) : 0;
+            const WeaponVariantDef *logVariant = ps->weapon ? BG_GetWeaponVariantDef(ps->weapon) : 0;
             const char *logSet = CG_RuntimeXModel_AnimSet(ps->weapon);
-            Com_Printf(0, "leon: weapon %s class %d fire type %d set %s\n", BG_WeaponName(ps->weapon),
-                       logDef ? (int)logDef->weapClass : -1, logDef ? (int)logDef->fireType : -1, logSet ? logSet : "(handgun)");
+            const char *logReloadSet = CG_RuntimeXModel_ReloadSet(ps->weapon);
+            Com_Printf(0, "leon: weapon %s class %d fire type %d set %s (reload %s: %d ms, empty %d ms%s; rechamber %d ms%s)\n",
+                       BG_WeaponName(ps->weapon), logDef ? (int)logDef->weapClass : -1, logDef ? (int)logDef->fireType : -1,
+                       logSet ? logSet : "(handgun)", logReloadSet ? logReloadSet : "(handgun)",
+                       logVariant ? logVariant->iReloadTime : 0, logVariant ? logVariant->iReloadEmptyTime : 0,
+                       logDef && logDef->bSegmentedReload ? ", by rounds" : "", logDef ? logDef->iRechamberTime : 0,
+                       logDef && logDef->bBoltAction ? ", bolt action" : "");
             s_loggedWeapon = (int)ps->weapon;
         }
         static int s_loggedAction = -1, s_loggedTime;
@@ -1530,6 +1568,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         const WeaponDef *reloadDef = weapon ? BG_GetWeaponDef(weapon) : 0;
         const bool segmented = reloadDef && reloadDef->bSegmentedReload
                                && R_RuntimeXModel_HasAnim(set ? va("%s:reload_loop", set) : "reload_loop");
+        const bool boltRifle = reloadDef && reloadDef->bBoltAction && set && !strcmp(set, "rifle");
         if ( r.down )
         {
             action = RT_ACTION_DEATH;
@@ -1562,6 +1601,12 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             action = segmented ? RT_ACTION_RELOAD_LOOP : RT_ACTION_RELOAD;
             actionTime = (float)(now - r.reloadStart) * 0.001f;
             actionDuration = (float)r.reloadLength * 0.001f;
+        }
+        else if ( now - r.boltStart < r.boltLength && now >= r.boltStart && boltRifle )
+        {
+            action = RT_ACTION_BOLT;
+            actionTime = (float)(now - r.boltStart) * 0.001f;
+            actionDuration = (float)r.boltLength * 0.001f;
         }
         else if ( now - r.fireStart < 3000 && now >= r.fireStart )
         {
@@ -1623,9 +1668,10 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         if ( aimFrac >= 0.01f || cgameGlob->time < s_aimTime )
             s_aimTime = cgameGlob->time;
         // (not while aiming - nor raising the aim - or slashing: his head is on the aim / the slash then)
-        // (nor through a shot's motion: lowering the aim in it, his head swung to the nearest zombie mid-recoil)
+        // (nor through a shot's motion: lowering the aim in it, his head swung to the nearest zombie mid-recoil; nor
+        // the bolt worked after it)
         const bool free = aimFrac < 0.01f && cgameGlob->time - s_aimTime > 1500 && action != RT_ACTION_TURN
-                          && action != RT_ACTION_FIRE
+                          && action != RT_ACTION_FIRE && action != RT_ACTION_BOLT
                           && action != RT_ACTION_KICK && action != RT_ACTION_KNIFE && action != RT_ACTION_DEATH
                           && action != RT_ACTION_HIT_FRONT && action != RT_ACTION_HIT_BACK;
         if ( free && cgameGlob->snap )
