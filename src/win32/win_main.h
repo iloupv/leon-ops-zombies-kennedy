@@ -49,6 +49,7 @@ void __cdecl Sys_HeadlessNoteHud(int pmType, bool hudDrawn); // zombies: headles
 void __cdecl Sys_HeadlessTimeline(const char *what); // zombies: headless restart timeline event, real ms after init
 void __cdecl Sys_HeadlessLevelNotify(const char *name); // L20: bo1_quitnotify - count a level notify (headless)
 void __cdecl Sys_HeadlessLogAssert(const char *filename, int line, const char *message); // zombies: headless assert report
+void __cdecl Sys_FrameBeat(); // mod: the main thread's frames go on (Sys_HangWatchThread: a player's freeze evidence)
 unsigned int __cdecl Sys_HitchWatchBegin(); // k1: '+set bo1_hitchwatch <ms>' - thread dumps while one client frame runs long
 void __cdecl Sys_HitchWatchEnd();
 void __cdecl Sys_SetQuitRequested(); // L5: a quit / window close was asked for (Com_Quit_f, WM_CLOSE)
