@@ -17,7 +17,8 @@
 //   leon_salvadortest 1    test: one comes 5 s into the level, dog round or not (2: and the player cannot be hurt; 3: and
 //                          he is staggered every 6 s; 4: and shot at his head, chest and legs in turn; 5: none then,
 //                          the first round ended at once and the next a dog round - its dogs and enemies logged; 6:
-//                          and the Thundergun fired at him whenever he is near - with leon_give thundergun_zm)
+//                          and the Thundergun fired at him whenever he is near - with leon_give thundergun_zm; 7: and
+//                          a trap's kill tried on him)
 
 init()
 {
@@ -68,6 +69,8 @@ salvador_test()
 		ai thread salvador_shot_test( players[0] );
 	if ( test == "6" && isDefined( ai ) )
 		ai thread salvador_thundergun_test( players[0] );
+	if ( test == "7" && isDefined( ai ) )
+		ai thread salvador_trap_test();
 	while ( test == "3" && isDefined( ai ) && isAlive( ai ) )
 	{
 		wait 6;
@@ -95,6 +98,26 @@ salvador_thundergun_test( player )
 		player notify( "weapon_fired" );
 		wait 6;
 	}
+}
+
+// test: a trap's kill on him (the map's first trap's zombie_trap_death, as its trigger runs it on a zombie in it - he is
+// not in it, so its mark comes off at once), then whether he lives and is unmarked, 3 s on
+salvador_trap_test()
+{
+	self endon( "death" );
+	traps = getEntArray( "zombie_trap", "targetname" );
+	if ( traps.size == 0 )
+	{
+		logPrint( "leon: salvador trap test - no trap on this map\n" );
+		return;
+	}
+	wait 1;
+	logPrint( "leon: salvador trap test - a " + traps[0]._trap_type + " trap's kill at " + getTime() + ", health "
+	          + self.health + "\n" );
+	self thread maps\_zombiemode_traps::zombie_trap_death( traps[0], 50 );
+	wait 3;
+	logPrint( "leon: salvador trap test - alive " + isAlive( self ) + ", health " + self.health + ", marked "
+	          + isDefined( self.marked_for_death ) + "\n" );
 }
 
 salvador_where_log()

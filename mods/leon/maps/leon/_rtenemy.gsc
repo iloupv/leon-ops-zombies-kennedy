@@ -87,6 +87,8 @@ spawn_enemy( origin, yaw, modelName, health, staggerFunc )
 	ai.thundergun_fling_func = ::flung;
 	ai.thundergun_disintegrate_func = ::flung;
 	ai.thundergun_knockdown_func = ::knocked;
+	ai.fire_damage_func = ::trap_immune; // (_zombiemode_traps zombie_trap_death: fire, electricity, rockets)
+	ai.trap_reaction_func = ::trap_immune; // (and the rotating ones)
 	ai.maxhealth = health;
 	ai.health = health;
 	model = spawn( "script_model", ai.origin );
@@ -173,6 +175,23 @@ knocked( player, gib )
 	self DoDamage( int( self.maxhealth * 0.1 ), player.origin, player );
 	if ( isAlive( self ) && isDefined( self.leon_boss_stagger ) )
 		self thread [[ self.leon_boss_stagger ]]();
+}
+
+// a trap's kill on him (_zombiemode_traps zombie_trap_death, in place of its damage or before its ragdoll): never - the
+// trap's thread held here till he dies (a trap killed Super Salvador as a zombie). Its mark on him (marked_for_death: the
+// trap passes him over) off once he is out of it, so his hits still score and the Nuke still finds him
+trap_immune( trap )
+{
+	self thread trap_unmark( trap );
+	self waittill( "death" );
+}
+
+trap_unmark( trap )
+{
+	self endon( "death" );
+	while ( isDefined( trap ) && self isTouching( trap ) )
+		wait 0.1;
+	self.marked_for_death = undefined;
 }
 
 // his zombie held where it stands, turned to yaw, while a motion plays on him (his own path off) - till free
