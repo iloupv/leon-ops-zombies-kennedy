@@ -950,6 +950,19 @@ bool __cdecl CG_RuntimeXModel_KnifeOut()
     return s_leonKnifeOut;
 }
 
+// mod: a bought knife - the Bowie, the Sickle (bowie_knife_zm, sickle_knife_zm): a melee weapon given only as it is
+// bought (_zombiemode_bowie's, a spawn gives BO1's own knife_zm). BO1 shows it off with a first-person flourish, a
+// weapon switch the engine leaves out under RE4's controls (G_LeonSkipSwitch): RE4's slash shows it off instead, once,
+// as it becomes his melee weapon (his player state's, another player's entity's) - his gun back in hand after it
+static bool CG_LeonBoughtKnife(unsigned int weapon)
+{
+    if ( !weapon || weapon >= BG_GetNumWeapons() )
+        return false;
+    const WeaponVariantDef *variant = BG_GetWeaponVariantDef(weapon);
+    const char *name = variant && variant->szInternalName ? variant->szInternalName : "";
+    return strstr(name, "bowie") || strstr(name, "sickle");
+}
+
 // the local player's gun has its magazine out, through RE4's reload (CG_LeonReloadClip hides it)
 static bool s_leonClipOut;
 
@@ -1088,6 +1101,8 @@ struct RtRemoteActions
     bool kicking, kickVoiced, down;
     int kickVariant; // his kick's roundhouse (LEON_EF2_KICK2 as it began)
     float aim;
+    unsigned int meleeWeapon; // his entity's melee weapon (a knife bought slashes: CG_LeonBoughtKnife), once seen
+    bool meleeSeen;
 };
 static RtRemoteActions s_remoteActions[64];
 
@@ -1274,17 +1289,23 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                 s_knifeStart = cgameGlob->time;
                 s_leonHitStart = s_kickStart = -100000;
             }
-            // a new knife's flourish (the Bowie's, as it is bought: zombie_bowie_flourish, BO1's first-person show of
-            // it) slashes it once, the knife in his fist (CG_AttachWeapon) - RE4 has no such motion
-            static unsigned int s_flourishWeapon;
-            const WeaponVariantDef *heldVariant = ps->weapon ? BG_GetWeaponVariantDef(ps->weapon) : 0;
-            const bool flourish = heldVariant && heldVariant->szInternalName && strstr(heldVariant->szInternalName, "flourish");
-            if ( flourish && ps->weapon != s_flourishWeapon )
+            // a knife bought (the Bowie: CG_LeonBoughtKnife) slashes once as it becomes his melee weapon, the new knife
+            // in his fist (CG_AttachWeapon), in place of BO1's flourish - its weapon switch left out (G_LeonSkipSwitch),
+            // his gun stays in hand and he may aim again after the slash; it was the flourish held for 2.5 s, raised
+            // and put away, no aim through it (not the melee weapon this client first sees: none was bought then)
+            static unsigned int s_meleeWeapon = ~0u;
+            if ( ps->meleeWeapon != s_meleeWeapon )
             {
-                s_knifeStart = cgameGlob->time;
-                s_leonHitStart = s_kickStart = -100000;
+                if ( s_meleeWeapon != ~0u && CG_LeonBoughtKnife(ps->meleeWeapon) )
+                {
+                    s_knifeStart = cgameGlob->time;
+                    s_leonHitStart = s_kickStart = -100000;
+                    if ( R_RuntimeXModel_DvarOn("leon_actionlog") )
+                        Com_Printf(0, "leon: knife bought (%s) at %d: slashed\n", BG_WeaponName(ps->meleeWeapon),
+                                   cgameGlob->time);
+                }
+                s_meleeWeapon = ps->meleeWeapon;
             }
-            s_flourishWeapon = flourish ? ps->weapon : 0;
             const dvar_s *kickStamp = Dvar_FindVar("leon_kick_stamp");
             const char *stampText = kickStamp && kickStamp->type == DVAR_TYPE_STRING && kickStamp->current.string
                 ? kickStamp->current.string : "";
@@ -1570,6 +1591,16 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                 CG_RemoteVoice(pose->localClientNum, obj, "death");
             }
             r.down = down;
+            // a knife bought: his slash, as the local player's (not the one this client first sees him with, nor one
+            // bought while he was out of its view: posed again after a gap)
+            const unsigned int melee = es->lerp.u.player.meleeWeapon;
+            if ( r.meleeSeen && dt > 0.0f && melee != r.meleeWeapon && CG_LeonBoughtKnife(melee) )
+            {
+                r.knifeStart = now;
+                r.reloadStart = -100000;
+            }
+            r.meleeWeapon = melee;
+            r.meleeSeen = true;
         }
         aimFrac = r.aim;
         aimPitch = AngleNormalize180(es->lerp.apos.trBase[0]);

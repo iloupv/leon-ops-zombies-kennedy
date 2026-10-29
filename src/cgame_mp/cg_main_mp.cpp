@@ -3640,7 +3640,8 @@ unsigned __int16 __cdecl CG_AttachWeapon(DObjModel_s *dobjModels, unsigned __int
         const bool helmetEquipment = runtimeBody && heldVariant && heldVariant->szInternalName
                                      && strstr(heldVariant->szInternalName, "gasmask");
         // (and a new knife's flourish - the Bowie's: zombie_bowie_flourish - is that knife in his fist, on the knife's
-        // tag, through RE4's slash that shows it off (cg_pose_mp.cpp): on the gun's tag it floated above his hand)
+        // tag: on the gun's tag it floated above his hand. Held only without RE4's controls: under them its switch is
+        // left out, G_LeonSkipSwitch, and RE4's slash shows the knife off - cg_pose_mp.cpp CG_LeonBoughtKnife)
         const bool knifeFlourish = runtimeBody && heldVariant && heldVariant->szInternalName
                                    && strstr(heldVariant->szInternalName, "flourish");
         const unsigned int flourishTag = knifeFlourish ? SL_FindString("tag_knife", SCRIPTINSTANCE_SERVER) : 0;

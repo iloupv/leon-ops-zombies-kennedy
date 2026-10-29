@@ -1931,17 +1931,22 @@ void __cdecl PlayerCmd_hasWeapon(scr_entref_t entref)
 // bottle and switches to it, waits for weapon_change_complete, takes the bottle and switches back to his gun, waits for
 // it again, then gives the perk: both switches are left out, each wait answered by the next frame's notifier
 // (weaponChangeRaising, with no raise under way). The switch back only when it is to the gun he holds, right after a
-// bottle's.
+// bottle's (or a flourish's).
+// A new knife's flourish the same (the Bowie's, the Sickle's: zombie_bowie_flourish, BO1's first-person show of it, a
+// weapon raised for its 2.5 s with no aim): _zombiemode_bowie switches to it, waits for weapon_change_complete, takes it,
+// gives the knife as the melee weapon and switches back to the gun - his gun stays in hand, and his client plays RE4's
+// slash once with the new knife as it becomes his melee weapon (cg_pose_mp.cpp CG_RuntimeXModel_Pose)
 static bool G_LeonSkipSwitch(gentity_s *ent, unsigned int weapon)
 {
     if ( !G_SP_IsSPLevel() || !player_tankControls || !player_tankControls->current.enabled )
         return false;
     SPPlayerBuiltinState &spState = G_SP_PlayerBuiltinState(ent->s.number);
     const char *name = BG_WeaponName(weapon);
-    const bool bottle = !_strnicmp(name, "zombie_perk_bottle", 18);
-    const bool back = spState.leonBottleSkipped && weapon == ent->client->ps.weapon;
-    spState.leonBottleSkipped = bottle;
-    if ( !bottle && !back )
+    const bool skipped = !_strnicmp(name, "zombie_perk_bottle", 18)
+                         || (!_strnicmp(name, "zombie_", 7) && strstr(name, "_flourish"));
+    const bool back = spState.leonSwitchSkipped && weapon == ent->client->ps.weapon;
+    spState.leonSwitchSkipped = skipped;
+    if ( !skipped && !back )
         return false;
     spState.weaponChangeRaising = true;
     return true;

@@ -20,7 +20,9 @@ struct SPPlayerBuiltinState
     unsigned int perks; // SP playerState +0x4fc, two bits per perk.
     bool lowReady; // zombies: setlowready (SP ps.pm_flags 0x200000, SP 0x007da1e0)
     bool weaponChangeRaising; // SP gclient +0x1d0e: a raise was seen, weapon_change_complete pending.
-    bool leonBottleSkipped; // mod (the Leon mod): a perk bottle's switch left out, its switch back too (G_LeonSkipSwitch)
+    // mod (the Leon mod): a perk bottle's or a new knife's flourish's switch left out, its switch back too
+    // (G_LeonSkipSwitch)
+    bool leonSwitchSkipped;
 };
 
 SPPlayerBuiltinState &G_SP_PlayerBuiltinState(unsigned int clientNum);
