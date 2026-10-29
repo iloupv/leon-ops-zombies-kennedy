@@ -11,7 +11,8 @@ own Black Ops. Nothing of either game is shipped; both installs are only read.
      hunk.rlm and luis.rlm (any that fails is left out; Leon still plays)
   3. converts the enemies (ENEMIES, leon_rlm.py --enemy: Super Salvador from em20 and its texture pack 00000020,
      Verdugo from em2c and 0000002c) into salvador.rlm and verdugo.rlm (one that fails is left out: the dog rounds go
-     without Salvador, Five's special round keeps its thief)
+     without Salvador, Five's special round keeps its thief), and RE4's HUD's images (re4_hud.py: the shared texture
+     pack 07000000) into re4hud.rlh (without it BO1's ammo counter stays)
   4. writes his voice (leon_sounds.py: BIO4/snd/pl00.xwb, core.xwb, ...) into <out>/mods/leon/sound/rt
   5. extracts d3dx9_43.dll and xinput1_3.dll from Black Ops' Redist/DirectX next to the game's exe
   6. writes <out>/mods/leon/rtmodels/leon_ready_v<SETUP_VERSION>.txt (what Melty and the launcher wait for: a new
@@ -32,10 +33,10 @@ import time
 # 2: the guns 20 mm further out in his hand, the shotgun's close with its whole pump; 3: Leon's "Bingo?"; 4: the gun's
 # raise to aim (leon_aim); 5: Ada, HUNK and Luis (CHARACTERS), "Hasta luego!" and "Hey, it's that dog."; 8: the perk's
 # heal sound (leon_heal) and the Merchant's "Come back any time." (merchant_comeback); 9: Super Salvador (ENEMIES) and
-# his sounds (salvador_*); 10: Verdugo (verdugo_*)
-SETUP_VERSION = '10'
-# the versions whose characters are this one's: from them only the enemies and the sounds are built (seconds)
-CHARACTERS_KEPT_FROM = ('7', '8', '9')
+# his sounds (salvador_*); 10: Verdugo (verdugo_*); 11: RE4's HUD (re4hud.rlh)
+SETUP_VERSION = '11'
+# the versions whose characters are this one's: from them only the enemies, the HUD and the sounds are built (seconds)
+CHARACTERS_KEPT_FROM = ('7', '8', '9', '10')
 # the other playable characters: (name, their archive, their texture pack) - leon_rlm.py --character
 CHARACTERS = [('ada', 'pl0c', '0100000c'), ('hunk', 'pl06', '01000006'), ('luis', 'pl14', '01000014')]
 # the enemies: (name, their archive, their texture pack) - leon_rlm.py --enemy
@@ -168,6 +169,7 @@ def main():
         os.makedirs(work)
         try:
             build_enemies(bio4, work, rtmodels)
+            build_hud(bio4, work, rtmodels)
             write_sounds(bio4, out)
         finally:
             shutil.rmtree(work, ignore_errors=True)
@@ -242,6 +244,7 @@ def main():
                 log(f'{name}: not built ({e!r})')
 
         build_enemies(bio4, work, rtmodels)
+        build_hud(bio4, work, rtmodels)
         write_sounds(bio4, out)
     finally:
         shutil.rmtree(work, ignore_errors=True)
@@ -280,6 +283,23 @@ def fetch_pack(bio4, name, dest):
 
 
 # the enemies, each on its own: one that fails is left out (bo1_rtmodels_loaded), the game plays without it
+def build_hud(bio4, work, rtmodels):
+    """RE4's HUD's images (re4_hud.py) from the shared texture pack 07000000 (the characters' setup fetched it already);
+    without them the game keeps BO1's ammo counter."""
+    try:
+        pack = os.path.join(work, '07000000.pack')
+        if not (os.path.isfile(pack) and is_texture_pack(pack)) and not fetch_pack(bio4, '07000000', pack):
+            log('no 07000000 texture pack: no RE4 HUD')
+            return
+        os.makedirs(rtmodels, exist_ok=True)
+        out_rlh = os.path.join(rtmodels, 're4hud.rlh')
+        run_tool('re4_hud', [pack, out_rlh + '.tmp'])
+        os.replace(out_rlh + '.tmp', out_rlh)
+        log(f're4hud.rlh: {os.path.getsize(out_rlh)} bytes')
+    except Exception as e:  # noqa: BLE001 - the game plays with BO1's ammo counter
+        log(f're4hud: not built ({e!r})')
+
+
 def build_enemies(bio4, work, rtmodels):
     os.makedirs(rtmodels, exist_ok=True)
     for name, archive, pack_name in ENEMIES:
