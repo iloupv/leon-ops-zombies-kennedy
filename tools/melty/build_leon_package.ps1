@@ -31,8 +31,8 @@ $stage = Join-Path $M 'setup_build'
 Remove-Item -Recurse -Force $stage -ErrorAction SilentlyContinue
 New-Item -ItemType Directory -Force $stage | Out-Null
 Copy-Item (Join-Path $Re4Decomp 'tools\motion\host\build\libmotion_host.so') (Join-Path $stage 'libmotion_host.dll')
-$hidden = 'leon_rlm', 'leon_sounds', 're4_motion', 'motion.evalhost', 'motion.fcv', 'udas_reader', 'uhd_bin_gltf', 'uhd_pack',
-    'leon_gltf', 'leon_full' | ForEach-Object { '--hidden-import', $_ }
+$hidden = 'leon_rlm', 'leon_sounds', 're4_hud', 're4_motion', 'motion.evalhost', 'motion.fcv', 'udas_reader', 'uhd_bin_gltf',
+    'uhd_pack', 'leon_gltf', 'leon_full' | ForEach-Object { '--hidden-import', $_ }
 $ErrorActionPreference = 'Continue' # (PowerShell 5.1 turns its stderr log lines into errors)
 & (Join-Path $M 'venv\Scripts\pyinstaller.exe') --noconfirm --onedir --windowed --name leon_setup --icon (Join-Path $repo 'src\win32\leon.ico') `
     --distpath (Join-Path $stage 'dist') --workpath (Join-Path $stage 'work') --specpath $stage `
