@@ -1261,6 +1261,9 @@ void __cdecl CG_ProcessClientNote(
         } // !zombiemode
     }
     v11 = note->GetNotifyStringName();
+    if ( Ragdoll_TraceOn() && cent && (cent->pose.isRagdoll || cent->nextState.eType == ET_ACTOR_CORPSE) )
+        Com_Printf(20, "bo1_ragdoll: t=%d ent=%d eType %d note '%s'\n", cgameGlob->time, entityNum,
+                   cent->nextState.eType, v11);
     CG_PlayClientSoundNoteTracks(localClientNum, entityNum, cent->pose.origin, v11, 0);
 }
 
@@ -2860,6 +2863,14 @@ void __cdecl CG_CreateRagdollObject(int localClientNum, centity_s *cent)
     else
         cent->pose.killcamRagdollHandle = (int)RagdollForDObj;
     cent->pose.isRagdoll = 1;
+    // mod: the latest snapshot the client holds as the ragdoll starts - the one whose LaunchRagdoll event starts it
+    // (CG_PhysLaunch), or the one after the snapshot whose ragdoll trajectory does: see RagdollBody::startSnapTime
+    if ( RagdollForDObj )
+        ((RagdollBody *)RagdollForDObj)->startSnapTime = cgameGlob->nextSnap ? cgameGlob->nextSnap->serverTime : cgameGlob->time;
+    if ( Ragdoll_TraceOn() )
+        Com_Printf(20, "bo1_ragdoll: t=%d ent=%d eType %d ragdoll %s (snapshot %d)\n", cgameGlob->time, cent->nextState.number,
+                   cent->nextState.eType, RagdollForDObj ? "created" : "refused",
+                   cgameGlob->nextSnap ? cgameGlob->nextSnap->serverTime : -1);
     // zombies: SP CG_CreateRagdollObject (SP 0x0046ada4..0x0046ae1c) hands the entity's SetPhysicsGravity slot to the new
     // ragdoll body (moon: zombies killed in low gravity).
     if ( zombiemode && zombiemode->current.enabled )

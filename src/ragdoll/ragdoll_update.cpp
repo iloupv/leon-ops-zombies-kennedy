@@ -18,6 +18,7 @@
 #include <cgame_mp/cg_main_mp.h>
 #include <physics/phys_render.h>
 #include <physics/physics_system.h>
+#include <qcommon/dobj_management.h>
 
 #include <algorithm>
 
@@ -305,6 +306,10 @@ void __cdecl Ragdoll_ExplosionEvent(
                     
                     const bool wasIdle = Ragdoll_BodyIdle(body);
                     const int age = body->stateMsec;
+                    if ( Ragdoll_TraceOn() )
+                        Com_Printf(20, "bo1_ragdoll: t=%d ent=%d blast %s at %.0f (radius %.0f) state %d age %d\n",
+                                   Ragdoll_TraceTime(), body->dobj, isCylinder ? "cylinder" : "sphere",
+                                   sqrtf(Vec3LengthSq(delta)), outerRadius, (int)body->state, age);
                     if (Vec3LengthSq(delta) < outerRadiusSqr && (!wasIdle || Ragdoll_BodyNewState(body, BS_RUNNING)) )
                     {
                         // mod: a blast shoves a body, it does not restart its life (ragdoll_max_life): one still running
@@ -1549,6 +1554,8 @@ bool __cdecl Ragdoll_ExitDead(RagdollBody *body, RagdollBodyState s1, RagdollBod
     iassert(def);
 
     body->numBones = def->numBones;
+    // zombies: none, as SP Ragdoll_ExitDead (SP 0x00832521): ragdoll.cfg's baselerp bones (j_head, the wrists, the ankles)
+    // are never applied - those bones, and the hands, feet and head under them, keep their anim tree's pose
     body->numLerpBones = 0;
     body->numJoints = def->numJoints;
 
@@ -1924,6 +1931,10 @@ char __cdecl Ragdoll_BodyNewState(RagdollBody *body, RagdollBodyState state)
     if ( prevState == state )
         return 1;
 
+    if ( Ragdoll_TraceOn() )
+        Com_Printf(20, "bo1_ragdoll: t=%d ent=%d state %d -> %d at age %d\n", Ragdoll_TraceTime(), body->dobj,
+                   (int)prevState, (int)state, body->stateMsec);
+
     if ( stateEntries[prevState].exitFunc && !stateEntries[prevState].exitFunc(body, prevState, state) )
         return 0;
 
@@ -1964,6 +1975,69 @@ void __cdecl Ragdoll_BodyUpdate(int msec, RagdollBody *body)
     body->stateMsec += msec;
 }
 
+// TEST SWITCH bo1_ragdolltrace <ms>: every <ms> each ragdoll body - its entity, state and age, its bones' speeds and how
+// many sleep, and its DObj's anim tree (what still plays under the ragdoll)
+static void Ragdoll_TraceBodies(int msec)
+{
+    static int s_elapsed;
+    static bool s_defLogged;
+    if ( !Ragdoll_TraceOn() )
+        return;
+    if ( !s_defLogged && ragdollDefs[1].bound )
+    {
+        s_defLogged = true;
+        const RagdollDef *def = &ragdollDefs[1];
+        for ( int i = 0; i < def->numBones; ++i )
+            Com_Printf(20, "bo1_ragdoll: def bone %d %s -> %s parent %d\n", i, def->boneDefs[i].animBoneTextNames[0],
+                       def->boneDefs[i].animBoneTextNames[1], def->boneDefs[i].parentBone);
+        for ( int i = 0; i < def->numBaseLerpBones; ++i )
+            Com_Printf(20, "bo1_ragdoll: def baselerp %d %s\n", i, def->baseLerpBoneDefs[i].animBoneTextName);
+    }
+    s_elapsed += msec;
+    if ( s_elapsed < bo1_ragdolltrace->current.integer )
+        return;
+    s_elapsed = 0;
+    for ( RagdollBody *body : g_ragdoll_body_pool )
+    {
+        float maxLin = 0.0f, sumLin = 0.0f, maxAng = 0.0f;
+        int bodies = 0, asleep = 0;
+        if ( Ragdoll_BodyHasPhysics(body) )
+        {
+            for ( int i = 0; i < body->numBones; ++i )
+            {
+                if ( !body->bones[i].rigidBody )
+                    continue;
+                float tvel[3], avel[3];
+                Phys_ObjGetVelocities(body->bones[i].rigidBody, tvel, avel);
+                const float lin = Vec3Length(tvel), ang = Vec3Length(avel);
+                sumLin += lin;
+                maxLin = lin > maxLin ? lin : maxLin;
+                maxAng = ang > maxAng ? ang : maxAng;
+                ++bodies;
+                if ( Phys_ObjIsAsleepSingle(body->bones[i].rigidBody) )
+                    ++asleep;
+            }
+        }
+        char tree[2048];
+        tree[0] = 0;
+        const DObj *obj = body->state != BS_DEAD ? Com_GetClientDObj(body->dobj, body->localClientNum) : 0;
+        if ( obj )
+            DObjDisplayAnimToBuffer(obj, "", tree, sizeof(tree));
+        char *out = tree;
+        for ( const char *in = tree; *in; ++in )
+        {
+            if ( *in == '^' && in[1] )
+                ++in;
+            else
+                *out++ = *in == '\n' ? '|' : *in;
+        }
+        *out = 0;
+        Com_Printf(20, "bo1_ragdoll: t=%d ent=%d state=%d age=%d stable=%d lin avg %.1f max %.1f ang max %.2f asleep %d/%d tree %s\n",
+                   Ragdoll_TraceTime(), body->dobj, (int)body->state, body->stateMsec, body->stableTime,
+                   bodies ? sumLin / bodies : 0.0f, maxLin, maxAng, asleep, bodies, tree);
+    }
+}
+
 void __cdecl Ragdoll_Update(int msec)
 {
     iassert(Sys_IsMainThread());
@@ -1975,6 +2049,7 @@ void __cdecl Ragdoll_Update(int msec)
             iassert(Ragdoll_BodyInUse(body));
             Ragdoll_BodyUpdate(msec, body);
         }
+        Ragdoll_TraceBodies(msec);
     }
 }
 
