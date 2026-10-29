@@ -451,6 +451,14 @@ void __cdecl R_SetupAntiAliasing(const GfxWindowParms *wndParms)
     dx.multiSampleQuality = 0;
 }
 
+static void R_TakeForeground(HWND hwnd);
+
+// mod: exclusive full screen's device "lost" through its creation (D3DERR_DEVICELOST: the game window not the foreground
+// one - a player's 0.1.22 freeze trace, the main thread waiting at the start for good, as BO1 retried that forever). The
+// window is shown and takes the foreground at the first; 5 s on, the device is given up and R_InitGraphicsApi starts the
+// game borderless instead. bo1_test_devicelost 1: the first creation answers "lost" throughout, as on that PC (tests)
+static bool s_deviceLostGaveUp;
+
 HRESULT __cdecl R_CreateDeviceInternal(HWND__ *hwnd, unsigned int behavior, _D3DPRESENT_PARAMETERS_ *d3dpp)
 {
     int DeviceType; // eax
@@ -459,6 +467,11 @@ HRESULT __cdecl R_CreateDeviceInternal(HWND__ *hwnd, unsigned int behavior, _D3D
     _D3DDISPLAYMODE getModeResult; // [esp+8h] [ebp-1Ch] BYREF
     HRESULT hr; // [esp+1Ch] [ebp-8h]
     int attempt; // [esp+20h] [ebp-4h]
+    int lost = 0; // mod: the tries answered "lost" in exclusive full screen
+    static bool s_testLostDone;
+    const dvar_s *testLost = Dvar_FindVar("bo1_test_devicelost");
+    const bool simulateLost = !s_testLostDone && testLost && testLost->type == DVAR_TYPE_STRING
+                              && testLost->current.string && !strcmp(testLost->current.string, "1");
 
     Com_Printf(8, "Creating Direct3D device...\n");
     attempt = 0;
@@ -480,9 +493,32 @@ HRESULT __cdecl R_CreateDeviceInternal(HWND__ *hwnd, unsigned int behavior, _D3D
             hr = ((IDirect3D9Ex *)dx.d3d9)->CreateDeviceEx(dx.adapterIndex, (D3DDEVTYPE)DeviceType, hwnd, behavior, d3dpp, NULL, (IDirect3DDevice9Ex **)&dx.device);
         else
         hr = dx.d3d9->CreateDevice(dx.adapterIndex, (D3DDEVTYPE)DeviceType, hwnd, behavior, d3dpp, &dx.device);
+        if ( simulateLost && hr >= 0 )
+        {
+            dx.device->Release();
+            dx.device = 0;
+            hr = D3DERR_DEVICELOST;
+        }
         if ( hr >= 0 )
             break;
         Sleep(0x64u);
+        if ( hr == D3DERR_DEVICELOST && (!d3dpp->Windowed || simulateLost) )
+        {
+            if ( ++lost == 1 && !Sys_IsHeadlessClient() )
+            {
+                ShowWindow(hwnd, SW_SHOW);
+                R_TakeForeground(hwnd);
+            }
+            if ( lost == 1 || lost % 10 == 0 )
+                Com_Printf(8, "Direct3D device lost as it was created (%i tries)\n", lost);
+            if ( lost >= 50 )
+            {
+                s_testLostDone = true;
+                s_deviceLostGaveUp = true;
+                return hr;
+            }
+            continue;
+        }
         if ( hr != -2005530520 )
             ++attempt;
         if ( attempt == 20 )
@@ -1130,6 +1166,21 @@ void R_InitGraphicsApi()
             R_SetWndParms(&wndParms);
             if ( R_CreateGameWindow(&wndParms) )
                 break;
+            // mod: exclusive full screen's device lost for 5 s as it was created (R_CreateDeviceInternal): borderless
+            // instead - its windowed device is never lost - and kept so (the Display Mode option's Borderless)
+            if ( s_deviceLostGaveUp )
+            {
+                s_deviceLostGaveUp = false;
+                Com_Printf(8, "Full screen's Direct3D device stayed lost: starting borderless\n");
+                if ( wndParms.hwnd )
+                    DestroyWindow(wndParms.hwnd);
+                Dvar_SetBoolByName("r_fullscreen", false);
+                Dvar_SetBoolByName("r_borderless", true);
+                Dvar_MakeLatchedValueCurrent((dvar_s *)r_fullscreen);
+                Dvar_MakeLatchedValueCurrent((dvar_s *)r_borderless);
+                R_BorderlessMakeDpiAware();
+                continue;
+            }
             if ( !R_ReduceWindowSettings() )
                 R_FatalInitError("Couldn't initialize renderer");
         }
