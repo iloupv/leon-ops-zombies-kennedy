@@ -845,9 +845,10 @@ static const char *CG_RuntimeXModel_AnimSet(unsigned int weapon)
     // RE4's sets (the converter's WEAPON_SETS) by the BO1 weapon: its name where one has a clear match, else its class.
     // The Thundergun, a big gun in both hands: the shotgun's stance - carried low at his side, shouldered to aim with
     // the left hand under its barrel - with the shot's kick and no pump (the double barrel's set), reloaded as the mine
-    // thrower (CG_RuntimeXModel_ReloadSet). The mine thrower's aim is a scope's (RE4 aims it in first person) and its
-    // shot racks it with the left hand: the Thundergun was held up to his face, his head bowed over it as if looked
-    // through, and every blast threw it up near upright (64 degrees) for the rack.
+    // thrower (CG_RuntimeXModel_ReloadSet) and run with as the Typewriter (CG_RuntimeXModel_RunSet). The mine thrower's
+    // aim is a scope's (RE4 aims it in first person) and its shot racks it with the left hand: the Thundergun was held
+    // up to his face, his head bowed over it as if looked through, and every blast threw it up near upright (64 degrees)
+    // for the rack.
     if ( strstr(name, "thundergun") )
         return "dbshotgun";
     // The other wonder weapons: RE4's mine thrower (a shouldered launcher racked by the left hand)
@@ -910,6 +911,27 @@ static const char *CG_RuntimeXModel_ReloadSet(unsigned int weapon)
     if ( variant && variant->szInternalName && strstr(variant->szInternalName, "thundergun") )
         return "mine";
     return CG_RuntimeXModel_AnimSet(weapon);
+}
+
+// the set a gun's run comes from (R_RuntimeXModel_SetRunSet): its own set's, but the Thundergun's - held, walked and
+// aimed with the shotgun's stance (CG_RuntimeXModel_AnimSet), run with the Chicago Typewriter's. The shotgun's run
+// keeps the gun level across his belly as its walk does, rolled over and pushed out ahead of him - fine for a
+// shotgun's slim barrel, but the Thundergun's drum bobbed out in front of him at every stride, like a box he carried. The
+// Typewriter's carries it low at his right hip in both hands, its muzzle down ahead of him, a heavy gun run with
+// (the mine thrower's, its old set, held it rolled across him too; the rocket launcher's hung it muzzle down along his
+// leg). His walk, its back step and his turns stay the stance's: walking he carries it as he stands.
+static const char *CG_RuntimeXModel_RunSet(unsigned int weapon)
+{
+    // TEST SWITCH leon_runset "<set>": every gun run with that set's run ("handgun": the default one)
+    const dvar_s *force = Dvar_FindVar("leon_runset");
+    if ( force && force->type == DVAR_TYPE_STRING && force->current.string && force->current.string[0] )
+        return strcmp(force->current.string, "handgun") ? force->current.string : 0;
+    const char *set = CG_RuntimeXModel_AnimSet(weapon);
+    const WeaponVariantDef *variant = weapon ? BG_GetWeaponVariantDef(weapon) : 0;
+    if ( set && !strcmp(set, "dbshotgun") && variant && variant->szInternalName
+         && strstr(variant->szInternalName, "thundergun") )
+        return "smg";
+    return set;
 }
 
 // mod: the local player's voice: the runtime sound "<character>_<sound>" for the character the mod's scripts gave him
@@ -1825,7 +1847,10 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
     R_RuntimeXModel_SetFirePrev(firePrev);
     R_RuntimeXModel_SetKickVariant(kickVariant);
     if ( isPlayer && animWeapon )
+    {
         R_RuntimeXModel_SetReloadSet(CG_RuntimeXModel_ReloadSet(animWeapon));
+        R_RuntimeXModel_SetRunSet(CG_RuntimeXModel_RunSet(animWeapon));
+    }
     // a minigun (the Death Machine: no aim down the sights) is held in the Typewriter's aim all the time - RE4's hip
     // stance - turned up and down with the view: unaimed it hung at his side, at the floor, while its shots left from
     // the view (his eye); the rest (his turn, his head's look) goes by the real aim

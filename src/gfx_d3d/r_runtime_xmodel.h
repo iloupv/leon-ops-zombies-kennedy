@@ -48,6 +48,7 @@ void __cdecl R_RuntimeXModel_SetLookYaw(float degrees);
 void __cdecl R_RuntimeXModel_SetFireWeight(float weight); // mod: how strongly a shot plays RE4's fire motion (0..1)
 void __cdecl R_RuntimeXModel_SetFireRates(float kick, float settle); // mod: a shot's motion's rates: its kick, its settle
 void __cdecl R_RuntimeXModel_SetReloadSet(const char *set); // mod: the next pose's reload from this set (0: the base)
+void __cdecl R_RuntimeXModel_SetRunSet(const char *set); // mod: the next pose's run from this set (0: the base)
 void __cdecl R_RuntimeXModel_SetKickVariant(int variant); // mod: the next pose's kick: 1 the character's second roundhouse
 void __cdecl R_RuntimeXModel_SetFirePrev(float seconds); // mod: the next pose's previous shot, seconds ago (-1: none)
 void __cdecl R_RuntimeXModel_SetActionMotion(const char *name); // mod: the next pose's RT_ACTION_MOTION (an enemy's)
