@@ -496,6 +496,12 @@ void __cdecl CG_OwnerDraw(
     rect.horzAlign = horzAlign;
     rect.vertAlign = vertAlign;
     v12 = (clUI->keyCatchers & 0x10) != 0 && UI_GetActiveMenu(localClientNum) == UIMENU_INGAME;
+    // mod: RE4's HUD in BO1's ammo corner (cg_re4hud_mp.cpp): that corner's own panel not drawn under it (its text:
+    // CG_OwnerDrawText), and the points lifted over its ring
+    if ( CG_RE4HudHidesOwnerDraw(ownerDraw) )
+        return;
+    if ( ownerDraw == 288 )
+        rect.y -= CG_RE4HudPointsLift();
     if ( ownerDraw == 288 && zombiemode && zombiemode->current.enabled )
     {
         CG_SP_OwnerDraw_MiniScoreboard(localClientNum, &rect); // zombies: the points (SP CG_OwnerDrawHud 0x005accb0 -> 0x005bfed0)
@@ -3981,6 +3987,10 @@ void __cdecl CG_OwnerDrawText(
     const playerState_s *ps; // [esp+48h] [ebp-4h]
     int savedregs; // [esp+4Ch] [ebp+0h] BYREF
 
+    // mod: RE4's HUD in BO1's ammo corner (cg_re4hud_mp.cpp): that corner's own text not drawn under it - the ammo
+    // counter, the weapon's name (CG_OwnerDraw leaves out its images)
+    if ( CG_RE4HudHidesOwnerDraw(ownerDraw) )
+        return;
     cgameGlob = CG_GetLocalClientGlobals(localClientNum);
     CL_GetLocalClientUIGlobals(localClientNum);
     ps = CG_GetPredictedPlayerState(localClientNum);
@@ -4137,8 +4147,6 @@ LABEL_59:
                 CG_DrawInvalidCmdHint(localClientNum, &rect, font, scale, color, textStyle);
                 break;
             case 120:
-                if ( CG_RE4HudHidesAmmoCounter() ) // mod: RE4's HUD shows the rounds (cg_re4hud_mp.cpp); the same below
-                    break;
                 CG_DrawPlayerWeaponAmmoClip(
                     localClientNum,
                     &rect,
@@ -4152,18 +4160,12 @@ LABEL_59:
                     textAlignMode);
                 break;
             case 121:
-                if ( CG_RE4HudHidesAmmoCounter() )
-                    break;
                 CG_DrawPlayerWeaponAmmoClipDualWield(localClientNum, &rect, font, scale, color, material, textStyle);
                 break;
             case 122:
-                if ( CG_RE4HudHidesAmmoCounter() )
-                    break;
                 CG_DrawPlayerWeaponAmmoStock(localClientNum, &rect, font, scale, color, material, textStyle);
                 break;
             case 123:
-                if ( CG_RE4HudHidesAmmoCounter() )
-                    break;
                 CG_DrawPlayerWeaponLowAmmoWarning(
                     localClientNum,
                     &rect,
