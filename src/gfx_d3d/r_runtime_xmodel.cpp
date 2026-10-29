@@ -1428,13 +1428,21 @@ static void RtLoadForLevel(const char *mapName)
 
     char names[1024];
     I_strncpyz(names, bo1_rtmodels->current.string, sizeof(names));
-    // already built for this level (a restart keeps the zone)?
+    // already built for this level (a restart keeps the zone; the client's load follows the server's)? Each one in the
+    // zone, or with no file to build it from: one missing was left out the first time too - counted as unbuilt, the
+    // client's load built the others again, their assets linked into the zone twice (DB_LinkXAssetEntry's assert)
     bool built = true;
     for ( char *tok = strtok(names, " ,"); tok; tok = strtok(0, " ,") )
     {
         XAssetEntryPoolEntry *e = DB_FindXAssetEntry(ASSET_TYPE_XMODEL, tok);
-        if ( !e || e->entry.zoneIndex != zoneIndex )
+        if ( e && e->entry.zoneIndex == zoneIndex )
+            continue;
+        int file;
+        if ( FS_FOpenFileRead(va("rtmodels/%s.rlm", tok), &file) >= 0 )
+        {
+            FS_FCloseFile(file);
             built = false;
+        }
     }
     if ( built )
     {
