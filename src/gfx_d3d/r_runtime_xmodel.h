@@ -6,8 +6,9 @@
 void __cdecl R_RuntimeXModel_RegisterDvars();
 void __cdecl R_RuntimeXModel_LoadForLevel(const char *mapName);
 bool __cdecl R_RuntimeXModel_IsAnimated(const struct XModel *model);
-const struct XModel *__cdecl R_RuntimeXModel_Laser(bool dot);
-const struct XModel *__cdecl R_RuntimeXModel_LaserPiece(int piece); // the beam's 8 / 4 / 2 / 1 unit pieces (0..3)
+// the laser sight's beam and dot, red or blue (the wonder weapons': cg_view_mp.cpp CG_DrawLaser)
+const struct XModel *__cdecl R_RuntimeXModel_Laser(bool dot, bool blue);
+const struct XModel *__cdecl R_RuntimeXModel_LaserPiece(int piece, bool blue); // the beam's 8 / 4 / 2 / 1 unit pieces (0..3)
 // mod: the kick's halo on a staggered zombie (cg_view_mp.cpp CG_LeonKickHalos), or 0
 const struct XModel *__cdecl R_RuntimeXModel_Halo();
 // mod: RE4's HUD's image `name` as a 2D material (rtmodels/re4hud.rlh: cgame_mp/cg_re4hud_mp.cpp), or 0

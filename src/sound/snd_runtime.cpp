@@ -154,12 +154,13 @@ static const snd_alias_t *SND_Runtime_Announcer()
     return 0;
 }
 
-// Leon's lines at the game's events (maps\leon\_bingo.gsc: a special round's start, the Nuke): heard as the announcer
-// is - its group, snapshot group, ducking and priority. In the template's (the ui group's 0.32) the Nuke's blast and the
-// dog round's start ducked and drowned them, or a busy moment's voices took their place
+// Leon's lines at the game's events (maps\leon\_bingo.gsc: a special round's start, the Nuke), and RE4's heal at
+// Juggernog's (maps\leon\_drink.gsc): heard as the announcer is - its group, snapshot group, ducking and priority. In the
+// template's (the ui group's 0.32) the Nuke's blast, the dog round's start and the perk's jingle ducked and drowned
+// them, or a busy moment's voices took their place
 static bool SND_Runtime_IsEventLine(const std::string &name)
 {
-    return name == "leon_bingo" || name == "leon_that_dog" || name == "leon_hasta_luego";
+    return name == "leon_bingo" || name == "leon_that_dog" || name == "leon_hasta_luego" || name == "leon_heal";
 }
 
 // TEST SWITCH bo1_aliasdump "<word> <word>...": the level's aliases whose names hold one of the words, with their

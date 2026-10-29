@@ -4,7 +4,8 @@
 // LEON MOD - not part of the original game. A perk machine's perk is his at once, with no drink: the engine leaves the
 // bottle's switches out (G_LeonSkipSwitch), so his gun stays up, aimed or not. RE4 has no drink - an item used from the
 // case plays its heal sound: the runtime sound "leon_heal" (from the player's own RE4: tools/leon-converter/
-// leon_sounds.py), to him as the perk is his. On _zombiemode_perks' level.perk_bought_func, a map's own one still run.
+// leon_sounds.py), to him as Juggernog is his (the one perk that is health; the others sound BO1's own). On
+// _zombiemode_perks' level.perk_bought_func, a map's own one still run.
 //   leon_perktest <perk>  test: the player buys it, aimed in (specialty_quickrevive: solo, no power needed)
 
 init()
@@ -18,8 +19,9 @@ init()
 // self: the player who bought it
 leon_perk_bought( perk )
 {
-	self playLocalSound( "leon_heal" );
-	logPrint( "leon: heal for " + perk + " holding " + self getCurrentWeapon() + ", aimed " + self playerADS() + "\n" );
+	if ( perk == "specialty_armorvest" )
+		self playLocalSound( "leon_heal" );
+	logPrint( "leon: perk " + perk + " holding " + self getCurrentWeapon() + ", aimed " + self playerADS() + "\n" );
 	if ( isDefined( level.leon_perk_bought_func ) )
 		self [[ level.leon_perk_bought_func ]]( perk );
 }
