@@ -537,6 +537,10 @@ double __cdecl CL_GamepadAxisValue(int localClientNum, unsigned int virtualAxis)
                 otherAxisDeflection = (float)gaGlob->axesValues[otherSameStickAxis] * 0.000015259022;
             axisDeflection = sqrtf((float)(axisDeflection * axisDeflection) + (float)(otherAxisDeflection * otherAxisDeflection))
                                          * axisDeflection;
+            // mod: the stick is 1 long at most (GPad_ConvertStickToFloat), but rounding takes this a hair past it - a
+            // stick held straight forward or back with a sliver to the side gave 1.0000001, and the assert below crashed
+            // a player's game
+            axisDeflection = axisDeflection > 1.0f ? 1.0f : (axisDeflection < -1.0f ? -1.0f : axisDeflection);
         }
     }
     if ( fabs(axisDeflection) < 0.0
