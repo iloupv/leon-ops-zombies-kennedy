@@ -27,6 +27,7 @@ mounted on tag_weapon_right as RE4 mounts it.
 
 usage: python -I leon_rlm.py <pl00.udas> <01000000.pack>[;<more packs>] <out.rlm> [--apose] [--anims | --armed]
        [--character leon|ada|hunk|luis]   (the archive given is that character's: pl00, pl0c, pl06, pl14)
+       python -I leon_rlm.py <em20.udas> <00000020.pack> <out.rlm> --enemy salvador   (ENEMIES)
 (the packs by the id in their headers: a TPL texture names its pack - the RE4 HD Project's Leon points his face at the
 shared 07000000 pack)"""
 import io
@@ -63,10 +64,10 @@ def to_bo1_dir(v):
 MAX_TEXTURE = 2048
 
 
-def capped(img):
-    if max(img.size) <= MAX_TEXTURE:
+def capped(img, limit=MAX_TEXTURE):
+    if max(img.size) <= limit:
         return img
-    scale = MAX_TEXTURE / max(img.size)
+    scale = limit / max(img.size)
     return img.resize((max(1, int(img.size[0] * scale)), max(1, int(img.size[1] * scale))), Image.LANCZOS)
 
 
@@ -145,8 +146,8 @@ def tag_quat(axes):
     return quat_from_axes(to_bo1_dir(axes[0]), to_bo1_dir(axes[1]))
 
 
-def skeleton(body, apose, eyelid=True):
-    """[(name, parent index, local trans, local quat)]: tag_origin, then RE4 bone id N at index N + 1, then TAGS.
+def skeleton(body, apose, eyelid=True, tags=TAGS):
+    """[(name, parent index, local trans, local quat)]: tag_origin, then RE4 bone id N at index N + 1, then the tags.
     eyelid False: bone 0x1C is not one (HUNK's is on his knee), so it is not named as the engine's blink finds it."""
     bones = [('tag_origin', -1, (0.0, 0.0, 0.0), (0.0, 0.0, 0.0, 1.0))]
     for bone_id, parent, _pad, x, y, z in body['bones']:
@@ -158,7 +159,7 @@ def skeleton(body, apose, eyelid=True):
         if bone_id == 0x1C and not eyelid:
             name += '_not_eyelid'
         bones.append((name, 0 if parent == 0xFF else parent + 1, to_bo1((x, y, z)), quat))
-    for name, parent_id, offset, axes in TAGS:
+    for name, parent_id, offset, axes in tags:
         bones.append((name, parent_id + 1, to_bo1(offset), tag_quat(axes)))
     return bones
 
@@ -179,9 +180,22 @@ def vertex_weights(b, v, bone_of):
     return [(bone, wt / total) for bone, wt in pairs]
 
 
-def build(udas, pack_path, out_path, parts=LEON_BO1, apose=False, motions=(), eyelid=True):
+def held_matrix(rot):
+    """RE4's model angle matrix (game/math_sub.cpp RotMatrix: Rz * Ry * Rx, radians), rows."""
+    sx, sy, sz = (math.sin(a) for a in rot)
+    cx, cy, cz = (math.cos(a) for a in rot)
+    return ((cz * cy, cz * sx * sy - sz * cx, cz * cx * sy + sz * sx),
+            (sz * cy, sz * sx * sy + cz * cx, sz * cx * sy - cz * sx),
+            (-sy, cy * sx, cy * cx))
+
+
+def build(udas, pack_path, out_path, parts=LEON_BO1, apose=False, motions=(), eyelid=True, tags=TAGS, held=(),
+          max_texture=MAX_TEXTURE, root_move=()):
     """parts: (model entry, TPL entry, role) of pl00.udas, or with a 4th field, the archive .udas of a model from
-    another archive (a weapon's gripping hand; its TPL and images stay Leon's). motions: [(name, FCV bytes)]."""
+    another archive (a weapon's gripping hand; its TPL and images stay Leon's). motions: [(name, FCV bytes)].
+    held: (model entry, TPL entry, RE4 bone id, position mm, angles radians) - a model RE4 hangs on a part (an enemy's
+    weapon, cEmWep::setParentMatCalc: the part's matrix times the angles' and the position's), made rigid on it.
+    root_move: the motions whose root travel is baked in (bake_motion)."""
     ent = {i: data for i, _t, data in entries(open(udas, 'rb').read())}
     packs = {}
     for path in pack_path.split(';'):
@@ -200,7 +214,7 @@ def build(udas, pack_path, out_path, parts=LEON_BO1, apose=False, motions=(), ey
         pack_id, image_id = refs[k]
         return packs.get(pack_id, {}).get(image_id)
     body = read_bin(ent[parts[0][0]])
-    bones = skeleton(body, apose, eyelid)
+    bones = skeleton(body, apose, eyelid, tags)
     body_ids = {bone[0] for bone in body['bones']}
 
     def bone_of(re4_id):
@@ -237,6 +251,36 @@ def build(udas, pack_path, out_path, parts=LEON_BO1, apose=False, motions=(), ey
             # RE4 fronts wind counter-clockwise; the BO1 renderer's wind clockwise (Direct3D): reversed
             surfaces.append((tex_index[key], verts, [remap[i] for t0, t1, t2 in tris for i in (t0, t2, t1)]))
 
+    # a held model: its vertices placed where RE4 hangs it on the part in the rest pose (the parts' rest rotations are
+    # the identity: the part's matrix is the sum of the parent chain's offsets), all on that part
+    world = {}
+    for bone_id, parent, _pad, x, y, z in body['bones']:
+        px, py, pz = world.get(parent, (0.0, 0.0, 0.0))
+        world[bone_id] = (px + x, py + y, pz + z)
+    for model_entry, tpl_entry, bone_id, offset, rot in held:
+        b = read_bin(ent[model_entry])
+        refs = tpl_refs(ent[tpl_entry])
+        m = held_matrix(rot)
+        base = tuple(world[bone_id][k] + offset[k] for k in range(3))
+
+        def place(v, origin):
+            return tuple(sum(m[r][c] * v[c] for c in range(3)) + origin[r] for r in range(3))
+        for mat, tris in b['faces']:
+            if not tris:
+                continue
+            key = (tpl_entry, mat[12], mat[14])
+            if key not in tex_index:
+                colour = image(refs, mat[12])
+                img = Image.open(io.BytesIO(colour)).convert('RGBA') if colour is not None else \
+                    Image.new('RGBA', (4, 4), (160, 160, 160, 255))
+                tex_index[key] = len(textures)
+                textures.append((f'leon_t{tpl_entry}_d{mat[12]}_o{mat[14]}', img, False))
+            used = sorted({i for t in tris for i in t})
+            remap = {old: new for new, old in enumerate(used)}
+            verts = [(to_bo1(place(b['pos'][i], base)), to_bo1_dir(place(b['nrm'][i], (0.0, 0.0, 0.0))), b['uv'][i],
+                      [(bone_id + 1, 1.0)]) for i in used]
+            surfaces.append((tex_index[key], verts, [remap[i] for t0, t1, t2 in tris for i in (t0, t2, t1)]))
+
     # one surface per texture (fewer draw calls), split only past the u16 vertex limit
     merged = []
     for tex in range(len(textures)):
@@ -256,7 +300,7 @@ def build(udas, pack_path, out_path, parts=LEON_BO1, apose=False, motions=(), ey
 
     out = bytearray(b'RLM1' + struct.pack('<IIII', 2, len(textures), len(surfaces), len(bones)))
     for name, img, masked in textures:
-        img = capped(img)
+        img = capped(img, max_texture)
         levels = mips_bgra(img)
         out += name.encode()[:31].ljust(32, b'\0')
         out += struct.pack('<HHBBH', img.size[0], img.size[1], len(levels), int(masked), 0)
@@ -281,7 +325,8 @@ def build(udas, pack_path, out_path, parts=LEON_BO1, apose=False, motions=(), ey
             if len(m) < 3:
                 return 0, None
             return (m[2][0], m[2][1]) if isinstance(m[2], tuple) else (0, m[2])
-        anims = [bake_motion(model, m[1], rest, m[0], first_frame=frames_of(m)[0], max_frames=frames_of(m)[1])
+        anims = [bake_motion(model, m[1], rest, m[0], first_frame=frames_of(m)[0], max_frames=frames_of(m)[1],
+                             tags=tags, root_move=m[0] in root_move)
                  for m in motions]
         out += anim_section(anims)
         print('baked', ', '.join(f'{n} ({len(fr)} frames, {sp:.0f} in/s)' for n, _f, sp, fr in anims))
@@ -450,13 +495,30 @@ WEAPON_SETS.append(('dbshotgun', 'wep07.udas',
                     [m for m in next(ms for n, _a, ms in WEAPON_SETS if n == 'shotgun') if not m[0].startswith('fire')]
                     + [('fire', 26, 18), ('fire_up', 29, 18), ('fire_down', 31, 18)]))
 
+# The enemies (--enemy, the archive given is the enemy's): their own model, what they hold and their own motions (sub-file
+# numbers: RE4's archive index - 4). Super Salvador, the island chainsaw carrier (em20/em20_set.cpp Em20Set type 22: one
+# model with the sack, BIN 0x1E0 / TPL 0x1E1; Em20WeaponSet's chainsaw, Wep_type 4 - em10WeaponInit - BIN 0x104 / TPL
+# 0x105 on the right hand, part 0xA, em10WeaponSet's place for it). His motions are em10.cpp's for the chainsaw: the
+# idle (em10SetWaitMotion 0xE6), walk (em10SetWalkMotion 0xED) and run (0xF1), the overhead swing (C_SawCriAtk 0xEB,
+# its hit frames 20 to 26), its kill (C_SawCriHit 0x100), the flinch (Dm_Small's chainsaw 0xF7) and the standing death
+# (Die_Normal 0x67, its fall forward baked in). The textures at half the characters' cap: an enemy seen from a distance.
+ENEMIES = {
+    'salvador': {'parts': [(0x1DC, 0x1DD, 'body')],
+                 'held': [(0x100, 0x101, 10, (-304.24, -17.86, -57.43), (1.4835298, 0.0, -1.5707964))],
+                 'motions': [('idle', 0xE2), ('walk', 0xE9), ('run', 0xED), ('attack', 0xE7), ('kill', 0xFC),
+                             ('stagger', 0xF3), ('death', 0x63)],
+                 'root_move': {'death'}, 'max_texture': 1024},
+}
+
 
 def quat_to_bo1(q):
     x, y, z, w = q
     return (z, x, y, w)
 
 
-def bake_motion(model, motion_bytes, rest, name, fps=30.0, max_frames=None, first_frame=0):
+def bake_motion(model, motion_bytes, rest, name, fps=30.0, max_frames=None, first_frame=0, tags=TAGS, root_move=False):
+    """root_move: the root keys' travel (RE4 moves the whole model by them) baked into the root part's offset - a
+    motion that leaves the entity where it is (an enemy's fall, played where he dropped)."""
     import re4_motion
     p = re4_motion.player(model, motion_bytes, loop=True)
     frames = int(p.lib.mot_model_max_frame(p.handle))
@@ -477,9 +539,10 @@ def bake_motion(model, motion_bytes, rest, name, fps=30.0, max_frames=None, firs
             # the player here; taking them out of it, R^T m, turned him back against the view through the whole turn)
             q = quat_to_bo1(p.quat_from_matrix(m))
             local = (m[3], m[7], m[11])
-            offset = to_bo1(tuple(local[k] - rest[i][k] for k in range(3)))
+            travel = pose.root_pos if root_move and i == 0 else (0.0, 0.0, 0.0)
+            offset = to_bo1(tuple(local[k] - rest[i][k] + travel[k] for k in range(3)))
             bones.append((q, offset))
-        bones += [(tag_quat(axes), (0.0, 0.0, 0.0)) for _n, _p, _o, axes in TAGS]  # fixed on their parents
+        bones += [(tag_quat(axes), (0.0, 0.0, 0.0)) for _n, _p, _o, axes in tags]  # fixed on their parents
         out.append(bones)
     # the root keys' distance over the cycle (the last frame is one step short of the loop)
     frames = len(out)
@@ -498,7 +561,17 @@ def anim_section(anims):
     return bytes(out)
 
 
+def build_enemy(udas, pack_path, out_path, name):
+    spec = ENEMIES[name]
+    arc = {i: data for i, _t, data in entries(open(udas, 'rb').read())}
+    build(udas, pack_path, out_path, parts=spec['parts'], motions=[(m, arc[entry]) for m, entry in spec['motions']],
+          eyelid=False, tags=(), held=spec['held'], max_texture=spec['max_texture'], root_move=spec['root_move'])
+
+
 if __name__ == '__main__':
+    if '--enemy' in sys.argv:
+        build_enemy(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[sys.argv.index('--enemy') + 1])
+        sys.exit(0)
     character = sys.argv[sys.argv.index('--character') + 1] if '--character' in sys.argv else 'leon'
     spec = CHARACTERS[character]
     parts, motions = spec['parts'], ()

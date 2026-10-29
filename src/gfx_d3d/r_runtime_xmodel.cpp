@@ -356,6 +356,14 @@ void __cdecl R_RuntimeXModel_SetKickVariant(int variant)
     s_kickVariant = variant;
 }
 
+// the motion the next R_RuntimeXModel_PoseDObj's RT_ACTION_MOTION plays (an enemy's: its swing, its flinch), by name
+static thread_local const char *s_actionMotion;
+
+void __cdecl R_RuntimeXModel_SetActionMotion(const char *name)
+{
+    s_actionMotion = name;
+}
+
 void __cdecl R_RuntimeXModel_SetReloadSet(const char *set)
 {
     s_reloadSet = set;
@@ -1903,6 +1911,8 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     s_reloadFrom = 0.0f;
     const int kickVariant = s_kickVariant; // (for this call only)
     s_kickVariant = 0;
+    const char *const actionMotion = s_actionMotion; // (for this call only)
+    s_actionMotion = 0;
     const char *const reloadSet = s_reloadSetGiven ? s_reloadSet : animSet; // (for this call only)
     const float firePrevTime = s_firePrevTime;
     s_firePrevTime = -1.0f;
@@ -2046,6 +2056,22 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
             actionWeight = actionTime < 0.2f ? actionTime / 0.2f : 1.0f;
         }
     }
+    else if ( action == RT_ACTION_MOTION && actionMotion )
+    {
+        // a named motion (an enemy's swing, its flinch): once from its start at its own rate, in over 3 frames, back into
+        // the locomotion over its last 6
+        actionAnim = RtFindSetAnim(model, animSet, actionMotion);
+        if ( actionAnim >= 0 )
+        {
+            const RtAnim &motion = s_anims[actionAnim];
+            actionPhase = actionTime * motion.fps;
+            const float left = (float)(motion.frameCount - 1) - actionPhase;
+            if ( left <= 0.0f || actionPhase < 0.0f )
+                actionAnim = -1;
+            else
+                actionWeight = (left < 6.0f ? left / 6.0f : 1.0f) * (actionPhase < 3.0f ? actionPhase / 3.0f : 1.0f);
+        }
+    }
     else if ( action == RT_ACTION_TURN )
     {
         // the quick turn: the whole body, at its own rate (the view turns along its root yaw: CL_LeonQuickTurn), to
@@ -2124,7 +2150,7 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
     // their stride (a hit as he ran stopped his legs dead under him)
     const bool moving = cur.moveSpeed > 0.0f && st.speed > 20.0f;
     const bool wholeBodyAction = action == RT_ACTION_TURN || ((action == RT_ACTION_HIT_FRONT || action == RT_ACTION_HIT_BACK) && !moving)
-                                 || action == RT_ACTION_KICK || action == RT_ACTION_DEATH;
+                                 || action == RT_ACTION_KICK || action == RT_ACTION_DEATH || action == RT_ACTION_MOTION;
     int numBones =cur.boneCount < model->numBones ? cur.boneCount : model->numBones;
     if ( numBones > obj->numBones )
         numBones = obj->numBones;

@@ -9,11 +9,14 @@ own Black Ops. Nothing of either game is shipped; both installs are only read.
   2. converts him (leon_rlm.py --armed: model, textures, RE4's motions baked with the game's own motion code)
      into <out>/mods/leon/rtmodels/leon.rlm, and Ada, HUNK and Luis (pl0c, pl06, pl14: --character) into ada.rlm,
      hunk.rlm and luis.rlm (any that fails is left out; Leon still plays)
-  3. writes his voice (leon_sounds.py: BIO4/snd/pl00.xwb, core.xwb) into <out>/mods/leon/sound/rt
-  4. extracts d3dx9_43.dll and xinput1_3.dll from Black Ops' Redist/DirectX next to the game's exe
-  5. writes <out>/mods/leon/rtmodels/leon_ready_v<SETUP_VERSION>.txt (what Melty and the launcher wait for: a new
+  3. converts the enemies (ENEMIES, leon_rlm.py --enemy: Super Salvador from em20 and its texture pack 00000020) into
+     salvador.rlm (one that fails is left out: the dog rounds go without him)
+  4. writes his voice (leon_sounds.py: BIO4/snd/pl00.xwb, core.xwb, ...) into <out>/mods/leon/sound/rt
+  5. extracts d3dx9_43.dll and xinput1_3.dll from Black Ops' Redist/DirectX next to the game's exe
+  6. writes <out>/mods/leon/rtmodels/leon_ready_v<SETUP_VERSION>.txt (what Melty and the launcher wait for: a new
      SETUP_VERSION - Leon converted differently - has them build him again); a later run finding it does nothing
-     (--force redoes it). From a version whose models this one keeps (SOUNDS_ONLY_FROM) only step 3 runs again.
+     (--force redoes it). From a version whose characters this one keeps (CHARACTERS_KEPT_FROM) only steps 3 and 4
+     run again.
 
 Its log is <out>/leon_setup.log."""
 import argparse
@@ -27,12 +30,15 @@ import time
 
 # 2: the guns 20 mm further out in his hand, the shotgun's close with its whole pump; 3: Leon's "Bingo?"; 4: the gun's
 # raise to aim (leon_aim); 5: Ada, HUNK and Luis (CHARACTERS), "Hasta luego!" and "Hey, it's that dog."; 8: the perk's
-# heal sound (leon_heal) and the Merchant's "Come back any time." (merchant_comeback)
-SETUP_VERSION = '8'
-# the versions whose models are this one's: from them only the sounds are written again (seconds, not the build)
-SOUNDS_ONLY_FROM = ('7',)
+# heal sound (leon_heal) and the Merchant's "Come back any time." (merchant_comeback); 9: Super Salvador (ENEMIES) and
+# his sounds (salvador_*)
+SETUP_VERSION = '9'
+# the versions whose characters are this one's: from them only the enemies and the sounds are built (seconds)
+CHARACTERS_KEPT_FROM = ('7', '8')
 # the other playable characters: (name, their archive, their texture pack) - leon_rlm.py --character
 CHARACTERS = [('ada', 'pl0c', '0100000c'), ('hunk', 'pl06', '01000006'), ('luis', 'pl14', '01000014')]
+# the enemies: (name, their archive, their texture pack) - leon_rlm.py --enemy
+ENEMIES = [('salvador', 'em20', '00000020')]
 ARCHIVES = (['pl00', 'em10'] + [f'wep{n:02d}' for n in (0, 1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 19)]
             + [archive for _name, archive, _pack in CHARACTERS])
 REQUIRED = {'pl00', 'wep01'}
@@ -153,9 +159,17 @@ def main():
         log('Leon is ready already')
         return
     started = time.time()
-    if not args.force and any(os.path.isfile(os.path.join(rtmodels, f'leon_ready_v{v}.txt')) for v in SOUNDS_ONLY_FROM):
-        log(f'setup {SETUP_VERSION}: the sounds only, RE4 {args.re4}, out {out}')
-        write_sounds(bio4_folder(args.re4), out)
+    if not args.force and any(os.path.isfile(os.path.join(rtmodels, f'leon_ready_v{v}.txt')) for v in CHARACTERS_KEPT_FROM):
+        log(f'setup {SETUP_VERSION}: the enemies and the sounds only, RE4 {args.re4}, out {out}')
+        bio4 = bio4_folder(args.re4)
+        work = os.path.join(out, 'leon_setup_work')
+        shutil.rmtree(work, ignore_errors=True)
+        os.makedirs(work)
+        try:
+            build_enemies(bio4, work, rtmodels)
+            write_sounds(bio4, out)
+        finally:
+            shutil.rmtree(work, ignore_errors=True)
         write_ready(ready, started)
         return
     log(f'setup {SETUP_VERSION}: RE4 {args.re4}, Black Ops {args.bo1}, out {out}')
@@ -178,45 +192,16 @@ def main():
     shutil.rmtree(work, ignore_errors=True)
     os.makedirs(work)
     try:
-        # RE4 reads a file either packed (.lfs) or plain, and texture mods / repacks leave some one way or the other
-        # (the game's own ImagePackHD mixes both): either form is taken, the HD textures falling back to ImagePack's
-        def fetch(candidates, dest):
-            for src in candidates:
-                if os.path.isfile(src + '.lfs'):
-                    unpack(src + '.lfs', dest)
-                    return src + '.lfs'
-                if os.path.isfile(src):
-                    shutil.copyfile(src, dest)
-                    return src
-            return None
-
         for name in ARCHIVES:
             if not fetch([os.path.join(bio4, 'Em', f'{name}.udas')], os.path.join(work, f'{name}.udas')):
                 if name in REQUIRED:
                     raise SystemExit(f'missing {os.path.join(bio4, "Em", name + ".udas.lfs")}')
                 log(f'no {name}.udas: its motions are left out')
-        # Leon's textures: the first candidate that is a real pack once read (a packed one unpacked first); with none,
-        # he is built grey and the player still plays (installs with the RE4 HD Project failed the whole setup here)
-        def fetch_pack(name, dest):
-            for src in pack_candidates(bio4, name):
-                try:
-                    if '.lfs' in os.path.basename(src).lower():
-                        unpack(src, dest)
-                    else:
-                        shutil.copyfile(src, dest)
-                except (OSError, subprocess.CalledProcessError) as e:
-                    log(f'  {src}: not read ({e})')
-                    continue
-                if is_texture_pack(dest):
-                    return src
-                log(f'  {src}: not a texture pack')
-            return None
-
         pack_dest = os.path.join(work, '01000000.pack.yz2')
-        pack = fetch_pack('01000000', pack_dest)
+        pack = fetch_pack(bio4, '01000000', pack_dest)
         # and the shared pack, where a TPL may point too (the RE4 HD Project's Leon has his face and eyes there)
         shared_dest = os.path.join(work, '07000000.pack')
-        shared = fetch_pack('07000000', shared_dest)
+        shared = fetch_pack(bio4, '07000000', shared_dest)
         packs_arg = pack_dest + (';' + shared_dest if shared else '')
         if shared:
             log(f'shared textures: {shared}')
@@ -243,7 +228,7 @@ def main():
                 continue
             try:
                 own_dest = os.path.join(work, f'{pack_name}.pack')
-                if not fetch_pack(pack_name, own_dest):
+                if not fetch_pack(bio4, pack_name, own_dest):
                     log(f'no {pack_name} texture pack: {name} is built grey')
                     with open(own_dest, 'wb') as f:
                         f.write(struct.pack('<II', int(pack_name, 16), 0))
@@ -255,10 +240,64 @@ def main():
             except Exception as e:  # noqa: BLE001 - Leon still plays without this one
                 log(f'{name}: not built ({e!r})')
 
+        build_enemies(bio4, work, rtmodels)
         write_sounds(bio4, out)
     finally:
         shutil.rmtree(work, ignore_errors=True)
     write_ready(ready, started)
+
+
+# RE4 reads a file either packed (.lfs) or plain, and texture mods / repacks leave some one way or the other (the game's
+# own ImagePackHD mixes both): either form is taken, the HD textures falling back to ImagePack's
+def fetch(candidates, dest):
+    for src in candidates:
+        if os.path.isfile(src + '.lfs'):
+            unpack(src + '.lfs', dest)
+            return src + '.lfs'
+        if os.path.isfile(src):
+            shutil.copyfile(src, dest)
+            return src
+    return None
+
+
+# A model's textures: the first candidate that is a real pack once read (a packed one unpacked first); with none, it is
+# built grey and the player still plays (installs with the RE4 HD Project failed the whole setup here)
+def fetch_pack(bio4, name, dest):
+    for src in pack_candidates(bio4, name):
+        try:
+            if '.lfs' in os.path.basename(src).lower():
+                unpack(src, dest)
+            else:
+                shutil.copyfile(src, dest)
+        except (OSError, subprocess.CalledProcessError) as e:
+            log(f'  {src}: not read ({e})')
+            continue
+        if is_texture_pack(dest):
+            return src
+        log(f'  {src}: not a texture pack')
+    return None
+
+
+# the enemies, each on its own: one that fails is left out (bo1_rtmodels_loaded), the game plays without it
+def build_enemies(bio4, work, rtmodels):
+    os.makedirs(rtmodels, exist_ok=True)
+    for name, archive, pack_name in ENEMIES:
+        try:
+            udas = os.path.join(work, f'{archive}.udas')
+            if not fetch([os.path.join(bio4, 'Em', f'{archive}.udas')], udas):
+                log(f'no {archive}.udas: no {name}')
+                continue
+            pack = os.path.join(work, f'{pack_name}.pack')
+            if not fetch_pack(bio4, pack_name, pack):
+                log(f'no {pack_name} texture pack: {name} is built grey')
+                with open(pack, 'wb') as f:
+                    f.write(struct.pack('<II', int(pack_name, 16), 0))
+            out_rlm = os.path.join(rtmodels, f'{name}.rlm')
+            run_tool('leon_rlm', [udas, pack, out_rlm + '.tmp', '--enemy', name])
+            os.replace(out_rlm + '.tmp', out_rlm)
+            log(f'{name}.rlm: {os.path.getsize(out_rlm)} bytes')
+        except Exception as e:  # noqa: BLE001 - the game plays without this one
+            log(f'{name}: not built ({e!r})')
 
 
 def write_sounds(bio4, out):

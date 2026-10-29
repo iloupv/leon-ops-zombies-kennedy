@@ -110,6 +110,34 @@ static const snd_alias_t *SND_Runtime_Template()
     return 0;
 }
 
+// a loaded, spatialized alias of the level's banks, a zombie's vocals first: the settings an enemy's sounds copy
+// (SND_Runtime_IsEnemySound: heard from where he is, with a zombie's falloff and mix), or 0
+static const snd_alias_t *SND_Runtime_Template3D()
+{
+    const snd_alias_t *any = 0;
+    const unsigned int count = SND_AliasCount();
+    for ( unsigned int i = 0; i < count; ++i )
+    {
+        const snd_alias_list_t *list = SND_AliasByIndex(i);
+        if ( !list || !list->name || !list->head || !list->count )
+            continue;
+        const snd_alias_t *alias = list->head;
+        if ( ((alias->flags >> 14) & 3) != 1 || !(alias->flags & 2) || !alias->soundFile || alias->soundFile->type != 1
+             || alias->dryCurve == 0xFF )
+            continue;
+        if ( !_strnicmp(list->name, "zmb_vocals_zombie", 17) )
+            return alias;
+        any = any ? any : alias;
+    }
+    return any;
+}
+
+// an enemy's sound (maps\leon\_salvador.gsc's Super Salvador: salvador_*), played on him: spatialized
+static bool SND_Runtime_IsEnemySound(const std::string &name)
+{
+    return !_strnicmp(name.c_str(), "salvador_", 9);
+}
+
 // the zombies announcer's line (any zmb_vox_ann_*: "Kaboom!", the dog round's...), 2D: the settings Leon's event lines
 // copy (SND_Runtime_IsEventLine), or 0
 static const snd_alias_t *SND_Runtime_Announcer()
@@ -247,6 +275,7 @@ void __cdecl SND_Runtime_LoadForLevel()
         return;
 
     const snd_alias_t *announcer = SND_Runtime_Announcer();
+    const snd_alias_t *spatial = SND_Runtime_Template3D();
     // the aliases (one per variant, sharing the name) and the bank's lists
     const unsigned int count = (unsigned int)s_runtimeAliases.size();
     s_runtimeLists.resize(count);
@@ -256,10 +285,11 @@ void __cdecl SND_Runtime_LoadForLevel()
         const unsigned int id = (unsigned int)SND_HashName(alias->name.c_str());
         alias->aliases.resize(alias->variants.size());
         const bool eventLine = SND_Runtime_IsEventLine(alias->name);
+        const bool enemy = spatial && SND_Runtime_IsEnemySound(alias->name);
         for ( size_t v = 0; v < alias->variants.size(); ++v )
         {
             snd_alias_t &a = alias->aliases[v];
-            a = eventLine && announcer ? *announcer : *templ;
+            a = eventLine && announcer ? *announcer : (enemy ? *spatial : *templ);
             a.name = alias->name.c_str();
             a.id = id;
             a.subtitle = 0;
@@ -285,6 +315,13 @@ void __cdecl SND_Runtime_LoadForLevel()
             // (an event line on a level without the announcer: the voice group, full)
             if ( eventLine && !announcer )
                 a.flags = (a.flags & ~0x3F0000u) | (2u << 16);
+            // an enemy's, spatialized, and heard at least 1500 units off: his chainsaw is the warning he is coming
+            if ( enemy )
+            {
+                a.flags |= 2u;
+                a.distMax = a.distMax > 1500 ? a.distMax : 1500;
+                a.distMin = a.distMin < a.distMax ? a.distMin : 0;
+            }
         }
         snd_alias_list_t &list = s_runtimeLists[i];
         memset(&list, 0, sizeof(list));
@@ -325,7 +362,8 @@ void __cdecl SND_Runtime_LoadForLevel()
     for ( SndRuntimeAlias *alias : s_runtimeAliases )
         Com_Printf(0, "runtime sounds: '%s' (%u variants), settings from '%s'\n", alias->name.c_str(),
                    (unsigned int)alias->variants.size(),
-                   SND_Runtime_IsEventLine(alias->name) ? (announcer ? announcer->name : "the voice group") : templ->name);
+                   SND_Runtime_IsEventLine(alias->name) ? (announcer ? announcer->name : "the voice group")
+                   : (spatial && SND_Runtime_IsEnemySound(alias->name) ? spatial->name : templ->name));
 }
 
 // Under Leon (his runtime voice loaded): the zombies characters' lines (vox_plr_*) muted, and the player's breathing -

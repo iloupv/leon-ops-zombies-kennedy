@@ -30,6 +30,7 @@ enum RtAction
     RT_ACTION_RELOAD_START,
     RT_ACTION_RELOAD_LOOP,
     RT_ACTION_RELOAD_END,
+    RT_ACTION_MOTION, // a motion named for the pose (R_RuntimeXModel_SetActionMotion) played once, on the whole body
 };
 // a baked motion's root yaw (degrees) at time seconds into it (held at its end), and its length (seconds); false when
 // no runtime model has it (the converter keeps the root yaw of RE4's turns: ROOT_YAW_MOTIONS)
@@ -43,6 +44,7 @@ void __cdecl R_RuntimeXModel_SetFireRates(float kick, float settle); // mod: a s
 void __cdecl R_RuntimeXModel_SetReloadSet(const char *set); // mod: the next pose's reload from this set (0: the base)
 void __cdecl R_RuntimeXModel_SetKickVariant(int variant); // mod: the next pose's kick: 1 the character's second roundhouse
 void __cdecl R_RuntimeXModel_SetFirePrev(float seconds); // mod: the next pose's previous shot, seconds ago (-1: none)
+void __cdecl R_RuntimeXModel_SetActionMotion(const char *name); // mod: the next pose's RT_ACTION_MOTION (an enemy's)
 // mod: the local player's locomotion for the next R_RuntimeXModel_PoseDObj: legs turned toward an aimed strafe, RE4's
 // turn in place when he turns standing; and the last such pose's turn in place (1 left, -1 right, 0 none)
 void __cdecl R_RuntimeXModel_SetPlayerMotion(bool strafeLegs, bool turnInPlace, int moveIntent);

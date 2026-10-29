@@ -155,8 +155,21 @@ const RagdollBody *__cdecl Ragdoll_CreateRagdollForDObj(
     if ( !Ragdoll_BindDef(1u) )
         return 0;
 
+    // mod: at the cap, the longest running body settles where it is (BS_IDLE) to make room. Refused, a new corpse retried
+    // every frame and was drawn from its anim tree meanwhile: a zombie the Thundergun flung among a pile still simulating
+    // walked on the spot, dead, its footsteps playing, until it was removed
     if ( Ragdoll_CountPhysicsBodies() >= ragdoll_max_simulating->current.integer )
-        return 0;
+    {
+        RagdollBody *oldest = 0;
+        for ( RagdollBody *running : g_ragdoll_body_pool )
+        {
+            if ( running->state == BS_RUNNING && (!oldest || running->stateMsec > oldest->stateMsec) )
+                oldest = running;
+        }
+        if ( !oldest || !Ragdoll_BodyNewState(oldest, BS_IDLE)
+             || Ragdoll_CountPhysicsBodies() >= ragdoll_max_simulating->current.integer )
+            return 0;
+    }
 
     if ( share )
     {

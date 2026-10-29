@@ -1571,6 +1571,27 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
                 firePrev = (float)(now - r.prevFireStart) * 0.001f;
         }
     }
+    // an enemy built from RE4 (a script model: maps\leon\_salvador.gsc's Super Salvador): the motion its script plays on
+    // it - leon_rtactions on every player's client, "<entity> <motion> <server ms>" each - on its whole body from that
+    // time, "death" held at its end
+    char enemyMotion[32] = {};
+    if ( !isPlayer && obj->entnum > 0 )
+    {
+        const dvar_s *list = Dvar_FindVar("leon_rtactions");
+        const char *p = list && list->type == DVAR_TYPE_STRING && list->current.string ? list->current.string : "";
+        int ent, start, used;
+        char name[32];
+        while ( sscanf(p, "%d %31s %d%n", &ent, name, &start, &used) == 3 )
+        {
+            p += used;
+            if ( ent != obj->entnum - 1 || cgameGlob->time < start )
+                continue;
+            action = strcmp(name, "death") ? RT_ACTION_MOTION : RT_ACTION_DEATH;
+            actionTime = (float)(cgameGlob->time - start) * 0.001f;
+            I_strncpyz(enemyMotion, name, sizeof(enemyMotion));
+        }
+    }
+    R_RuntimeXModel_SetActionMotion(enemyMotion[0] ? enemyMotion : 0);
     // the weapon whose motion set he moves with: the local player's predicted one, another player's from his entity
     unsigned int animWeapon = 0;
     if ( isPlayer )

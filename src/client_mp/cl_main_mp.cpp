@@ -107,6 +107,11 @@ const dvar_t *wagerCategoryPlaylist;
 const dvar_t *customGameMode;
 const dvar_t *customclass[10];
 const dvar_t *cl_hudDrawsBehindUI;
+// mod: the HUD's and the menus' margins (ScrPlace_SetupSafeViewport), as a console's TV safe area; and the values the
+// screen placements were last set up with (CL_Frame sets them up again on a change)
+static const dvar_t *safeArea_horizontal;
+static const dvar_t *safeArea_vertical;
+static float s_safeAreaApplied[2] = { 1.0f, 1.0f };
 const dvar_t *cl_voice;
 const dvar_t *cl_timeout;
 const dvar_t *cl_connectTimeout;
@@ -3200,6 +3205,11 @@ void __cdecl CL_Frame(int localClientNum, int msec)
 
     clientUIActive = CL_GetLocalClientUIGlobals(localClientNum);
     connstate = CL_GetLocalClientConnectionState(localClientNum);
+    // mod: the margins changed (a config run after the renderer started: leon.cfg's, or the console)
+    if ( safeArea_horizontal && safeArea_vertical
+         && (safeArea_horizontal->current.value != s_safeAreaApplied[0]
+             || safeArea_vertical->current.value != s_safeAreaApplied[1]) )
+        CL_SetupViewport();
     if ( CG_IsShowingZombieMap() || Com_LocalClient_IsBeingUsed(localClientNum) )
     {
         if ( _InterlockedExchange(&cls.scriptError, 0) )
@@ -3399,10 +3409,17 @@ void __cdecl CL_SetupViewport()
     displayHeight = cls.vidConfig.displayHeight;
     if ( cls.rendererStarted )
     {
+        if ( safeArea_horizontal && safeArea_vertical )
+        {
+            s_safeAreaApplied[0] = safeArea_horizontal->current.value;
+            s_safeAreaApplied[1] = safeArea_vertical->current.value;
+        }
         ScrPlace_SetupUnsafeViewport(&scrPlaceFullUnsafe, 0, 0, cls.vidConfig.displayWidth, cls.vidConfig.displayHeight);
-        ScrPlace_SetupViewport(&scrPlaceFull, 0, 0, displayWidth, displayHeight);
+        ScrPlace_SetupSafeViewport(&scrPlaceFull, 0, 0, displayWidth, displayHeight, s_safeAreaApplied[0],
+                                   s_safeAreaApplied[1]);
         for ( localClientNum = 0; localClientNum < 1; ++localClientNum )
-            ScrPlace_SetupViewport(&scrPlaceView[localClientNum], 0, 0, displayWidth, displayHeight);
+            ScrPlace_SetupSafeViewport(&scrPlaceView[localClientNum], 0, 0, displayWidth, displayHeight,
+                                       s_safeAreaApplied[0], s_safeAreaApplied[1]);
         if ( !R_UI3D_KeepsWindowPlacement() ) // BO1FIX: not over the front end TV's own (r_ui3d.cpp)
         {
             scrPlace = R_UI3D_ScrPlaceFromTextureWindow(0);
@@ -4028,6 +4045,10 @@ void __cdecl CL_InitOnceForAllClients()
     CL_InitInput();
     G_SP_PlayTraceRegister(); // j1: play-session recorder dvars (tool, off by default)
     cl_noprint = _Dvar_RegisterBool("cl_noprint", 0, 0, "Print nothing to the console");
+    safeArea_horizontal = _Dvar_RegisterFloat("safeArea_horizontal", 1.0f, 0.5f, 1.0f, 0,
+                                              "mod: the share of the screen's width the HUD and menus keep to (margins)");
+    safeArea_vertical = _Dvar_RegisterFloat("safeArea_vertical", 1.0f, 0.5f, 1.0f, 0,
+                                            "mod: the share of the screen's height the HUD and menus keep to (margins)");
     playlist = _Dvar_RegisterInt("playlist", 1, 0, 64, 4u, "The playlist number");
     category = _Dvar_RegisterInt("category", 0, 0, 0x7FFFFFFF, 0, "The category number");
     categoryPlaylist = _Dvar_RegisterInt("categoryPlaylist", 0, 0, 0x7FFFFFFF, 0, "The playlist index in the category");
