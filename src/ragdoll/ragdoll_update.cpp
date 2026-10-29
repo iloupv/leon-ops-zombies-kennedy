@@ -303,9 +303,17 @@ void __cdecl Ragdoll_ExplosionEvent(
                         delta[2] = torsoPos[2] - origin[2];
                     }
                     
-                    if (Vec3LengthSq(delta) < outerRadiusSqr && (!Ragdoll_BodyIdle(body) || Ragdoll_BodyNewState(body, BS_RUNNING)) )
+                    const bool wasIdle = Ragdoll_BodyIdle(body);
+                    const int age = body->stateMsec;
+                    if (Vec3LengthSq(delta) < outerRadiusSqr && (!wasIdle || Ragdoll_BodyNewState(body, BS_RUNNING)) )
                     {
-                        body->stateMsec = 0;
+                        // mod: a blast shoves a body, it does not restart its life (ragdoll_max_life): one still running
+                        // keeps its age, a settled one it wakes runs 2 s more. Every Thundergun shot is a blast
+                        // (PhysicsExplosionCylinder): the corpses in front of it twitched on as long as it fired, and
+                        // held the simulating ones at the cap
+                        body->stateMsec = wasIdle ? (ragdoll_max_life->current.integer > 2000
+                                                         ? ragdoll_max_life->current.integer - 2000 : 0)
+                                                  : age;
                         boneScale = 1.0 / (float)body->numBones;
                         for ( boneIdx = 0; boneIdx < body->numBones; ++boneIdx )
                         {
