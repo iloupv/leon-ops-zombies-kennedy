@@ -13,11 +13,18 @@ Resident Evil 4 on your own PC. Nothing from either game is in this repository o
   and a sidestep while aiming
 - Laser sight with RE4's own aim sway (from RE4's aiming code); standing still, the mouse swings the camera around
   Leon, and aiming turns him to where it looks
+- **RE4's HUD** in place of Black Ops' ammo counter: the stone ring life meter (half a ring, the whole ring with
+  Juggernog; green, then yellow, then red as you're hurt), your rounds and reserve inside it (red when low), and your
+  character's name - all converted from your own Resident Evil 4
 - RE4's animations for every kind of gun (handgun, Broken Butterfly, shotgun / Striker reloaded shell by shell,
   rifle, Chicago Typewriter, TMP, rocket launcher, the mine thrower for the wonder weapons), played with RE4's own
   motion code
 - Knife slash and grenades the RE4 way; stagger a zombie with a head or leg shot (it glows faintly yellow), then
-  roundhouse kick it - every zombie the kick catches grants knife kill points
+  roundhouse kick it - the staggered zombie always dies, and the others the kick catches die or get back up (Ada's
+  kicks kill more often)
+- **Super Salvador** in every Hellhound round: he comes out of the dogs' lightning shouting "¡Te voy a matar!" and
+  chases you with the Mercenaries' chainsaw spin, its engine roaring - one touch of the saw downs you. Head and leg
+  shots, the Thundergun and traps make him flinch (traps can't kill him); killing him gives 1000 points and a Fire Sale
 - RE4's Merchant at the Mystery Box: "What're ya buyin'?", and a line for the weapon it gives you ("Stranger,
   stranger, now that's a weapon!" for the wonder weapons)
 - Leon's hit reactions, death, pain grunts and voice
@@ -91,8 +98,10 @@ Joining a match already under way works: you spawn next to your team.
 `BO1Zombies.exe` is the Black Ops engine rebuilt from a decompilation, with this mod's changes. It runs from its own
 folder and reads your Black Ops install (`BO1Z_GAME_DIR`). The mod lives in `mods/leon` (scripts) and the engine
 (`src/gfx_d3d/r_runtime_xmodel.cpp` builds Leon's model at level load; `src/cgame_mp`, `src/client_mp` and
-`src/bgame` hold the camera, controls, aiming and animation code). `tools/leon-converter` turns the characters'
-models, textures, motions and voices from your Resident Evil 4 into `mods/leon/rtmodels/*.rlm` and `mods/leon/sound`.
+`src/bgame` hold the camera, controls, aiming and animation code). `tools/leon-converter` turns the characters' and
+Super Salvador's models, textures, motions and voices from your Resident Evil 4 into `mods/leon/rtmodels/*.rlm` and
+`mods/leon/sound`, and RE4's HUD images into `mods/leon/rtmodels/re4hud.rlh` (drawn by `src/cgame_mp/cg_re4hud_mp.cpp`).
+Super Salvador is an RE4 model carried by a hidden zombie (`mods/leon/maps/leon/_salvador.gsc`, `_rtenemy.gsc`).
 
 Co-op is Black Ops' own network game: the host's game is a listen server and friends connect to it. A joining PC
 compiles the level's scripts itself so its zombies' animations match the host's, every player's character is set by
