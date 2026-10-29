@@ -152,14 +152,14 @@ void __cdecl CG_DrawRE4Hud(int localClientNum)
     CG_RE4HudPic(place, RING_X - RING_SCREEN_R, RING_Y - RING_SCREEN_R, 2.0f * RING_SCREEN_R, 2.0f * RING_SCREEN_R,
                  s_screen, "disc");
 
-    // the life in the channel, from its far end back round toward the arm as far as the life goes; under the frame,
-    // whose spokes cut it into RE4's segments
+    // the life in the channel, from its end at the arm round as far as the life goes; under the frame, whose spokes cut
+    // it into RE4's segments
     const float filled = CHANNEL_SPAN * fill;
     const float radius = 0.5f * (CHANNEL_IN + CHANNEL_OUT), thick = CHANNEL_OUT - CHANNEL_IN + 2.0f;
     for ( float a = 0.0f; a < filled; a += 3.0f )
     {
         const float step = filled - a < 3.0f ? filled - a : 3.0f;
-        const float mid = (CHANNEL_FROM + CHANNEL_SPAN - a - 0.5f * step) * 0.017453292f;
+        const float mid = (CHANNEL_FROM + a + 0.5f * step) * 0.017453292f;
         CG_RE4HudQuad(localClientNum, place, RING_X + cosf(mid) * radius, RING_Y + sinf(mid) * radius, thick,
                       radius * step * 0.017453292f + 1.0f, mid * 57.29578f, state);
     }
