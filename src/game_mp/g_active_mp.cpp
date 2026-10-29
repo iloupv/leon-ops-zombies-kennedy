@@ -657,7 +657,11 @@ LABEL_6:
                     damage = 1.1f;
                 if ( damage != 0.0 )
                 {
-                    damage = (float)client->ps.stats[2] * damage;
+                    // mod (the Leon mod): in SP a share of the spawn's max health, as SP's own (SP 0x00551fd9 reads
+                    // stats[2], which SP's setmaxhealth leaves at ClientSpawn's g_player_maxhealth); the stat now
+                    // follows setmaxhealth for RE4's HUD (PlayerCmdSP_setmaxhealth), Juggernog's 250 among them
+                    const int fallMaxHealth = G_SP_IsSPLevel() ? Dvar_GetInt("g_player_maxhealth") : client->ps.stats[2];
+                    damage = (float)fallMaxHealth * damage;
                     dir[0] = 0.0f;
                     dir[1] = 0.0f;
                     dir[2] = 1.0f;
