@@ -44,6 +44,7 @@ leon_perktest( perk )
 			wait 0.05;
 		logPrint( "leon: perktest buys " + perk + " holding " + player getCurrentWeapon() + ", aimed " + player playerADS()
 			+ "\n" );
+		player setOrigin( triggers[i].origin ); // (at the machine, as a buyer is: its jingle as loud as he hears it)
 		triggers[i] notify( "trigger", player );
 		for ( t = 0; t < 20; t++ )
 		{
