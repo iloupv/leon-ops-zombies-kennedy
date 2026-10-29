@@ -740,13 +740,23 @@ char __cdecl R_DuplicateTexture(GfxImage *dstImage, const GfxImage *srcImage)
 
 // mod: Load_Texture's stand-in for an image file the install lacks: the default texture (Image_AssignDefaultTexture),
 // or before the built-in images have theirs (the front end's first images) a solid texel of its own in the default's
-// colour. It makes a texture: on the render thread, or through RB_Resource_Callback as Image_LoadFromFileWithReader
-// does off it (Load_Texture runs on the database thread through a level's load)
+// colour; a cube (a sky) a black texel on each face. It makes a texture: on the render thread, or through
+// RB_Resource_Callback as Image_LoadFromFileWithReader does off it (Load_Texture runs on the database thread through a
+// level's load)
 static GfxImage *s_missingImage;
 
 static void __cdecl Image_LoadMissingCallback()
 {
     GfxImage *image = s_missingImage;
+    if ( image->mapType == 5 )
+    {
+        static const unsigned __int8 black[4] = { 0, 0, 0, 0xFFu };
+        const unsigned __int8 *faces[6][15] = {};
+        for ( int face = 0; face < 6; ++face )
+            faces[face][0] = black;
+        Image_GenerateCube(image, faces, 1, D3DFMT_A8R8G8B8, 1);
+        return;
+    }
     if ( Image_AssignDefaultTexture(image) )
         return;
     if ( image->semantic == 5 )
@@ -759,7 +769,10 @@ static void __cdecl Image_LoadMissingCallback()
 
 static void Image_LoadMissing(GfxImage *image)
 {
-    if ( image->mapType != 3 ) // (a cube or volume: no stand-in of its own; the default, or the old error)
+    // (a volume: no stand-in of its own; the default, or the old error. A cube's error, a sky the map pack's install
+    // lacked - players' freeze traces on Ascension and Shangri-La, skybox_zombie_cosmodrome2_ft / skybox_zombie_temple_ft
+    // - came on the database thread, and the main thread, waiting on the map's assets, hung)
+    if ( image->mapType != 3 && image->mapType != 5 )
     {
         if ( !Image_AssignDefaultTexture(image) )
             Com_Error(ERR_DROP, "Couldn't load image '%s'\n", image->name);
