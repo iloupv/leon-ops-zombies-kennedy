@@ -609,10 +609,12 @@ def build_enemy(udas, pack_path, out_path, name):
           max_bone=spec.get('max_bone'))
 
 
-if __name__ == '__main__':
+def main():
+    # (a return, not sys.exit: leon_setup.py runs this in its own process - runpy - and an exit ended the whole setup
+    # after the first enemy, its sounds and its ready file never written)
     if '--enemy' in sys.argv:
         build_enemy(sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[sys.argv.index('--enemy') + 1])
-        sys.exit(0)
+        return
     character = sys.argv[sys.argv.index('--character') + 1] if '--character' in sys.argv else 'leon'
     spec = CHARACTERS[character]
     parts, motions = spec['parts'], ()
@@ -656,3 +658,7 @@ if __name__ == '__main__':
         motions = [(name, arc[entry]) for name, entry in WEP00_MOTIONS]
     build(sys.argv[1], sys.argv[2], sys.argv[3], parts=parts, apose='--apose' in sys.argv[4:], motions=motions,
           eyelid=spec.get('eyelid', True))
+
+
+if __name__ == '__main__':
+    main()
