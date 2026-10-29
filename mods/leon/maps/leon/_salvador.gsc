@@ -4,16 +4,18 @@
 
 // LEON MOD - not part of the original game. Super Salvador, RE4's island chainsaw carrier (em20's type 22), comes in
 // every Hellhound round: 9 s into it, out of the dogs' lightning at a dog's spawn spot, shouting "Te voy a matar!" - an
-// RE4 enemy on a hidden zombie (maps\leon\_rtenemy.gsc), running 70 % faster than a zombie runs. His model, a quarter
+// RE4 enemy on a hidden zombie (maps\leon\_rtenemy.gsc), running 40 % faster than a zombie runs. His model, a quarter
 // larger than RE4's (tools/leon-converter/leon_rlm.py ENEMIES), takes his hits at its size (leonpassdamage). The engine
 // plays his idle by how he moves, and for every step the Mercenaries' chainsaw walk, the saw swung round and round
-// (em10.cpp CSawWalkAtk), smoking and throwing sparks. He laughs as he comes. A player the saw reaches is caught - one
-// hit, down (or the game over) - and he saws him (C_SawCriHit). Head and leg shots stagger him (his chainsaw flinch)
-// with no halo: he is never kicked. His kill: 1000 points and a Fire Sale; the last enemy of the round, his death drops
-// its Max Ammo, as the last dog's does.
+// (em10.cpp CSawWalkAtk), smoking and throwing sparks, its engine heard all the while. He laughs and shouts as he comes.
+// He takes no dog's place while the round's dogs still come (the dogs' spawning waits on the enemies there are), and
+// holds its end once they all have. A player the saw reaches is caught - one hit, down (or the game over) - and he saws
+// him (C_SawCriHit). Head and leg shots stagger him (his chainsaw flinch) with no halo: he is never kicked. His kill:
+// 1000 points and a Fire Sale; the last enemy of the round, his death drops its Max Ammo, as the last dog's does.
 //   leon_salvador 0        off
 //   leon_salvadortest 1    test: one comes 5 s into the level, dog round or not (2: and the player cannot be hurt; 3: and
-//                          he is staggered every 6 s; 4: and shot at his head, chest and legs in turn)
+//                          he is staggered every 6 s; 4: and shot at his head, chest and legs in turn; 5: none then,
+//                          the first round ended at once and the next a dog round - its dogs and enemies logged)
 
 init()
 {
@@ -47,12 +49,17 @@ salvador_test()
 		players = getEntArray( "player", "classname" );
 	}
 	test = getDvar( "leon_salvadortest" );
-	if ( test == "2" || test == "3" || test == "4" )
+	if ( test == "2" || test == "3" || test == "4" || test == "5" )
 	{
 		players[0] enableInvulnerability();
 		level.leon_boss_testgod = true;
 	}
 	flag_wait( "begin_spawning" ); // (the match under way: the intro's invulnerability over)
+	if ( test == "5" )
+	{
+		level thread salvador_dog_round_test();
+		return;
+	}
 	wait 5;
 	ai = salvador_come( 0 );
 	if ( test == "4" && isDefined( ai ) )
@@ -62,6 +69,29 @@ salvador_test()
 		wait 6;
 		if ( isDefined( ai ) && isAlive( ai ) )
 			ai thread stagger();
+	}
+}
+
+// test: the first round over at once (its zombies to come none, those there killed) and the next a dog round
+// (_zombiemode_ai_dogs dog_round_tracker: level.next_dog_round), then the dogs and the enemies there logged every 2 s
+salvador_dog_round_test()
+{
+	wait 2;
+	level.next_dog_round = level.round_number + 1;
+	for ( t = 0; t < 40 && !flag( "dog_round" ); t++ )
+	{
+		level.zombie_total = 0;
+		zombies = GetAiSpeciesArray( "axis", "all" );
+		for ( i = 0; i < zombies.size; i++ )
+			zombies[i] doDamage( zombies[i].health + 100, zombies[i].origin );
+		wait 0.5;
+	}
+	for ( ;; )
+	{
+		dogs = GetAiSpeciesArray( "axis", "dog" );
+		logPrint( "leon: salvador dogtest - dogs " + dogs.size + ", enemies " + get_enemy_count() + ", to come "
+		          + level.zombie_total + ", dog round " + flag( "dog_round" ) + ", round " + level.round_number + "\n" );
+		wait 2;
 	}
 }
 
@@ -154,8 +184,10 @@ salvador_spawn( spot, target )
 	playSoundAtPosition( "zmb_hellhound_bolt", spot.origin );
 	model playSound( "salvador_spawn" );
 	ai thread salvador_pace();
+	ai thread salvador_counted();
 	model thread salvador_saw( ai );
-	ai thread salvador_laughs( model );
+	model thread salvador_saw_sound( ai );
+	ai thread salvador_voice( model );
 	ai thread salvador_attacks( model );
 	ai thread salvador_died();
 	model thread maps\leon\_rtenemy::corpse( ai, "salvador_death" );
@@ -163,14 +195,28 @@ salvador_spawn( spot, target )
 	return ai;
 }
 
-// 70 % faster than a zombie's run (kept: a zombie's scripts may set its pace back)
+// 40 % faster than a zombie's run (kept: a zombie's scripts may set its pace back; at 70 % he was on the player at once)
 salvador_pace()
 {
 	self endon( "death" );
 	for ( ;; )
 	{
-		self.moveplaybackrate = 1.7;
+		self.moveplaybackrate = 1.4;
 		wait 0.5;
+	}
+}
+
+// not counted (_zombiemode_utility get_enemy_count: ignore_enemy_count) while the round has enemies still to come: the
+// dogs' spawning waits while there are two enemies a player (_zombiemode_ai_dogs dog_round_spawning), and with him one
+// of them, one dog came at a time - none while one lived. Counted once they all have come, so the last dog's death
+// (dog_death: no enemy left) does not end the round under him: his own does (salvador_died)
+salvador_counted()
+{
+	self endon( "death" );
+	for ( ;; )
+	{
+		self.ignore_enemy_count = level.zombie_total > 0;
+		wait 0.05;
 	}
 }
 
@@ -188,16 +234,32 @@ salvador_saw( ai )
 	}
 }
 
-// his laugh every 4 to 8 s as he comes (em10.cpp em10BreathSe: 120 to 240 frames)
-salvador_laughs( model )
+// self: his model - the running chainsaw, again every 2 s (its sound 2.14 s: em10.cpp's Csaw_se_wait, 60 frames), from
+// his coming to his death
+salvador_saw_sound( ai )
+{
+	ai endon( "death" );
+	self endon( "death" );
+	for ( ;; )
+	{
+		self playSound( "salvador_saw" );
+		wait 2;
+	}
+}
+
+// his voice every 3 to 6 s as he comes (em10.cpp em10BreathSe's laugh, 120 to 240 frames, and his chainsaw walk's
+// shouts - em10_R1_CSawWalkAtk; his walk here never ends, so they come in turn with the laugh): the laugh, "Te voy a
+// matar!" and the walk's two shouts (salvador_chase)
+salvador_voice( model )
 {
 	self endon( "death" );
+	lines = array( "salvador_laugh", "salvador_spawn", "salvador_chase", "salvador_chase" );
 	wait 3;
 	for ( ;; )
 	{
-		wait randomFloatRange( 4, 8 );
+		wait randomFloatRange( 3, 6 );
 		if ( !isDefined( self.leon_busy ) )
-			model playSound( "salvador_laugh" );
+			model playSound( lines[ randomInt( lines.size ) ] );
 	}
 }
 
