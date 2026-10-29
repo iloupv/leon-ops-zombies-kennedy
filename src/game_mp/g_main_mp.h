@@ -637,6 +637,9 @@ extern const dvar_t *g_turretBipodOffset;
 extern level_locals_t level;
 
 extern gentity_s g_entities[MAX_GENTITIES_SV];
+// mod (the Leon mod): the entity a hit on ent lands on - the actor a runtime model is shown for (g_scr_main_mp.cpp
+// GScr_LeonPassDamage), else ent itself
+gentity_s *__cdecl G_LeonDamageTarget(gentity_s *ent);
 
 // mod (L25): entity loops that must see the server-only numbers 1024+ (G_SpawnHigh) walk 0..num_entities-1 and then
 // 1024..1024+g_numEntitiesHi-1, skipping the world (1022) and 1023. With no high entities (the default) this is the

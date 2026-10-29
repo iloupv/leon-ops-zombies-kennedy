@@ -556,6 +556,9 @@ void __cdecl Bullet_Process(
         __debugbreak();
     weapDef = weapVariantDef->weapDef;
     *outImpactFlags = 0;
+    // mod (the Leon mod): a hit on a runtime model shown for a hidden actor is the actor's, at the model's bone (its hit
+    // location kept), from here on: its blood, its notice, its damage (G_LeonDamageTarget)
+    br->hitEnt = G_LeonDamageTarget(br->hitEnt);
     if ( attacker->sentient )
         Bullet_NofifyActor(bp, attacker, bp->start, br->hitPos, br->hitEnt, weapVariantDef);
     color[0] = 1.0f;

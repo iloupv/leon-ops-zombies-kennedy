@@ -47,11 +47,14 @@ from leon_full import LEON_BO1  # noqa: E402
 
 MM_PER_INCH = 25.4
 APOSE_BONES = {7: -60.0, 13: 60.0}  # RE4 upper arm bone id -> rotation about BO1 +X, degrees
+# the model's size against RE4's (build's scale: an enemy made larger), applied to every position converted
+_scale = 1.0
 
 
 def to_bo1(v):
     x, y, z = v
-    return (z / MM_PER_INCH, x / MM_PER_INCH, y / MM_PER_INCH)
+    k = _scale / MM_PER_INCH
+    return (z * k, x * k, y * k)
 
 
 def to_bo1_dir(v):
@@ -190,12 +193,22 @@ def held_matrix(rot):
 
 
 def build(udas, pack_path, out_path, parts=LEON_BO1, apose=False, motions=(), eyelid=True, tags=TAGS, held=(),
-          max_texture=MAX_TEXTURE, root_move=()):
+          max_texture=MAX_TEXTURE, root_move=(), scale=1.0):
     """parts: (model entry, TPL entry, role) of pl00.udas, or with a 4th field, the archive .udas of a model from
     another archive (a weapon's gripping hand; its TPL and images stay Leon's). motions: [(name, FCV bytes)].
     held: (model entry, TPL entry, RE4 bone id, position mm, angles radians) - a model RE4 hangs on a part (an enemy's
     weapon, cEmWep::setParentMatCalc: the part's matrix times the angles' and the position's), made rigid on it.
-    root_move: the motions whose root travel is baked in (bake_motion)."""
+    root_move: the motions whose root travel is baked in (bake_motion). scale: its size against RE4's (its skeleton,
+    vertices and motions' offsets all scaled)."""
+    global _scale
+    _scale = scale
+    try:
+        build_scaled(udas, pack_path, out_path, parts, apose, motions, eyelid, tags, held, max_texture, root_move)
+    finally:
+        _scale = 1.0
+
+
+def build_scaled(udas, pack_path, out_path, parts, apose, motions, eyelid, tags, held, max_texture, root_move):
     ent = {i: data for i, _t, data in entries(open(udas, 'rb').read())}
     packs = {}
     for path in pack_path.split(';'):
@@ -499,15 +512,18 @@ WEAPON_SETS.append(('dbshotgun', 'wep07.udas',
 # numbers: RE4's archive index - 4). Super Salvador, the island chainsaw carrier (em20/em20_set.cpp Em20Set type 22: one
 # model with the sack, BIN 0x1E0 / TPL 0x1E1; Em20WeaponSet's chainsaw, Wep_type 4 - em10WeaponInit - BIN 0x104 / TPL
 # 0x105 on the right hand, part 0xA, em10WeaponSet's place for it). His motions are em10.cpp's for the chainsaw: the
-# idle (em10SetWaitMotion 0xE6), walk (em10SetWalkMotion 0xED) and run (0xF1), the overhead swing (C_SawCriAtk 0xEB,
-# its hit frames 20 to 26), its kill (C_SawCriHit 0x100), the flinch (Dm_Small's chainsaw 0xF7) and the standing death
-# (Die_Normal 0x67, its fall forward baked in). The textures at half the characters' cap: an enemy seen from a distance.
+# idle (em10SetWaitMotion 0xE6); for every step he takes, the Mercenaries' chainsaw walk, the saw swung round and round
+# (CSawWalkAtk 0x2BC); the kill (C_SawCriHit 0x100), the flinch (Dm_Small's chainsaw 0xF7) and the standing death
+# (Die_Normal 0x67, its fall forward baked in). A quarter larger than RE4's, to stand out; tags on the saw's engine and
+# its blade for his smoke and sparks (maps\leon\_salvador.gsc). The textures at half the characters' cap: an enemy seen
+# from a distance.
 ENEMIES = {
     'salvador': {'parts': [(0x1DC, 0x1DD, 'body')],
                  'held': [(0x100, 0x101, 10, (-304.24, -17.86, -57.43), (1.4835298, 0.0, -1.5707964))],
-                 'motions': [('idle', 0xE2), ('walk', 0xE9), ('run', 0xED), ('attack', 0xE7), ('kill', 0xFC),
-                             ('stagger', 0xF3), ('death', 0x63)],
-                 'root_move': {'death'}, 'max_texture': 1024},
+                 'motions': [('idle', 0xE2), ('walk', 0x2B8), ('kill', 0xFC), ('stagger', 0xF3), ('death', 0x63)],
+                 'tags': [('tag_saw_engine', 10, (-92.0, -45.0, -31.0), None),
+                          ('tag_saw_blade', 10, (-700.0, -100.0, 0.0), None)],
+                 'root_move': {'death'}, 'max_texture': 1024, 'scale': 1.25},
 }
 
 
@@ -547,7 +563,7 @@ def bake_motion(model, motion_bytes, rest, name, fps=30.0, max_frames=None, firs
     # the root keys' distance over the cycle (the last frame is one step short of the loop)
     frames = len(out)
     dist = math.dist(root[0], root[-1]) * frames / max(1, frames - 1) if frames > 1 else 0.0
-    speed = dist / MM_PER_INCH / (frames / fps) if frames else 0.0
+    speed = dist * _scale / MM_PER_INCH / (frames / fps) if frames else 0.0
     return name, fps, speed, out
 
 
@@ -565,7 +581,8 @@ def build_enemy(udas, pack_path, out_path, name):
     spec = ENEMIES[name]
     arc = {i: data for i, _t, data in entries(open(udas, 'rb').read())}
     build(udas, pack_path, out_path, parts=spec['parts'], motions=[(m, arc[entry]) for m, entry in spec['motions']],
-          eyelid=False, tags=(), held=spec['held'], max_texture=spec['max_texture'], root_move=spec['root_move'])
+          eyelid=False, tags=spec['tags'], held=spec['held'], max_texture=spec['max_texture'], root_move=spec['root_move'],
+          scale=spec['scale'])
 
 
 if __name__ == '__main__':

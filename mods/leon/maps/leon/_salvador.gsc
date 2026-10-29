@@ -6,18 +6,19 @@
 
 // LEON MOD - not part of the original game. Super Salvador, RE4's island chainsaw carrier (em20's type 22), comes in
 // every Hellhound round: 9 s into it, out of the dogs' lightning at a dog's spawn spot, shouting "Te voy a matar!". A
-// zombie of the map's own spawners carries his pathing, his hit locations and the round's count - hidden (zombie mode's
-// hide only stops it being drawn: its hits and paths stay), its melee and its moans off - and his runtime model, built
-// by the mod's setup from the player's own RE4 (rtmodels/salvador.rlm: tools/leon-converter/leon_rlm.py ENEMIES), is
-// linked on it: the engine plays his idle, walk and run by how it moves, and each motion started here (his swing, its
-// kill, his flinch, his fall) on every player's client (leon_rtactions: cgame_mp/cg_pose_mp.cpp). His saw putters all
-// along, he laughs and taunts as he comes, and every attack is RE4's overhead swing (em10.cpp C_SawCriAtk): a player in
-// front of the saw as it comes down (its hit frames, 20 to 26) is caught - one hit, down (or the game over). Head and
-// leg shots stagger him (maps\leon\_kick.gsc: his chainsaw flinch) with no halo: he is never kicked. His kill: 1000
-// points and a Fire Sale; the last enemy of the round, his death drops its Max Ammo, as the last dog's does.
+// zombie of the map's own spawners carries his pathing and the round's count - hidden (zombie mode's hide only stops it
+// being drawn: its paths stay), its melee and its moans off, running 70 % faster than a zombie runs - and his runtime
+// model, built by the mod's setup from the player's own RE4 (rtmodels/salvador.rlm: tools/leon-converter/leon_rlm.py
+// ENEMIES, a quarter larger than RE4's), is linked on it and takes his hits for it at its own size (leonpassdamage).
+// The engine plays his idle by how he moves, and for every step the Mercenaries' chainsaw walk, the saw swung round and
+// round (em10.cpp CSawWalkAtk), smoking and throwing sparks; each motion started here (his kill, his flinch, his fall)
+// plays on every player's client (leon_rtactions: cgame_mp/cg_pose_mp.cpp). He laughs as he comes. A player the saw
+// reaches is caught - one hit, down (or the game over) - and he saws him (C_SawCriHit). Head and leg shots stagger him
+// (maps\leon\_kick.gsc: his chainsaw flinch) with no halo: he is never kicked. His kill: 1000 points and a Fire Sale;
+// the last enemy of the round, his death drops its Max Ammo, as the last dog's does.
 //   leon_salvador 0        off
 //   leon_salvadortest 1    test: one comes 5 s into the level, dog round or not (2: and the player cannot be hurt; 3: and
-//                          he is staggered every 6 s)
+//                          he is staggered every 6 s; 4: and shot at his head, chest and legs in turn)
 
 init()
 {
@@ -25,6 +26,9 @@ init()
 	if ( getDvar( "leon_salvador" ) == "0" || !built() )
 		return;
 	precacheModel( "salvador" );
+	// his saw's sparks and smoke (common_zombie's: on every zombies map)
+	level._effect["leon_saw_sparks"] = loadFx( "destructibles/fx_dest_elec_shower_sm" );
+	level._effect["leon_saw_smoke"] = loadFx( "system_elements/fx_dust_sm_brown_em" );
 	level thread salvador_rounds();
 	if ( getDvar( "leon_salvadortest" ) != "" )
 		level thread salvador_test();
@@ -66,16 +70,54 @@ salvador_test()
 		wait 0.5;
 		players = getEntArray( "player", "classname" );
 	}
-	if ( getDvar( "leon_salvadortest" ) == "2" || getDvar( "leon_salvadortest" ) == "3" )
+	test = getDvar( "leon_salvadortest" );
+	if ( test == "2" || test == "3" || test == "4" )
 		players[0] enableInvulnerability();
 	flag_wait( "begin_spawning" ); // (the match under way: the intro's invulnerability over)
 	wait 5;
 	ai = salvador_come( 0 );
+	if ( test == "4" && isDefined( ai ) )
+		ai thread salvador_shot_test( players[0] );
 	while ( getDvar( "leon_salvadortest" ) == "3" && isDefined( ai ) && isAlive( ai ) )
 	{
 		wait 6;
 		if ( isDefined( ai ) && isAlive( ai ) )
 			ai thread stagger();
+	}
+}
+
+// test: pistol rounds across his model's head, chest and legs in turn (from 60 in front of him), each hit logged as his
+// zombie takes it (its part: his model's bone - leonpassdamage), and what a trace along it meets first
+salvador_shot_test( player )
+{
+	self endon( "death" );
+	self thread salvador_shot_log();
+	heights = array( 82, 45, 15 );
+	for ( i = 0; ; i++ )
+	{
+		wait 0.5;
+		forward = anglesToForward( ( 0, self.angles[1], 0 ) );
+		at = self.origin + ( 0, 0, heights[ i % 3 ] );
+		trace = bulletTrace( at + forward * 60, at - forward * 30, true, player );
+		met = "nothing";
+		if ( isDefined( trace["entity"] ) )
+			met = "entity " + trace["entity"] getEntityNumber() + " (his model " + self.leon_model getEntityNumber() + ")";
+		logPrint( "leon: salvador test shot at height " + heights[ i % 3 ] + ", the trace meets " + met + "\n" );
+		magicBullet( "m1911_zm", at + forward * 60, at - forward * 30, player );
+	}
+}
+
+salvador_shot_log()
+{
+	self endon( "death" );
+	for ( ;; )
+	{
+		self waittill( "damage", amount, attacker, dir, point, mod, modelName, tagName, partName );
+		part = "none";
+		if ( isDefined( partName ) )
+			part = partName;
+		logPrint( "leon: salvador shot " + amount + " " + mod + " part " + part + " height " + int( point[2] - self.origin[2] )
+		          + " health " + self.health + "\n" );
 	}
 }
 
@@ -176,14 +218,15 @@ salvador_spawn( spot, target )
 	model.angles = ai.angles;
 	model setModel( "salvador" );
 	model linkTo( ai );
+	model leonPassDamage( ai, 90 ); // (his hits on his model, at its size - 90 tall: the hidden zombie a man's)
 	ai.leon_model = model;
 	if ( isDefined( level._effect ) && isDefined( level._effect["lightning_dog_spawn"] ) )
 		playFx( level._effect["lightning_dog_spawn"], spot.origin );
 	playSoundAtPosition( "zmb_hellhound_bolt", spot.origin );
 	model playSound( "salvador_spawn" );
 	ai thread salvador_hidden();
-	ai thread salvador_saw( model );
-	ai thread salvador_taunts( model );
+	model thread salvador_saw( ai );
+	ai thread salvador_laughs( model );
 	ai thread salvador_attacks( model );
 	ai thread salvador_died( model );
 	model thread salvador_corpse( ai );
@@ -191,58 +234,59 @@ salvador_spawn( spot, target )
 	return ai;
 }
 
-// (a zombie's scripts may show it again: its rise, its entrance)
+// (a zombie's scripts may show it again - its rise, its entrance - or set its pace back)
 salvador_hidden()
 {
 	self endon( "death" );
 	for ( ;; )
 	{
 		self hide();
+		self.moveplaybackrate = 1.7; // 70 % faster than a zombie's run
 		wait 0.5;
 	}
 }
 
-// the saw's putter while it idles (em10.cpp: SE 0x4D every 60 frames while it runs) - not through a swing or its kill
-salvador_saw( model )
+// self: his model - the saw's sparks off its blade and smoke from its engine as it runs (not once he is dead)
+salvador_saw( ai )
 {
+	ai endon( "death" );
 	self endon( "death" );
-	for ( ;; )
+	for ( i = 0; ; i++ )
 	{
-		if ( !isDefined( self.leon_busy ) || self.leon_busy == "stagger" )
-			model playSound( "salvador_saw" );
-		wait 1;
+		playFxOnTag( level._effect["leon_saw_sparks"], self, "tag_saw_blade" );
+		if ( i % 2 == 0 )
+			playFxOnTag( level._effect["leon_saw_smoke"], self, "tag_saw_engine" );
+		wait 0.3;
 	}
 }
 
-// his laugh or his taunt every 4 to 8 s as he comes (em10.cpp em10BreathSe: 120 to 240 frames)
-salvador_taunts( model )
+// his laugh every 4 to 8 s as he comes (em10.cpp em10BreathSe: 120 to 240 frames)
+salvador_laughs( model )
 {
 	self endon( "death" );
 	wait 3;
 	for ( ;; )
 	{
 		wait randomFloatRange( 4, 8 );
-		if ( isDefined( self.leon_busy ) )
-			continue;
-		if ( randomInt( 2 ) )
+		if ( !isDefined( self.leon_busy ) )
 			model playSound( "salvador_laugh" );
-		else
-			model playSound( "salvador_chase" );
 	}
 }
 
+// the Mercenaries' chainsaw walk sweeps the saw round as he goes (em10.cpp CSawWalkAtk: its sweeps catch whoever they
+// touch): a player in its reach is caught. Not once the game is over (solo, his catch ended it: he sawed on at it)
 salvador_attacks( model )
 {
 	self endon( "death" );
 	for ( ;; )
 	{
 		wait 0.05;
-		if ( isDefined( self.leon_busy ) )
+		if ( isDefined( self.leon_busy ) || isDefined( level.leon_game_over ) || level.intermission )
 			continue;
-		// a player in front within 80 (RE4's em10CsawAtkCk: 1.5 m, 45 degrees of his facing)
-		target = self salvador_in_reach( 80, 0.7 );
+		// the saw's reach, a quarter over RE4's (his size): 70 in front, 60 degrees either side of his facing
+		target = self salvador_in_reach( 70, 0.5 );
 		if ( isDefined( target ) )
-			self thread salvador_swing( model, target );
+			self thread salvador_catch( model, target );
 	}
 }
 
@@ -267,42 +311,15 @@ salvador_in_reach( dist, cosMin )
 	return undefined;
 }
 
-// RE4's overhead swing (C_SawCriAtk, 78 frames: 2.6 s): turned to the player, the saw raised and brought down, its hit
-// frames 20 to 26 (0.67 to 0.87 s) - a player in front of the saw then is caught
-salvador_swing( model, target )
-{
-	self endon( "death" );
-	self endon( "salvador_interrupt" );
-	self.leon_busy = "attack";
-	yaw = vectorToAngles( target.origin - self.origin );
-	self salvador_hold( yaw[1] );
-	model salvador_motion( "attack" );
-	model playSound( "salvador_saw_swing" );
-	model playSound( "salvador_roar" );
-	self thread salvador_travel( "attack", yaw[1] );
-	wait 0.65;
-	caught = undefined;
-	for ( i = 0; i < 5 && !isDefined( caught ); i++ )
-	{
-		caught = self salvador_in_reach( 75, 0.5 );
-		if ( !isDefined( caught ) )
-			wait 0.05;
-	}
-	if ( isDefined( caught ) )
-	{
-		self salvador_catch( model, caught );
-		return;
-	}
-	wait 1.7;
-	self salvador_free( model );
-}
-
-// caught: the saw's kill (C_SawCriHit, 99 frames: 3.3 s) and the player down at once, whatever his health
+// caught: the saw's kill (C_SawCriHit, 99 frames: 3.3 s), turned to the player, and the player down at once, whatever
+// his health
 salvador_catch( model, player )
 {
+	self endon( "death" );
 	self.leon_busy = "kill";
+	yaw = vectorToAngles( player.origin - self.origin );
+	self salvador_hold( yaw[1] );
 	model salvador_motion( "kill" );
-	model playSound( "salvador_saw_hit" );
 	// (through the player's death invulnerability after a hit, as _zombiemode's own failsafe kill: it held off the
 	// catch of a player hurt a moment before)
 	// always one hit: not even a kick's invulnerability holds it off (the invulnerable tests aside)
@@ -387,14 +404,12 @@ salvador_free( model )
 	model salvador_motion_end();
 }
 
-// RE4 moves his whole model by its root keys through a motion (the swing's lunge, the flinch's steps back): the engine
-// plays the motion in place, so his zombie is moved along the root's travel here - inches along his facing every 0.1 s
-// (3 of RE4's frames), sampled from the motions - stopping at whatever it cannot move into
+// RE4 moves his whole model by its root keys through a motion (the flinch's steps back): the engine plays the motion in
+// place, so his zombie is moved along the root's travel here - inches along his facing every 0.1 s (3 of RE4's frames),
+// sampled from the motion, a quarter over for his size - stopping at whatever it cannot move into
 salvador_curve( name )
 {
-	if ( name == "attack" )
-		return "0 0 4 9 14 18 22 26 31 37 43 48 51 53 55 56 57 58 58 58 59 59 59 59 60 60";
-	return "0 0 1 -1 -4 -9 -14 -20 -26 -32 -37 -42 -46 -49 -50 -50 -49 -49 -49 -48 -45 -41 -37 -33 -28 -24";
+	return "0 0 1 -1 -5 -11 -18 -25 -33 -40 -46 -53 -58 -61 -63 -63 -61 -61 -61 -60 -56 -51 -46 -41 -35 -30";
 }
 
 salvador_travel( name, yaw )

@@ -51,16 +51,12 @@ MERCHANT_SOUNDS = [('merchant_comeback.wav', 50)]
 # Super Salvador in the dog rounds (maps/leon/_salvador.gsc), from the Ganados' banks next to pl00.xwb (bank, [(output
 # file, wave)]): the island's (em1d.xwb) "¡Te voy a matar!" as he comes (wave 50, its soldiers' find shout: cue 0x22,
 # Se_tbl[4] of voice set 1, the island chainsaw carrier's - em20/em20_set.cpp) and his chase laugh (wave 47, cue 0x27,
-# the set's Se_tbl[7] played every 4 to 8 s on the move: em10.cpp em10BreathSe); the village's (em10.xwb) chase line
-# (wave 119), and the chainsaw man's (voice set 3: em10.cpp Em10SetSeTbl) flinch (cue 0x6F, wave 111) and death
-# (cue 0x36, wave 116); his saw: the idle's putter (cue 0x4D, every 60 frames while it runs, wave 58), its start (cue
-# 0x4C, wave 57), the swing's rev (C_SawCriAtk: cue 0x50, wave 68) with its roar (cue 0x3D, wave 36), the saw in the
-# neck (C_SawHit: cue 0x4F, wave 69). The waves picked by ear where RE4's code does not name the line.
+# the set's Se_tbl[7] played every 4 to 8 s on the move: em10.cpp em10BreathSe); the village chainsaw man's (em10.xwb,
+# voice set 3: em10.cpp Em10SetSeTbl) grunt as he flinches (cue 0x6F, wave 111) and death (cue 0x36, wave 116). The
+# waves picked by ear where RE4's code does not name the line.
 SALVADOR_SOUNDS = [
     ('em1d.xwb', [('salvador_spawn.wav', 50), ('salvador_laugh.wav', 47)]),
-    ('em10.xwb', [('salvador_chase.wav', 119), ('salvador_pain.wav', 111), ('salvador_death.wav', 116),
-                  ('salvador_saw.wav', 58), ('salvador_saw_start.wav', 57), ('salvador_saw_swing.wav', 68),
-                  ('salvador_roar.wav', 36), ('salvador_saw_hit.wav', 69)]),
+    ('em10.xwb', [('salvador_pain.wav', 111), ('salvador_death.wav', 116)]),
 ]
 # The Merchant's shop lines, for the Mystery Box (maps/leon/_merchant.gsc), by the weapon's tier: RE4's shop
 # (Sscrn/ss_shop.cpp shop_msg[]: shopStrPlay -> SndStrReq(1, n), the event stream block; on PC bio4evt.xsb cue n, named

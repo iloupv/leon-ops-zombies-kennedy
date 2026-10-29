@@ -375,7 +375,8 @@ gentity_s *__cdecl Weapon_Melee_internal(gentity_s *ent, weaponParms *wp, float 
     else
     {
         hitEntId = Trace_GetEntityHitId(&tr);
-        traceEnt = &g_entities[hitEntId];
+        // mod (the Leon mod): a knife in a runtime model shown for a hidden actor is in the actor (G_LeonDamageTarget)
+        traceEnt = G_LeonDamageTarget(&g_entities[hitEntId]);
         // zombies: non-player sentients cannot melee their own team (SP 0x00813D53).
         if ( zombiemode && zombiemode->current.enabled && !ent->client && ent->sentient
             && traceEnt->sentient && ent->sentient->eTeam == traceEnt->sentient->eTeam )
