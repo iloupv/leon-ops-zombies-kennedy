@@ -843,9 +843,15 @@ static const char *CG_RuntimeXModel_AnimSet(unsigned int weapon)
     const WeaponVariantDef *variant = BG_GetWeaponVariantDef(weapon);
     const char *name = variant && variant->szInternalName ? variant->szInternalName : "";
     // RE4's sets (the converter's WEAPON_SETS) by the BO1 weapon: its name where one has a clear match, else its class.
-    // The wonder weapons first: RE4's mine thrower (a shouldered launcher racked by the left hand)
-    static const char *const s_mineWeapons[] = { "thundergun", "tesla_gun", "freezegun", "humangun", "crossbow",
-                                                 "china_lake" };
+    // The Thundergun, a big gun in both hands: the shotgun's stance - carried low at his side, shouldered to aim with
+    // the left hand under its barrel - with the shot's kick and no pump (the double barrel's set), reloaded as the mine
+    // thrower (CG_RuntimeXModel_ReloadSet). The mine thrower's aim is a scope's (RE4 aims it in first person) and its
+    // shot racks it with the left hand: the Thundergun was held up to his face, his head bowed over it as if looked
+    // through, and every blast threw it up near upright (64 degrees) for the rack.
+    if ( strstr(name, "thundergun") )
+        return "dbshotgun";
+    // The other wonder weapons: RE4's mine thrower (a shouldered launcher racked by the left hand)
+    static const char *const s_mineWeapons[] = { "tesla_gun", "freezegun", "humangun", "crossbow", "china_lake" };
     for ( const char *mine : s_mineWeapons )
         if ( strstr(name, mine) )
             return "mine";
@@ -893,12 +899,16 @@ static const char *CG_RuntimeXModel_AnimSet(unsigned int weapon)
 
 
 // the set a gun's reload motion comes from: its own set's, but the Ray Gun's - posed and fired as the magnum, reloaded
-// as the handgun (the Handcannon's is a revolver's cylinder reload; the Ray Gun swaps a cell)
+// as the handgun (the Handcannon's is a revolver's cylinder reload; the Ray Gun swaps a cell) - and the Thundergun's,
+// posed and fired with the shotgun's stance, reloaded as the mine thrower (its drum swapped as the Thundergun's
+// canister; a new one's first raise ends it, the gun racked)
 static const char *CG_RuntimeXModel_ReloadSet(unsigned int weapon)
 {
     const WeaponVariantDef *variant = weapon ? BG_GetWeaponVariantDef(weapon) : 0;
     if ( variant && variant->szInternalName && strstr(variant->szInternalName, "ray_gun") )
         return 0;
+    if ( variant && variant->szInternalName && strstr(variant->szInternalName, "thundergun") )
+        return "mine";
     return CG_RuntimeXModel_AnimSet(weapon);
 }
 
@@ -1358,15 +1368,15 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
             s_lastState = state;
             s_lastWeaponTime = ps->weaponTime;
         }
-        // the weapon's reload by stages, when it reloads round by round and its motion set has them (the magnum's, the
-        // shotgun's: converter's reload_start / reload_loop / reload_end); and whether its rechamber works the bolt
-        // rifle's bolt (RT_ACTION_BOLT: the bolt rifle's set - a pump shotgun rechambers too, its pump in its shot's
-        // motion)
+        // the weapon's reload by stages, when it reloads round by round and the set its reload comes from has them (the
+        // magnum's, the shotgun's: converter's reload_start / reload_loop / reload_end); and whether its rechamber works
+        // the bolt rifle's bolt (RT_ACTION_BOLT: the bolt rifle's set - a pump shotgun rechambers too, its pump in its
+        // shot's motion)
         bool segmentedReload = false, boltRifle = false;
         reloadFrom = 0.0f;
         {
             const WeaponDef *reloadDef = ps->weapon ? BG_GetWeaponDef(ps->weapon) : 0;
-            const char *set = CG_RuntimeXModel_AnimSet(ps->weapon);
+            const char *set = CG_RuntimeXModel_ReloadSet(ps->weapon);
             if ( reloadDef && reloadDef->bSegmentedReload )
                 segmentedReload = R_RuntimeXModel_HasAnim(set ? va("%s:reload_loop", set) : "reload_loop");
             boltRifle = reloadDef && reloadDef->bBoltAction && set && !strcmp(set, "rifle");
@@ -1564,7 +1574,7 @@ void __cdecl CG_RuntimeXModel_Pose(const cpose_t *pose, DObj *obj)
         aimFrac = r.aim;
         aimPitch = AngleNormalize180(es->lerp.apos.trBase[0]);
         const unsigned int weapon = es->weapon;
-        const char *set = CG_RuntimeXModel_AnimSet(weapon);
+        const char *set = CG_RuntimeXModel_ReloadSet(weapon);
         const WeaponDef *reloadDef = weapon ? BG_GetWeaponDef(weapon) : 0;
         const bool segmented = reloadDef && reloadDef->bSegmentedReload
                                && R_RuntimeXModel_HasAnim(set ? va("%s:reload_loop", set) : "reload_loop");

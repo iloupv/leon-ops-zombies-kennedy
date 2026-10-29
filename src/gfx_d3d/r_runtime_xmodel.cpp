@@ -2268,8 +2268,9 @@ float __cdecl R_RuntimeXModel_PoseDObj(DObj *obj, const float *origin, const flo
               && actionDuration > 0.0f )
     {
         // a reload stage over its own time (BO1's state's): the open blends in over 0.15 s, the close out over its
-        // last 0.15 s, a round runs into the next (each one starts on the pose the last ended on)
-        actionAnim = RtFindSetAnim(model, animSet, action == RT_ACTION_RELOAD_START ? "reload_start"
+        // last 0.15 s, a round runs into the next (each one starts on the pose the last ended on); from the set the
+        // reload comes from, as the whole reload (a gun posed with one set and reloaded with another's)
+        actionAnim = RtFindSetAnim(model, reloadSet, action == RT_ACTION_RELOAD_START ? "reload_start"
                                                     : (action == RT_ACTION_RELOAD_LOOP ? "reload_loop" : "reload_end"));
         if ( actionAnim >= 0 )
         {
