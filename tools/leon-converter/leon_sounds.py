@@ -53,16 +53,16 @@ MERCHANT_SOUNDS = [('merchant_comeback.wav', 50)]
 # Se_tbl[4] of voice set 1, the island chainsaw carrier's - em20/em20_set.cpp) and his chase laugh (wave 47, cue 0x27,
 # the set's Se_tbl[7] played every 4 to 8 s on the move: em10.cpp em10BreathSe) and his shouts through the chainsaw
 # walk (em10.cpp em10_R1_CSawWalkAtk: Se_tbl[12] as it starts, cue 0x55, wave 27; Se_tbl[15] now and then as it goes
-# round, cue 0x58, wave 51); the village chainsaw man's (em10.xwb, voice set 3: em10.cpp Em10SetSeTbl) grunt as he
-# flinches (cue 0x6F, wave 111) and death (cue 0x36, wave 116); and the running chainsaw, the same in every room bank a
-# chainsaw Ganado's comes in (room/st1/r101.xwb, the village's: SndCall(6, 0x4D), cue 0x4D, wave 7 - 2.14 s, played
-# again every 2 s while the saw runs: em10.cpp's Csaw_se_wait). The waves picked by ear where RE4's code does not name
-# the line.
+# round, cue 0x58, wave 51) and its swish on each sweep (SndCall(8, 0x3D): cue 0x3D, wave 117); the village chainsaw
+# man's (em10.xwb, voice set 3: em10.cpp Em10SetSeTbl) grunt as he flinches (cue 0x6F, wave 111) and death (cue 0x36,
+# wave 116); and the chainsaw of the Mercenaries' Waterworld (room/st4/r404.xwb, room 0x404: mercenaries.cpp
+# MercSysInitRoom's stage 3), its start as he comes (SndCall(6, 0x4C): cue 0x4C, wave 9) and its rev as he swings it
+# (SndCall(6, 0x50): cue 0x50, wave 3). The waves picked by ear where RE4's code does not name the line.
 SALVADOR_SOUNDS = [
     ('em1d.xwb', [('salvador_spawn.wav', 50), ('salvador_laugh.wav', 47), ('salvador_chase_1.wav', 27),
-                  ('salvador_chase_2.wav', 51)]),
+                  ('salvador_chase_2.wav', 51), ('salvador_sawswing.wav', 117)]),
     ('em10.xwb', [('salvador_pain.wav', 111), ('salvador_death.wav', 116)]),
-    ('room/st1/r101.xwb', [('salvador_saw.wav', 7)]),
+    ('room/st4/r404.xwb', [('salvador_sawstart.wav', 9), ('salvador_sawrev.wav', 3)]),
 ]
 # Verdugo in Five's special round (maps/leon/_verdugo.gsc), from his own bank (em2c.xwb, SndCall(8, n) in
 # em2c/em2c.cpp = em2c.xsb cue n): his roar (Threat: cue 0x45, wave 8), his scream as he comes (Ambush: cue 0x40,

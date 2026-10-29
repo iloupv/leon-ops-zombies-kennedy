@@ -1809,6 +1809,15 @@ void __cdecl SND_AssertValidData(const snd_alias_t *alias)
     }
 }
 
+// TEST SWITCH bo1_sndlog "<word>": each play of an alias whose name holds the word - started (its voice, volume, group's
+// attenuation, distance), or where it stopped (a headless run with bo1_headless_sound loads and mixes as usual)
+static bool SND_PlayLogOn(const char *name)
+{
+    const dvar_s *log = Dvar_FindVar("bo1_sndlog");
+    return name && log && log->type == DVAR_TYPE_STRING && log->current.string && log->current.string[0]
+        && I_stristr(name, log->current.string);
+}
+
 unsigned int __cdecl SND_PlaySoundAlias(
                 const snd_alias_list_t *aliasList,
                 float volumeScale,
@@ -1903,9 +1912,12 @@ unsigned int __cdecl SND_PlaySoundAlias(
     if ( (float)((float)alias->volMin / 65535.0) < 0.0000152879 && (float)((float)alias->volMax / 65535.0) < 0.0000152879 )
         return -1;
     group = (alias->flags & 0x3F0000) >> 16;
+    const bool playLog = SND_PlayLogOn(alias->name);
     if ( snd_skip_muted_sounds->current.enabled
         && (float)((float)SND_GroupAttenuationRaw(SND_GetGroupByIndex(group)) / 65535.0) < 0.0000152879 )
     {
+        if ( playLog )
+            Com_Printf(0, "bo1_sndlog: %s skipped - its group %d muted\n", alias->name, group);
         return -1;
     }
     if ( (alias->flags & 2) >> 1 )
@@ -1926,7 +1938,11 @@ unsigned int __cdecl SND_PlaySoundAlias(
         double dz = (double)playerPosition[2] - org[2];
         double distanceSq = (dx * dx + dz * dz) + dy * dy; // the exe's order
         if ( distanceSq > (double)distMax * (double)distMax && !force )
+        {
+            if ( playLog )
+                Com_Printf(0, "bo1_sndlog: %s skipped - %.0f away, past %.0f\n", alias->name, sqrt(distanceSq), distMax);
             return -1;
+        }
     }
     if ( (alias->flags & 1) != 0 )
     {
@@ -1958,7 +1974,11 @@ unsigned int __cdecl SND_PlaySoundAlias(
                     sndEnt,
                     0,
                     priority) )
+    {
+        if ( playLog )
+            Com_Printf(0, "bo1_sndlog: %s skipped - its limit %d\n", alias->name, alias->limitCount);
         return -1;
+    }
     if ( !SND_Limit(
                     alias->name,
                     alias->id,
@@ -1967,7 +1987,11 @@ unsigned int __cdecl SND_PlaySoundAlias(
                     sndEnt,
                     1,
                     priority) )
+    {
+        if ( playLog )
+            Com_Printf(0, "bo1_sndlog: %s skipped - its entity limit %d\n", alias->name, alias->entityLimitCount);
         return -1;
+    }
     // zombies (L16): SND_LimitVoice is the MP exe's (one flag-0x800 voice per entity, one announcer line at a time). SP
     // 0x005BB9A0 goes from the second SND_Limit (0x005BBC5F) straight to the start info: Five's announcer lines overlap
     // and a new flag-0x800 alias does not stop the entity's previous one.
@@ -2058,13 +2082,25 @@ unsigned int __cdecl SND_PlaySoundAlias(
     }
     voiceIndex = SND_FindFreeVoice(&startAliasInfo);
     if ( voiceIndex < 0 )
+    {
+        if ( playLog )
+            Com_Printf(0, "bo1_sndlog: %s skipped - no free voice (priority %.2f)\n", alias->name, priority);
         return -1;
+    }
     playbackId = SD_StartAlias(&startAliasInfo, voiceIndex);
     if ( playbackId == -1 )
     {
+        if ( playLog )
+            Com_Printf(0, "bo1_sndlog: %s skipped - its start failed\n", alias->name);
         SND_StopVoice(voiceIndex);
         return -1;
     }
+    if ( playLog )
+        Com_Printf(0, "bo1_sndlog: %s started on voice %d - volume %.2f, priority %.2f, group %d at %.2f, %s\n",
+                   alias->name, voiceIndex, volume, priority, group,
+                   (float)SND_GroupAttenuationRaw(SND_GetGroupByIndex(group)) / 65535.0f,
+                   (alias->flags & 2) ? va("3d, %.0f away (falloff %u-%u)", Vec3Distance(org, playerPosition),
+                                           alias->distMin, alias->distMax) : "2d");
     if ( alias->subtitle )
         SND_AddLengthNotify(playbackId, alias->subtitle, SND_LENGTH_NOTIFY_SUBTITLE);
     return playbackId;
