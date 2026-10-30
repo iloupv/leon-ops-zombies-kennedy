@@ -714,6 +714,7 @@ static void Sys_HeadlessClientCommandsFrame(int elapsed)
 
 // zombies: headless evidence - '+set bo1_menudump "main_text levels_zombie"' prints, at each bo1_shots shot,
 // the named menus' event scripts and their items' (index, name, events): how the SP front end's menus are driven.
+// The HUD's menus too ("dpad_zombie weaponinfo_zombie": cgame's), with each item's owner-draw and text expression.
 static const dvar_t *bo1_menudump;
 
 static const char *Sys_HeadlessExpToString(const ExpressionStatement *exp);
@@ -782,10 +783,12 @@ static void Sys_HeadlessMenuDump()
 {
     if (!bo1_menudump || !bo1_menudump->current.string[0])
         return;
-    UiContext *dc = &UI_GetInfo(0)->uiDC;
-    for (int m = 0; m < dc->menuCount; ++m)
+    // the UI's menus, then cgame's (the HUD's: cgDC)
+    UiContext *contexts[2] = { &UI_GetInfo(0)->uiDC, &cgDC[0] };
+    for (int c = 0; c < 2; ++c)
+    for (int m = 0; m < contexts[c]->menuCount; ++m)
     {
-        const menuDef_t *menu = dc->Menus[m];
+        const menuDef_t *menu = contexts[c]->Menus[m];
         char token[64];
         const char *p = bo1_menudump->current.string;
         bool wanted = false;
@@ -818,6 +821,21 @@ static void Sys_HeadlessMenuDump()
                 item->window.dynamicFlags[0],
                 (item->type == 0 || item->type == 1) && item->typeData.textDef && item->typeData.textDef->text
                     ? item->typeData.textDef->text : "");
+            // (the HUD's menus: each item's owner-draw and its alignment, and a text from an expression - the PC's key
+            // hints are KeyBinding() texts, not owner-draws)
+            Com_Printf(16, "bo1_menudump: %s/%d ownerDraw %d flags 0x%x align %d %d\n", menu->window.name, i,
+                item->window.ownerDraw, item->window.ownerDrawFlags, item->window.rect.horzAlign,
+                item->window.rect.vertAlign);
+            const textDef_s *textDef = Item_GetTextDef((itemDef_s *)item);
+            if (textDef && textDef->textExpData && textDef->textExpData->textExp.filename)
+                Com_Printf(16, "bo1_menudump: %s/%d text exp: %s\n", menu->window.name, i,
+                    Sys_HeadlessExpToString(&textDef->textExpData->textExp));
+            if (item->rectExpData && item->rectExpData->rectXExp.filename)
+                Com_Printf(16, "bo1_menudump: %s/%d rect x exp: %s\n", menu->window.name, i,
+                    Sys_HeadlessExpToString(&item->rectExpData->rectXExp));
+            if (item->rectExpData && item->rectExpData->rectYExp.filename)
+                Com_Printf(16, "bo1_menudump: %s/%d rect y exp: %s\n", menu->window.name, i,
+                    Sys_HeadlessExpToString(&item->rectExpData->rectYExp));
             if (item->visibleExp.filename)
                 Com_Printf(16, "bo1_menudump: %s/%d visible: %s\n", menu->window.name, i, Sys_HeadlessExpToString(&item->visibleExp));
             if (item->forecolorAExp.filename)
