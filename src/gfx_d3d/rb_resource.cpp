@@ -12,6 +12,9 @@ FastCriticalSection resourceLock;
 r_resource_action resourceActions[16384];
 
 volatile int numResourceActions;
+// mod: the resource actions the render thread has carried out (Com_HangProbe: a player's freeze evidence - the
+// database thread waits on them through a level's load)
+volatile unsigned int g_rbResourceActionsDone;
 
 void __cdecl RB_Resource_Lock()
 {
@@ -399,6 +402,7 @@ LABEL_2:
     }
     Sys_ClearResourcesQueuedEvent();
     Sys_SetResourcesFlushedEvent();
+    g_rbResourceActionsDone += numResourceActions;
     numResourceActions = 0;
     RB_Resource_Unlock();
 }

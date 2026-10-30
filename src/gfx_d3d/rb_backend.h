@@ -627,6 +627,7 @@ void __cdecl RB_BeginFrame(GfxBackEndData *data);
 const GfxBackEndData *RB_PatchStaticModelCache();
 void __cdecl RB_EndFrame(char drawType);
 void RB_SwapBuffers();
+extern volatile unsigned int g_rbPresents; // mod: frames presented (Com_HangProbe)
 void RB_UpdateBackEndDvarOptions();
 void __cdecl RB_ExecuteRenderCommandsLoop(const void *cmds, int *ui3dTextureWindow);
 void __cdecl RB_Draw3D();
