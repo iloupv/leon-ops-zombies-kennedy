@@ -82,3 +82,7 @@ char __cdecl DB_LoadXFile(
 extern XAssetList *varXAssetList;
 
 extern volatile unsigned int g_loadingAssets;
+// mod: a zone's load so far - its 256 KB blocks read of its total, and its images' external bytes (Com_HangProbe)
+extern volatile int g_totalSize;
+extern volatile unsigned int g_loadedSize;
+extern volatile unsigned int g_loadedExternalBytes;

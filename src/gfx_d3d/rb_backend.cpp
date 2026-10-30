@@ -5222,6 +5222,10 @@ static void RB_BO1FocusLossFrame(HRESULT presentHr)
     s_bo1FocusPhase = 2;
 }
 
+// mod: the frames the render thread has presented (Com_HangProbe: a player's freeze evidence - a driver that never
+// returns from Present stops it)
+volatile unsigned int g_rbPresents;
+
 void RB_SwapBuffers()
 {
     unsigned __int8 stereoActivated; // [esp+2Fh] [ebp-2Dh] BYREF
@@ -5255,6 +5259,7 @@ void RB_SwapBuffers()
         if ( !rg.renderHiResShot && !dx.resizeWindow )
             RB_BO1FocusLossFrame(hr); // borderless: test switch bo1_testfocusloss (off by default)
     }
+    ++g_rbPresents;
 
     FrameMark; // backend thread Frame marker
 

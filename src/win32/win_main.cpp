@@ -17,6 +17,9 @@
 #include <client/con_channels.h>
 #include <universal/com_memory.h>
 #include <gfx_d3d/rb_backend.h>
+#include <gfx_d3d/rb_resource.h>
+#include <gfx_d3d/r_init.h>
+#include <database/db_file_load.h>
 #include "win_shared.h"
 #include <gfx_d3d/r_dvars.h>
 #include <mjpeg/mjpeg.h>
@@ -546,27 +549,58 @@ void __cdecl Sys_FrameBeat()
     InterlockedIncrement(&s_frameBeat);
 }
 
+// mod: with each dump, whether the work around the frames still moves - a stack alone could not tell a stuck load from a
+// slow one (a player's 0.1.24 trace, a map change closed between the dumps): how long ago a zone's load last read a
+// block or an image (and how far it is), the render thread last presented a frame and last carried out queued resources
+// (and how many wait), the loading screen's remote update nesting and the database ready. Sampled every half second
+// here, read without locks (counters only: nothing the watch follows can free under it)
+struct SysHangProgress
+{
+    unsigned int value;
+    DWORD movedAt;
+};
+
+static void Sys_HangProgressSample(SysHangProgress *progress, unsigned int value, DWORD now)
+{
+    if (progress->value != value)
+    {
+        progress->value = value;
+        progress->movedAt = now;
+    }
+}
+
 static DWORD __stdcall Sys_HangWatchThread(void *)
 {
     LONG seen = s_frameBeat;
     DWORD since = GetTickCount();
     int dumps = 0;
+    SysHangProgress load = { 0, since }, presents = { 0, since }, resources = { 0, since };
     for (;;)
     {
         Sleep(500);
+        const DWORD now = GetTickCount();
+        Sys_HangProgressSample(&load, g_loadedSize + g_loadedExternalBytes, now);
+        Sys_HangProgressSample(&presents, g_rbPresents, now);
+        Sys_HangProgressSample(&resources, g_rbResourceActionsDone, now);
         const LONG beat = s_frameBeat;
         if (beat != seen)
         {
             seen = beat;
-            since = GetTickCount();
+            since = now;
             dumps = 0;
             continue;
         }
-        const DWORD stuck = GetTickCount() - since;
+        const DWORD stuck = now - since;
         if (dumps >= 2 || stuck < s_hangWatchMs * (unsigned int)(dumps + 1))
             continue;
         ++dumps;
         Sys_HeadlessThreadLog("BO1 HANG: no frame for %u ms (dump %d)\n", (unsigned int)stuck, dumps);
+        Sys_HeadlessThreadLog("BO1 HANG STATE: load moved %u ms ago (zone %u of %d blocks, images %u KB); render presented "
+                              "%u ms ago, resources done %u ms ago (%d waiting); remote screen update %d, database "
+                              "ready %d\n",
+                              (unsigned int)(now - load.movedAt), g_loadedSize, g_totalSize, g_loadedExternalBytes >> 10,
+                              (unsigned int)(now - presents.movedAt), (unsigned int)(now - resources.movedAt),
+                              numResourceActions, r_glob.remoteScreenUpdateNesting, (int)Sys_IsDatabaseReady());
         Sys_HeadlessDumpThreads(dumps);
     }
 }

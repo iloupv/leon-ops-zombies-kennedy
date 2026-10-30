@@ -4,6 +4,10 @@
 
 #define MATERIAL_MAX_INDEX_BUFFER_SIZE 0x200000
 
+// mod: the render thread's resource queue - waiting, and carried out so far (Com_HangProbe)
+extern volatile int numResourceActions;
+extern volatile unsigned int g_rbResourceActionsDone;
+
 enum Action_t : __int32 // not a real enum
 {
     ACTION_CREATE_TEXTURE = 1,
