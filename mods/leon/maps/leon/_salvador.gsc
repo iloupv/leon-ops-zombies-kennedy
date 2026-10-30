@@ -4,7 +4,7 @@
 
 // LEON MOD - not part of the original game. Super Salvador, RE4's island chainsaw carrier (em20's type 22), comes in
 // every Hellhound round: 9 s into it, out of the dogs' lightning at a dog's spawn spot, shouting "Te voy a matar!" - an
-// RE4 enemy on a hidden zombie (maps\leon\_rtenemy.gsc), running 20 % faster than a zombie runs. His model, a quarter
+// RE4 enemy on a hidden zombie (maps\leon\_rtenemy.gsc), running 30 % faster than a zombie runs. His model, a quarter
 // larger than RE4's (tools/leon-converter/leon_rlm.py ENEMIES), takes his hits at its size (leonpassdamage). The engine
 // plays his idle by how he moves, and for every step the Mercenaries' chainsaw walk, the saw swung round and round
 // (em10.cpp CSawWalkAtk), smoking and throwing sparks - the Mercenaries' Waterworld's chainsaw heard starting as he comes,
@@ -259,14 +259,14 @@ salvador_spawn( spot, target )
 	return ai;
 }
 
-// 20 % faster than a zombie's run (kept: a zombie's scripts may set its pace back; at 70 %, then 40 %, he was on the
-// player at once)
+// 30 % faster than a zombie's run (kept: a zombie's scripts may set its pace back; at 70 %, then 40 %, he was on the
+// player at once, at 20 % a little slow)
 salvador_pace()
 {
 	self endon( "death" );
 	for ( ;; )
 	{
-		self.moveplaybackrate = 1.2;
+		self.moveplaybackrate = 1.3;
 		wait 0.5;
 	}
 }
