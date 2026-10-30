@@ -5,24 +5,34 @@
 // them, its EMPTY badge for none; the character's name plate on the ring's arm. In the bottom right corner of the HUD's safe area (scrPlaceView: its margins), drawn
 // from RE4's own images, converted from the player's RE4 at setup (tools/leon-converter/re4_hud.py:
 // R_RuntimeXModel_HudMaterial); with none of them, BO1's ammo counter stays.
+// And what BO1's corner showed beside its ammo counter, moved round the ring: the grenades - lethal and tactical, each
+// its icon and its count - in a row under it (the ring lifted over them), and the quick access items of the action slots
+// - the d-pad's on a pad; on the keyboard +actionslot 1, 3 and 4, BO1's PC HUD's [X], [5] and [6] with SP's default keys
+// - over the name plate, each its icon, its count and its key.
 #include "cg_re4hud_mp.h"
 #include "cg_local_mp.h"
 #include "cg_main_mp.h"
 #include "cg_newDraw_mp.h"
 #include <cgame/cg_ammocounter.h>
 #include <cgame/cg_drawtools.h>
+#include <cgame/cg_weapons.h>
+#include <cgame/offhandweapons.h>
 #include <client/screen_placement.h>
+#include <gfx_d3d/r_font.h>
 #include <gfx_d3d/r_rendercmds.h>
 #include <gfx_d3d/r_runtime_xmodel.h>
+#include <bgame/bg_local.h>
 #include <bgame/bg_mantle.h>
 #include <bgame/bg_perks.h>
 #include <bgame/bg_weapons_ammo.h>
 #include <ui/ui_main.h>
+#include <ui/ui_shared.h>
+#include <win32/win_gamepad.h>
 
 #include <math.h>
 
 // The layout is in the frame image's pixels (572 x 360: the ring's centre and channel measured from it), drawn a quarter
-// of a virtual unit each, its bottom right corner on the safe area's
+// of a virtual unit each, its bottom right corner on the safe area's - over the grenades' row (below)
 static const float HUD_FRAME_W = 572.0f, HUD_FRAME_H = 360.0f, HUD_SCALE = 0.25f;
 static const float RING_X = 182.0f, RING_Y = 177.0f; // the ring's centre
 static const float RING_SCREEN_R = 128.0f; // the dark screen inside it
@@ -31,6 +41,14 @@ static const float CHANNEL_IN = 138.0f, CHANNEL_OUT = 168.0f; // the channel the
 // past them under the frame's ends
 static const float CHANNEL_FROM = 1.0f, CHANNEL_SPAN = 268.5f;
 static const float DIGIT_W = 64.0f, DIGIT_H = 128.0f, DIGIT_ADVANCE = 46.0f / 0.95f; // a digit's cell, its pitch
+// the grenades' row under the ring (the frame's bottom, 360: the ring's own at 357), the HUD's whole height with it: the
+// row's icons BO1's 18 virtual units (27 px at 720p, 81 at 4K - the icons' own margins in them)
+static const float GRENADE_ROW_H = 80.0f, GRENADE_ICON = 72.0f, HUD_H = HUD_FRAME_H + GRENADE_ROW_H;
+// the quick access items over the arm: cells this wide, packed from the safe area's edge leftward, two to a row (they
+// reach 380: the stone's edge is at 345 to 372 by their icons, 395 to 400 by their keys), a third in a row over them;
+// their keys' baseline above the arm's top (272 from the name plate on), each one's icon in a box this big over its key
+// (BO1's d-pad icons: 32 virtual units, much of them margin)
+static const float SLOT_W = 96.0f, SLOT_ICON = 88.0f, SLOT_KEY_BASE = 258.0f, SLOT_KEY_H = 30.0f, SLOT_ROW_H = 130.0f;
 
 struct Re4HudPlace
 {
@@ -45,7 +63,10 @@ static bool CG_RE4HudOn()
 
 // the corner's own panel (weaponinfo_zombie's and dpad_zombie's menus): the ammo counter (120 to 123), the blood and
 // lines behind it and the d-pad's frame (116), the d-pad's arrows (294 to 297) and slots (166 to 169), the grenades'
-// icons (103, 104), the weapon's name (81)
+// icons (103, 104), the weapon's name (81) - and with no pad (gpad_enabled 0) the slots' keys in its place, "[" +
+// KeyBinding( "+actionslot 1" ) + "]" and those of slots 3 and 4 (392 to 395: dpad_zombie's texts, CG_OwnerDrawText's
+// CG_DrawPlayerActionSlotBind), which stood half under the ring. The grenades and the slots are the RE4 HUD's own now
+// (CG_DrawRE4HudGrenades, CG_DrawRE4HudSlots)
 bool __cdecl CG_RE4HudHidesOwnerDraw(int ownerDraw)
 {
     switch ( ownerDraw )
@@ -66,22 +87,44 @@ bool __cdecl CG_RE4HudHidesOwnerDraw(int ownerDraw)
     case 295:
     case 296:
     case 297:
+    case 392:
+    case 393:
+    case 394:
+    case 395:
         return CG_RE4HudOn();
     }
     return false;
 }
 
+// (over the ring, as high again as the grenades' row lifts it)
 float __cdecl CG_RE4HudPointsLift()
 {
-    return CG_RE4HudOn() ? 22.0f : 0.0f;
+    return CG_RE4HudOn() ? 22.0f + GRENADE_ROW_H * HUD_SCALE : 0.0f;
+}
+
+static void CG_RE4HudMaterial(const Re4HudPlace &place, float x, float y, float w, float h, const float *color,
+                              Material *material)
+{
+    if ( material )
+        R_AddCmdDrawStretchPic(place.x + x * place.k, place.y + y * place.k, w * place.k, h * place.k, 0.0f, 0.0f, 1.0f,
+                               1.0f, color, material);
 }
 
 static void CG_RE4HudPic(const Re4HudPlace &place, float x, float y, float w, float h, const float *color, const char *name)
 {
-    Material *material = R_RuntimeXModel_HudMaterial(name);
-    if ( material )
-        R_AddCmdDrawStretchPic(place.x + x * place.k, place.y + y * place.k, w * place.k, h * place.k, 0.0f, 0.0f, 1.0f,
-                               1.0f, color, material);
+    CG_RE4HudMaterial(place, x, y, w, h, color, R_RuntimeXModel_HudMaterial(name));
+}
+
+// text in the HUD's font, its baseline at y, its left at x - or its middle, centred (frame pixels): UI_DrawText's
+// virtual units from the safe area's bottom right (alignments 3, 3), as the frame is placed
+static void CG_RE4HudText(const ScreenPlacement *scrPlace, const char *text, float x, float y, bool centred,
+                          float fontScale, const float *color)
+{
+    Font_s *font = UI_GetFontHandle(scrPlace, 0, fontScale);
+    float left = (x - HUD_FRAME_W) * HUD_SCALE;
+    if ( centred )
+        left -= 0.5f * (float)R_TextWidth(text, 0, font) * (float)R_NormalizedTextScale(font, fontScale);
+    UI_DrawText(scrPlace, (char *)text, 0x7FFFFFFF, font, left, (y - HUD_H) * HUD_SCALE, 3, 3, fontScale, color, 3);
 }
 
 // a quad of the white material centred on (x, y) frame pixels, turned by angle degrees
@@ -104,6 +147,134 @@ static void CG_RE4HudNumber(const Re4HudPlace &place, int value, float centreX, 
         CG_RE4HudPic(place, left + (float)i * advance, bottom - h, w, h, color, va("digit%c", text[i]));
 }
 
+// RE4's digits' glyphs fill their cell from 0.12 of its height to 0.83 (measured on the rounds): a count whose glyphs'
+// bottom is at bottom
+static void CG_RE4HudCount(const Re4HudPlace &place, int value, float centreX, float bottom, float size, const float *color)
+{
+    CG_RE4HudNumber(place, value, centreX, bottom + 0.17f * DIGIT_H * size, size, color);
+}
+
+// The grenades, in a row under the ring where BO1 had them under its ammo counter (weaponinfo_zombie's offhandSmokeIcon
+// and offhandFragIcon, owner-draws 104 and 103: CG_DrawOffHandIcon): the tactical one (the Cymbal Monkey, the Gersh
+// Device, Moon's QED - BO1's "smoke" slot) on the left, the lethal one (the frags, Moon's...) on the right, as BO1's. BO1
+// stacked an icon a grenade; here each is its icon and the count in RE4's digits. Each shown while he has one (none
+// thrown left: nothing, as BO1's), and as BO1's, not while the offhands are out of reach (IsOffHandDisplayVisible: a
+// turret, a mantle) nor faded out (hud_fade_offhand); the icon the one he has equipped, else the first he holds.
+static void CG_DrawRE4HudGrenades(int localClientNum, cg_s *cgameGlob, const Re4HudPlace &place)
+{
+    const playerState_s *ps = &cgameGlob->predictedPlayerState;
+    if ( !IsOffHandDisplayVisible(cgameGlob) )
+        return;
+    float color[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    color[3] = (float)CG_FadeHudMenu(localClientNum, hud_fade_offhand, cgameGlob->offhandFadeTime,
+                                     (int)(hud_fade_offhand->current.value * 1000.0f));
+    if ( color[3] <= 0.0f )
+        return;
+    // (each one's icon's left: the row centred under the ring, both there or not)
+    static const struct { OffhandSlot slot; float x; } s_grenades[] = {
+        { OFFHAND_SLOT_TACTICAL_GRENADE, 65.0f },
+        { OFFHAND_SLOT_LETHAL_GRENADE, 192.0f },
+    };
+    const float top = HUD_FRAME_H + 0.5f * (GRENADE_ROW_H - GRENADE_ICON);
+    for ( const auto &grenade : s_grenades )
+    {
+        const int count = CalcOffHandAmmo(ps, grenade.slot);
+        if ( count <= 0 )
+            continue;
+        unsigned int weapon = 0;
+        if ( cgameGlob->equippedOffHand && BG_GetWeaponDef(cgameGlob->equippedOffHand)->offhandSlot == grenade.slot )
+            weapon = cgameGlob->equippedOffHand;
+        if ( !weapon )
+            weapon = GetBestOffhand(ps, grenade.slot);
+        if ( !weapon )
+            continue;
+        CG_RE4HudMaterial(place, grenade.x, top, GRENADE_ICON, GRENADE_ICON, color, BG_GetWeaponDef(weapon)->hudIcon);
+        CG_RE4HudCount(place, count, grenade.x + GRENADE_ICON + 18.0f, top + GRENADE_ICON - 8.0f, 0.45f, color);
+    }
+}
+
+// What an action slot holds to show (BO1's CG_DrawPlayerActionSlot): its weapon (the claymores, Moon's equipment), or
+// for the alternate mode's toggle the weapon it switches to (a gun's launcher); none when it is empty - nor equipment
+// with nothing of it left, which BO1's d-pad leaves out too (outside an extra camera's view)
+static unsigned int CG_RE4HudSlotWeapon(int localClientNum, cg_s *cgameGlob, unsigned int slotIdx)
+{
+    const playerState_s *ps = &cgameGlob->predictedPlayerState;
+    if ( !CG_ActionSlotIsUsable(localClientNum, slotIdx) )
+        return 0;
+    if ( ps->actionSlotType[slotIdx] == ACTIONSLOTTYPE_SPECIFYWEAPON )
+    {
+        const unsigned int weapon = ps->actionSlotParam[slotIdx].specifyWeapon.index;
+        const WeaponDef *weapDef = BG_GetWeaponDef(weapon);
+        if ( weapDef->offhandSlot == OFFHAND_SLOT_EQUIPMENT && !BG_GetAmmoInClip(ps, weapon)
+             && !BG_GetAmmoNotInClip(ps, weapon) && !weapDef->unlimitedAmmo && cgameGlob->extraCamEntity == 1023 )
+            return 0;
+        return weapon;
+    }
+    if ( ps->actionSlotType[slotIdx] == ACTIONSLOTTYPE_ALTWEAPONTOGGLE )
+    {
+        if ( BG_GetWeaponDef(cgameGlob->weaponSelect)->inventoryType == WEAPINVENTORY_ALTMODE )
+            return cgameGlob->weaponSelect;
+        return CG_AltWeaponToggleIndex(localClientNum, cgameGlob, 0);
+    }
+    return 0;
+}
+
+// The quick access items, over the name plate where BO1's d-pad was beside its ammo counter: the slots its menu shows
+// (dpad_zombie's slot1, slot3 and slot4 - the d-pad's up, left and right; actionslot 2, down, it leaves out), in the
+// d-pad's order left to right, those holding something packed from the safe area's edge (so a lone claymore sits at the
+// right), two to a row (a third over them). Each its d-pad icon (a wide one as wide as the cell), its count when it has
+// more than one (BO1's: on a dark disc at the icon's corner, red at none) and its key under it - BO1's PC text, "[" +
+// KeyBinding( "+actionslot N" ) + "]", in its lit colour (CG_DrawPlayerActionSlotBind); with a pad on, the pad's
+// button. An empty slot has nothing, as BO1's d-pad has no icon there (its PC menu kept the empty slots' keys, unlit:
+// here they go).
+static void CG_DrawRE4HudSlots(int localClientNum, cg_s *cgameGlob, const Re4HudPlace &place)
+{
+    const playerState_s *ps = &cgameGlob->predictedPlayerState;
+    const ScreenPlacement *scrPlace = &scrPlaceView[localClientNum];
+    const float alpha = (float)AmmoCounterFadeAlpha(localClientNum, cgameGlob);
+    if ( alpha <= 0.0f )
+        return;
+    static const unsigned int s_slots[] = { 2, 0, 3 }; // (slotIdx: actionslot 3, 1, 4)
+    int shown = 0;
+    for ( int i = ARRAY_COUNT(s_slots) - 1; i >= 0; --i )
+    {
+        const unsigned int slotIdx = s_slots[i];
+        const unsigned int weapon = CG_RE4HudSlotWeapon(localClientNum, cgameGlob, slotIdx);
+        if ( !weapon )
+            continue;
+        const float centre = HUD_FRAME_W - ((float)(shown % 2) + 0.5f) * SLOT_W;
+        const float keyBase = SLOT_KEY_BASE - (float)(shown / 2) * SLOT_ROW_H;
+        ++shown;
+        const WeaponVariantDef *weapVariantDef = BG_GetWeaponVariantDef(weapon);
+        const WeaponDef *weapDef = BG_GetWeaponDef(weapon);
+        float w = SLOT_ICON, h = SLOT_ICON;
+        if ( weapVariantDef->dpadIconRatio == WEAPON_ICON_RATIO_2TO1 )
+            h = 0.5f * SLOT_ICON;
+        else if ( weapVariantDef->dpadIconRatio == WEAPON_ICON_RATIO_4TO1 )
+            h = 0.25f * SLOT_ICON;
+        const float iconBottom = keyBase - SLOT_KEY_H - 4.0f;
+        const float color[4] = { 1.0f, 1.0f, 1.0f, alpha };
+        CG_RE4HudMaterial(place, centre - 0.5f * w, iconBottom - h, w, h, color, weapVariantDef->dpadIcon);
+        if ( (weapDef->iStartAmmo > 1 && !weapDef->bIsCarriedKillstreakWeapon)
+             || ps->actionSlotType[slotIdx] == ACTIONSLOTTYPE_ALTWEAPONTOGGLE )
+        {
+            static const float s_low[4] = { 1.0f, 0.35f, 0.25f, 1.0f };
+            const int ammo = BG_WeaponAmmo(ps, weapon);
+            const float disc = 40.0f, discX = centre + 0.5f * w - 0.5f * disc, discY = iconBottom - 0.5f * disc;
+            const float black[4] = { 0.0f, 0.0f, 0.0f, 0.8f * alpha };
+            const float count[4] = { ammo ? 1.0f : s_low[0], ammo ? 1.0f : s_low[1], ammo ? 1.0f : s_low[2], alpha };
+            CG_RE4HudMaterial(place, discX - 0.5f * disc, discY - 0.5f * disc, disc, disc, black,
+                              cgMedia.ammoCounterRifleBullet); // (BO1's disc: hud_dpad_eqip_count_backing)
+            CG_RE4HudCount(place, ammo, discX, discY + 13.0f, 0.3f, count);
+        }
+        char binding[256], key[260];
+        UI_GetKeyBindingLocalizedString(localClientNum, va("+actionslot %d", slotIdx + 1), binding, 0);
+        sprintf_s(key, gpad_enabled && gpad_enabled->current.enabled ? "%s" : "[%s]", binding);
+        const float lit[4] = { 1.0f, 0.8f, 0.4f, 0.9f * alpha };
+        CG_RE4HudText(scrPlace, key, centre, keyBase, true, 0.26f, lit);
+    }
+}
+
 void __cdecl CG_DrawRE4Hud(int localClientNum)
 {
     if ( !CG_RE4HudOn() )
@@ -114,7 +285,7 @@ void __cdecl CG_DrawRE4Hud(int localClientNum)
     Re4HudPlace place;
     place.k = HUD_SCALE * scrPlace->scaleVirtualToReal[1];
     place.x = scrPlace->realViewableMax[0] - HUD_FRAME_W * place.k;
-    place.y = scrPlace->realViewableMax[1] - HUD_FRAME_H * place.k;
+    place.y = scrPlace->realViewableMax[1] - HUD_H * place.k;
 
     // the life: its share of his max health, its state as RE4's - fine over two thirds, caution over one, danger under
     // (and down: danger, empty). His max is the player state's max health stat (stats[2]), kept in step with SP's
@@ -213,13 +384,18 @@ void __cdecl CG_DrawRE4Hud(int localClientNum)
     if ( !plated )
     {
         static const float s_stone[4] = { 0.86f, 0.83f, 0.76f, 1.0f };
-        const float fontScale = 0.38f;
-        Font_s *font = UI_GetFontHandle(scrPlace, 0, fontScale);
         char text[16];
         I_strncpyz(text, name, sizeof(text));
         text[0] = (char)toupper((unsigned char)text[0]);
-        UI_DrawText(scrPlace, text, 16, font, (plateLeft - HUD_FRAME_W) * HUD_SCALE,
-                    (plateMid + 0.5f * plateText - HUD_FRAME_H) * HUD_SCALE, 3, 3, fontScale, s_stone, 3);
+        CG_RE4HudText(scrPlace, text, plateLeft, plateMid + 0.5f * plateText, false, 0.38f, s_stone);
+    }
+
+    // the grenades under the ring, the quick access items over the name plate (not while he is down: his hands are
+    // empty then - maps\leon\_leon.gsc leon_down_no_weapons)
+    if ( !down )
+    {
+        CG_DrawRE4HudGrenades(localClientNum, cgameGlob, place);
+        CG_DrawRE4HudSlots(localClientNum, cgameGlob, place);
     }
 
     // the rounds inside the ring: in the gun (its clip's), and in reserve, smaller, under them; EMPTY in place of none in
