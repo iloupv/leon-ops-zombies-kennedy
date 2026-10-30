@@ -268,6 +268,13 @@ leon_spawn_test()
 		}
 		player switchToWeapon( given[0] );
 	}
+	// tests: weapons put on the action slots, as the claymore's buy does (_zombiemode_claymore: "4 claymore_zm"; the
+	// weapon given with leon_give) - the HUD's quick access items
+	if ( getDvar( "leon_actionslot" ) != "" )
+		player thread leon_action_slots( strTok( getDvar( "leon_actionslot" ), " " ) );
+	// tests: none left of these (the HUD with no grenades, an empty claymore slot: "frag_grenade_zm claymore_zm")
+	if ( getDvar( "leon_noammo" ) != "" )
+		player thread leon_no_ammo( strTok( getDvar( "leon_noammo" ), " " ) );
 	if ( getDvar( "leon_wallbuy" ) == "1" )
 		player thread leon_goto_wallbuy(); // tests: in front of a wall weapon (its use hint)
 	// tests: a reload to make (1: a headless client fires only aimed in), or that many rounds left in the gun - and in
@@ -375,6 +382,38 @@ leon_goto_wallbuy()
 	self setOrigin( spot );
 	self setPlayerAngles( vectorToAngles( trig.origin - ( spot + ( 0, 0, 60 ) ) ) );
 	logPrint( "leon: at wall weapon " + trig.zombie_weapon_upgrade + " " + trig.origin + "\n" );
+}
+
+// Tests: each pair a slot (1 to 4: the d-pad's up, down, left, right; SP's default keys X, 7, 5 and 6) and the weapon it
+// takes, set once his spawn has set his own (_zombiemode's), and again every 5 s: the HUD's quick access items
+leon_action_slots( pairs )
+{
+	self endon( "disconnect" );
+	for ( ;; )
+	{
+		wait 1;
+		for ( i = 0; i + 1 < pairs.size; i += 2 )
+			self setActionSlot( int( pairs[i] ), "weapon", pairs[i + 1] );
+		wait 4;
+	}
+}
+
+// Tests: these weapons' rounds taken, every 3 s (from 2 s: after leon_give and the spawn's grenades)
+leon_no_ammo( weapons )
+{
+	self endon( "disconnect" );
+	wait 2;
+	for ( ;; )
+	{
+		for ( i = 0; i < weapons.size; i++ )
+		{
+			if ( !self hasWeapon( weapons[i] ) )
+				continue;
+			self setWeaponAmmoClip( weapons[i], 0 );
+			self setWeaponAmmoStock( weapons[i], 0 );
+		}
+		wait 3;
+	}
 }
 
 // That many rounds left in the clip every 3 s (tests: with one a reload is always there to make), and in reserve when
